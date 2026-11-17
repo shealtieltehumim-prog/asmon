@@ -2,6 +2,57 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="he_IL">
 <context>
+    <name>BuildOutputView</name>
+    <message>
+        <source>Object file (your code only)</source>
+        <translation>קובץ אובייקט (רק הקוד שלך)</translation>
+    </message>
+    <message>
+        <source>Executable (after linking)</source>
+        <translation>קובץ הרצה (אחרי קישור)</translation>
+    </message>
+    <message>
+        <source>Hide included files and macro expansions</source>
+        <translation>הסתר קבצים מצורפים והרחבות מאקרו</translation>
+    </message>
+    <message>
+        <source>Show:</source>
+        <translation>הצג:</translation>
+    </message>
+    <message>
+        <source>Listing</source>
+        <translation>Listing</translation>
+    </message>
+    <message>
+        <source>Disassembly</source>
+        <translation>דיסאסמבלי</translation>
+    </message>
+    <message>
+        <source>Hex</source>
+        <translation>Hex</translation>
+    </message>
+    <message>
+        <source>No listing yet: build the program first.</source>
+        <translation>עדיין אין listing: בנה את התוכנית קודם.</translation>
+    </message>
+    <message>
+        <source>Nothing built yet.</source>
+        <translation>עדיין לא נבנה כלום.</translation>
+    </message>
+    <message>
+        <source>Could not run objdump (%1).</source>
+        <translation>לא ניתן להריץ את objdump ‏(%1).</translation>
+    </message>
+    <message>
+        <source>... (cut after %1 lines)</source>
+        <translation>... (נחתך אחרי %1 שורות)</translation>
+    </message>
+    <message>
+        <source>... (showing the first %1 KB of %2 KB)</source>
+        <translation>... (מוצגים %1 הקילובייט הראשונים מתוך %2)</translation>
+    </message>
+</context>
+<context>
     <name>CommandPalette</name>
     <message>
         <source>Type a command...</source>
@@ -452,7 +503,7 @@
     </message>
     <message>
         <source>in fields &quot;Assembler path&quot; and &quot;Linker path&quot; above.</source>
-        <translation>בשדות "מיקום אסמבלר" ו"מיקום לינקר" שלמעלה.</translation>
+        <translation>בשדות &quot;מיקום אסמבלר&quot; ו&quot;מיקום לינקר&quot; שלמעלה.</translation>
     </message>
     <message>
         <source>Warning!</source>
@@ -529,6 +580,105 @@
     <message>
         <source>Based on SASM %1 by Dmitriy Manushin (https://github.com/Dman95/SASM).</source>
         <translation>מבוסס על SASM %1 מאת דמיטרי מנושין (https://github.com/Dman95/SASM).</translation>
+    </message>
+    <message>
+        <source>Build output</source>
+        <translation>תוצרי בנייה</translation>
+    </message>
+    <message>
+        <source>Build output (listing, disassembly, hex)</source>
+        <translation>תוצרי בנייה (listing, דיסאסמבלי, hex)</translation>
+    </message>
+    <message>
+        <source>Windows x64</source>
+        <translation>Windows x64</translation>
+    </message>
+    <message>
+        <source>Linux ELF (WSL)</source>
+        <translation>Linux ELF ‏(WSL)</translation>
+    </message>
+    <message>
+        <source>Build target</source>
+        <translation>יעד הבנייה</translation>
+    </message>
+    <message>
+        <source>Install WSL...</source>
+        <translation>התקן WSL...</translation>
+    </message>
+    <message>
+        <source>WSL is already installed.</source>
+        <translation>WSL כבר מותקן.</translation>
+    </message>
+    <message>
+        <source>The WSL installer was started (it asks for administrator rights; a restart of Windows may be needed).</source>
+        <translation>התקנת WSL התחילה (היא מבקשת הרשאות מנהל, וייתכן שיידרש אתחול של Windows).</translation>
+    </message>
+    <message>
+        <source>Could not start the WSL installer.</source>
+        <translation>לא ניתן להפעיל את התקנת WSL.</translation>
+    </message>
+    <message>
+        <source>New from template</source>
+        <translation>חדש מתבנית</translation>
+    </message>
+    <message>
+        <source>Hello world — Windows x64 (io64.inc)</source>
+        <translation>Hello world — ‏Windows x64 ‏(io64.inc)</translation>
+    </message>
+    <message>
+        <source>Hello world — Windows x64 (Windows API, no macros)</source>
+        <translation>Hello world — ‏Windows x64 (Windows API, בלי מאקרו)</translation>
+    </message>
+    <message>
+        <source>Hello world — Linux x64 (system calls)</source>
+        <translation>Hello world — ‏Linux x64 (קריאות מערכת)</translation>
+    </message>
+    <message>
+        <source>untitled.asm</source>
+        <translation>ללא שם.asm</translation>
+    </message>
+    <message>
+        <source>The Linux target supports x64 only. Switch to x64 mode in Settings.</source>
+        <translation>יעד לינוקס תומך ב-x64 בלבד. עבור למצב x64 בהגדרות.</translation>
+    </message>
+    <message>
+        <source>Built successfully (Linux ELF x64).</source>
+        <translation>נבנה בהצלחה (Linux ELF x64).</translation>
+    </message>
+    <message>
+        <source>The 32-bit toolchain is not installed. Switch to x64 mode in Settings, or reinstall Asmon with the 32-bit component.</source>
+        <translation>כלי 32 ביט לא מותקנים. עבור למצב x64 בהגדרות, או התקן מחדש את אסמון עם רכיב ה-32 ביט.</translation>
+    </message>
+    <message>
+        <source>Use Build &gt; Install WSL, then try again.</source>
+        <translation>השתמש ב: בנייה ← התקן WSL, ונסה שוב.</translation>
+    </message>
+    <message>
+        <source>Debugging Linux programs from Windows is not supported yet. You can build and run them (F9).</source>
+        <translation>דיבוג של תוכניות לינוקס מתוך Windows עדיין לא נתמך. אפשר לבנות ולהריץ אותן (F9).</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <source>ld.lld was not found (%1). Install the LLVM component of Asmon to build Linux programs on Windows.</source>
+        <translation>ld.lld לא נמצא (%1). התקן את רכיב ה-LLVM של אסמון כדי לבנות תוכניות לינוקס ב-Windows.</translation>
+    </message>
+    <message>
+        <source>Unable to start assembler. Check your settings.</source>
+        <translation>לא ניתן להפעיל את האסמבלר. בדוק את ההגדרות.</translation>
+    </message>
+    <message>
+        <source>Unable to start linker. Check your settings.</source>
+        <translation>לא ניתן להפעיל את הלינקר. בדוק את ההגדרות.</translation>
+    </message>
+    <message>
+        <source>WSL is not installed (wsl.exe was not found).</source>
+        <translation>WSL לא מותקן (wsl.exe לא נמצא).</translation>
+    </message>
+    <message>
+        <source>WSL is installed but has no Linux distribution yet.</source>
+        <translation>WSL מותקן, אבל עדיין אין בו הפצת לינוקס.</translation>
     </message>
 </context>
 <context>

@@ -59,7 +59,12 @@ QString GccBasedAssembler::getLinkerOptions()
         #endif
     else
         #ifdef Q_OS_WIN32
-            options = "$PROGRAM.OBJ$ $MACRO.OBJ$ -g -o $PROGRAM$ -m64";
+            //! Asmon: modern GNU ld puts x64 images above 4 GB, where the 32-bit
+            //! absolute addresses used by io64.inc and by most beginner code
+            //! ("mov eax, [x]") no longer fit. Load low and without ASLR, like
+            //! the old SASM toolchain did; fixed addresses also help debugging.
+            options = "$PROGRAM.OBJ$ $MACRO.OBJ$ -g -o $PROGRAM$ -m64"
+                      " -Wl,--image-base,0x400000 -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va";
         #else
             options = "$PROGRAM.OBJ$ $MACRO.OBJ$ -g -o $PROGRAM$ -m64 -Wl,--no-warn-execstack";
         #endif

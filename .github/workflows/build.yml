@@ -107,14 +107,16 @@ jobs:
         run: |
           set -e
           mkdir -p smoke && cd smoke
-          N=../dist/NASM/nasm.exe; G=../dist/MinGW64/bin/gcc.exe
+          N="../dist/NASM/nasm.exe -w-implicit-abs-deprecated"; G=../dist/MinGW64/bin/gcc.exe
+          # same link flags as Asmon's default (gccbasedassembler.cpp)
+          L="-Wl,--image-base,0x400000 -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va"
           # 1) io64.inc + macro64.o, the way Asmon builds x64 programs
           $N -I ../dist/include/ -f win64 ../templates/hello_win64.asm -l a.lst -o a.o
-          $G a.o ../dist/NASM/macro64.o -g -o a.exe -m64
+          $G a.o ../dist/NASM/macro64.o -g -o a.exe -m64 $L
           ./a.exe | tee a.txt; grep -q "Hello, world!" a.txt
           # 2) Windows API directly
           $N -f win64 ../templates/hello_win64_api.asm -o b.o
-          $G b.o -g -o b.exe -m64
+          $G b.o -g -o b.exe -m64 $L
           ./b.exe | tee b.txt; grep -q "Hello, world!" b.txt
           # 3) Linux ELF without WSL (ld.lld), check the ELF magic
           $N -f elf64 -g -F dwarf ../templates/hello_linux64.asm -o c.o
@@ -123,7 +125,7 @@ jobs:
           # 4) input via io64.inc (GET_DEC) from a redirected file
           printf '%s\n' '%include "io64.inc"' 'section .text' 'global main' 'main:' '    mov rbp, rsp' '    GET_DEC 8, rax' '    add rax, 1' '    PRINT_DEC 8, rax' '    NEWLINE' '    xor rax, rax' '    ret' > d.asm
           $N -I ../dist/include/ -f win64 d.asm -o d.o
-          $G d.o ../dist/NASM/macro64.o -g -o d.exe -m64
+          $G d.o ../dist/NASM/macro64.o -g -o d.exe -m64 $L
           echo 41 | ./d.exe | tee d.txt; grep -q "42" d.txt
           echo "SMOKE TEST PASSED"
 

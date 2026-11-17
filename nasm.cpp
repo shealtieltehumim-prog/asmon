@@ -202,7 +202,10 @@ QString NASM::getAssemblerOptions()
         if (isx86())
             options = "--gprefix _ -f win32 $SOURCE$ -l $LSTOUTPUT$ -o $PROGRAM.OBJ$";
         else
-            options = "-f win64 $SOURCE$ -l $LSTOUTPUT$ -o $PROGRAM.OBJ$";
+            //! -w-implicit-abs-deprecated: NASM 3 warns about absolute addressing
+            //! inside io64.inc and blames the user's line; it is harmless with
+            //! the low image base Asmon links with.
+            options = "-w-implicit-abs-deprecated -f win64 $SOURCE$ -l $LSTOUTPUT$ -o $PROGRAM.OBJ$";
     #else
         if (isx86())
             options = "-f elf32 $SOURCE$ -l $LSTOUTPUT$ -o $PROGRAM.OBJ$";
