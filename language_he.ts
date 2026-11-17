@@ -51,6 +51,10 @@
         <source>... (showing the first %1 KB of %2 KB)</source>
         <translation>... (מוצגים %1 הקילובייט הראשונים מתוך %2)</translation>
     </message>
+    <message>
+        <source>Headers</source>
+        <translation>כותרות</translation>
+    </message>
 </context>
 <context>
     <name>CommandPalette</name>
@@ -199,78 +203,6 @@
     <message>
         <source>unknown</source>
         <translation>לא ידוע</translation>
-    </message>
-</context>
-<context>
-    <name>DebugTableWidget</name>
-    <message>
-        <source>Variable or expression</source>
-        <translation>משתנה או ביטוי</translation>
-    </message>
-    <message>
-        <source>Value</source>
-        <translation>ערך</translation>
-    </message>
-    <message>
-        <source>Type</source>
-        <translation>טיפוס</translation>
-    </message>
-    <message>
-        <source>Memory</source>
-        <translation>זיכרון</translation>
-    </message>
-    <message>
-        <source>Register</source>
-        <translation>אוגר</translation>
-    </message>
-    <message>
-        <source>Hex</source>
-        <translation>Hex</translation>
-    </message>
-    <message>
-        <source>Info</source>
-        <translation>פירוט</translation>
-    </message>
-    <message>
-        <source>Registers</source>
-        <translation>אוגרים</translation>
-    </message>
-    <message>
-        <source>Add variable...</source>
-        <translation>הוסף משתנה...</translation>
-    </message>
-    <message>
-        <source>Wrong variable or address: &quot;%1&quot;</source>
-        <translation>משתנה או כתובת שגויים:&quot;%1&quot;</translation>
-    </message>
-    <message>
-        <source>Delete watch</source>
-        <translation>הסר מעקב</translation>
-    </message>
-</context>
-<context>
-    <name>Debugger</name>
-    <message>
-        <source>GDB error
-</source>
-        <translation>שגיאת GDB
-</translation>
-    </message>
-    <message>
-        <source>An error has occurred in the debugger. Please check the names of the sections.</source>
-        <translation>אירעה שגיאה בדיבאגר. אנא בדוק את שמות כל המקטעים.</translation>
-    </message>
-    <message>
-        <source>Entry point was not found! Entry point should have label &quot;main&quot; (if gcc linker is used) or &quot;start&quot; (otherwise).</source>
-        <translation>לא נמצאה נקודת התחלה! על נקודת ההתחלה להיות מסומנת בתווית &quot;main&quot; (אם מתבצע שימוש ב-gcc) או בתווית &quot;start&quot; (בכל מקרה אחר).</translation>
-    </message>
-    <message>
-        <source>Executable sections were not found! </source>
-        <translation>לא נמצאו מקטעים ברי הרצה! </translation>
-    </message>
-    <message>
-        <source>For correct debugging executable sections should have name &quot;.text&quot; or &quot;.code&quot; (for MASM only).</source>
-        <translation>לשם שמירה על תקינות בזמן ניפוי הבאגים על המקטעים ברי ההרצה להיקרא &quot;.text&quot; או &quot;.code&quot; (ב-MASM בלבד).</translation>
     </message>
 </context>
 <context>
@@ -804,6 +736,42 @@
         <source>The program finished with exit code %1.</source>
         <translation>התוכנית הסתיימה עם קוד יציאה %1.</translation>
     </message>
+    <message>
+        <source>RE</source>
+        <translation>RE</translation>
+    </message>
+    <message>
+        <source>Open the program in %1</source>
+        <translation>פתח את התוכנית ב-%1</translation>
+    </message>
+    <message>
+        <source>Open a file in %1...</source>
+        <translation>פתח קובץ ב-%1...</translation>
+    </message>
+    <message>
+        <source>Headers and sections (objdump -x)</source>
+        <translation>כותרות וסקשנים (objdump -x)</translation>
+    </message>
+    <message>
+        <source>Not installed</source>
+        <translation>לא מותקן</translation>
+    </message>
+    <message>
+        <source>Open a binary</source>
+        <translation>פתח קובץ בינארי</translation>
+    </message>
+    <message>
+        <source>Programs and objects (*.exe *.dll *.o *.obj *.elf *.bin *.so);;All files (*)</source>
+        <translation>תוכניות ואובייקטים (*.exe *.dll *.o *.obj *.elf *.bin *.so);;כל הקבצים (*)</translation>
+    </message>
+    <message>
+        <source>Ghidra is starting. The program&apos;s path is on the clipboard: in Ghidra choose File &gt; Import File (I) and paste it.</source>
+        <translation>Ghidra עולה. הנתיב של התוכנית הועתק ללוח: ב-Ghidra בחר File &gt; Import File ‏(I) והדבק אותו.</translation>
+    </message>
+    <message>
+        <source>Opening %1 in %2...</source>
+        <translation>פותח את %1 ב-%2...</translation>
+    </message>
 </context>
 <context>
     <name>MiDebugger</name>
@@ -813,7 +781,7 @@
     </message>
     <message>
         <source>Entry point &quot;main&quot; was not found. Debugging needs a global label &quot;main&quot;.</source>
-        <translation>נקודת הכניסה "main" לא נמצאה. דיבוג דורש תווית גלובלית בשם "main".</translation>
+        <translation>נקודת הכניסה &quot;main&quot; לא נמצאה. דיבוג דורש תווית גלובלית בשם &quot;main&quot;.</translation>
     </message>
     <message>
         <source>gdb could not start the program: %1</source>
@@ -849,6 +817,17 @@
     <message>
         <source>WSL is installed but has no Linux distribution yet.</source>
         <translation>WSL מותקן, אבל עדיין אין בו הפצת לינוקס.</translation>
+    </message>
+</context>
+<context>
+    <name>ReTools</name>
+    <message>
+        <source>%1 is not installed. Reinstall Asmon with this component, or set its path in Asmon.ini ([re] %2=...).</source>
+        <translation>%1 לא מותקן. התקן מחדש את אסמון עם הרכיב הזה, או הגדר את הנתיב שלו ב-Asmon.ini ‏([re] %2=...).</translation>
+    </message>
+    <message>
+        <source>Could not start %1 (%2).</source>
+        <translation>לא ניתן להפעיל את %1 ‏(%2).</translation>
     </message>
 </context>
 <context>
@@ -1173,61 +1152,6 @@
     <message>
         <source>Output</source>
         <translation>פלט</translation>
-    </message>
-</context>
-<context>
-    <name>WatchSettingsWidget</name>
-    <message>
-        <source>Address</source>
-        <translation>כתובת</translation>
-    </message>
-    <message>
-        <source>Array size</source>
-        <translation>גודל מערך</translation>
-    </message>
-    <message>
-        <source>Smart</source>
-        <translation>חכם</translation>
-    </message>
-    <message>
-        <source>Hex</source>
-        <translation>Hex</translation>
-    </message>
-    <message>
-        <source>Bin</source>
-        <translation>Bin</translation>
-    </message>
-    <message>
-        <source>Char</source>
-        <translation>תו</translation>
-    </message>
-    <message>
-        <source>Int</source>
-        <translation>Int</translation>
-    </message>
-    <message>
-        <source>UInt</source>
-        <translation>UInt</translation>
-    </message>
-    <message>
-        <source>Float</source>
-        <translation>Float</translation>
-    </message>
-    <message>
-        <source>d</source>
-        <translation>d</translation>
-    </message>
-    <message>
-        <source>w</source>
-        <translation>w</translation>
-    </message>
-    <message>
-        <source>b</source>
-        <translation>b</translation>
-    </message>
-    <message>
-        <source>q</source>
-        <translation>q</translation>
     </message>
 </context>
 </TS>

@@ -64,13 +64,10 @@ SOURCES += main.cpp\
     tab.cpp \
     highlighter.cpp \
     codeeditor.cpp \
-    debugger.cpp \
     finddialog.cpp \
     ruqtextedit.cpp \
     ruqplaintextedit.cpp \
     getstartedwidget.cpp \
-    debugtablewidget.cpp \
-    watchsettingswidget.cpp \
     debuganycommandwidget.cpp \
     assembler.cpp \
     nasm.cpp \
@@ -94,13 +91,10 @@ HEADERS  += mainwindow.h \
     tab.h \
     highlighter.h \
     codeeditor.h \
-    debugger.h \
     finddialog.h \
     ruqtextedit.h \
     ruqplaintextedit.h \
     getstartedwidget.h \
-    debugtablewidget.h \
-    watchsettingswidget.h \
     debuganycommandwidget.h \
     assembler.h \
     nasm.h \

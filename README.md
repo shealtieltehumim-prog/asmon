@@ -17,9 +17,9 @@
 
 | קובץ | מה זה |
 |---|---|
-| `Asmon-x.y.z-Setup.exe` | מתקין אחד, שבו בוחרים רכיבים: בסיסית (כתיבה, הרצה ודיבוג) או מלאה (עם Ghidra, ‏Cutter, ‏x64dbg ו-ImHex). |
-| `Asmon-x.y.z-portable.zip` | גרסה ניידת בלי כלי ה-RE: מחלצים ומריצים את `asmon.exe`. ההגדרות נשמרות בתיקייה `data` שליד התוכנה. |
-| `Asmon-x.y.z-RE-tools-portable.zip` | כלי ה-RE לגרסה הניידת: לחלץ לתוך התיקייה `tools` שליד `asmon.exe`. |
+| `Asmon-x.y.z-Setup.exe` (כ-1GB) | מתקין אחד, שבו בוחרים רכיבים: בסיסית (כתיבה, הרצה ודיבוג) או מלאה (עם Ghidra, ‏Cutter, ‏x64dbg ו-ImHex). |
+| `Asmon-x.y.z-portable.zip` (כ-265MB) | גרסה ניידת בלי כלי ה-RE: מחלצים ומריצים את `asmon.exe`. ההגדרות נשמרות בתיקייה `data` שליד התוכנה. |
+| `Asmon-x.y.z-RE-tools-portable.zip` (כ-950MB) | כלי ה-RE לגרסה הניידת: לחלץ לתוך התיקייה `tools` שליד `asmon.exe`. |
 
 ### אזהרה של Windows בזמן ההתקנה
 המתקין לא חתום דיגיטלית (חתימת קוד עולה כסף), ולכן Windows SmartScreen יציג "Windows protected your PC". כדי להמשיך: **More info ← Run anyway**. הקוד כולו פתוח, וכל קובץ נבנה ב-GitHub Actions מהקוד שבריפו הזה.

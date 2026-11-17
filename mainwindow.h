@@ -62,12 +62,10 @@
 #include <QMimeData>
 #include "tab.h"
 #include "highlighter.h"
-#include "debugger.h"
 #include "finddialog.h"
 #include "ruqtextedit.h"
 #include "getstartedwidget.h"
 #include "ui_settings.h"
-#include "debugtablewidget.h"
 #include "debuganycommandwidget.h"
 #include "assembler.h"
 #include "nasm.h"
@@ -184,10 +182,6 @@ private:
     QAction *debugStepOutAction;
     QAction *debugStepInsnAction;
     bool programIsBuilded;
-    QPointer<DebugTableWidget> registersWindow;
-    QDockWidget *registersDock;
-    QPointer<DebugTableWidget> memoryWindow;
-    QDockWidget *memoryDock;
     //! Asmon UI
     QMenu *viewMenu;
     QAction *commandPaletteAction;
@@ -308,7 +302,6 @@ public slots:
     void debugShowRegisters();
     void debugShowMemory();
     void debugRunCommand(QString command, bool print);
-    void saveWatches(DebugTableWidget *table);
     void setShowRegistersToUnchecked();
     void setShowMemoryToUnchecked();
     void setShowMemoryToChecked(const RuQPlainTextEdit::Watch &variable);

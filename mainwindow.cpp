@@ -64,14 +64,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     settingsStartTextEditor = 0;
     settingsHighlighter = 0;
     help = 0;
-    registersWindow = 0;
-    memoryWindow = 0;
     debugger = 0;
     programStopped = true;
     highlighter = 0;
     tabs = 0;
-    memoryDock = 0;
-    registersDock = 0;
     debugToolBar = 0;
     debugDock = 0;
     debugPanels = 0;
@@ -1298,16 +1294,6 @@ void MainWindow::closeAllChildWindows()
         help->close();
         delete help;
     }
-    if (registersWindow) {
-        registersWindow->close();
-        delete registersWindow;
-        registersWindow = 0;
-    }
-    if (memoryWindow) {
-        memoryWindow->close();
-        delete memoryWindow;
-        memoryWindow = 0;
-    }
 }
 
 bool MainWindow::deleteTab(int index, bool saveFileName)
@@ -1962,10 +1948,6 @@ void MainWindow::debugShowMemory()
     debugDock->show();
     debugDock->raise();
     debugPanels->showTab(DebugPanels::MemoryTab);
-}
-
-void MainWindow::saveWatches(DebugTableWidget *)
-{
 }
 
 void MainWindow::setShowMemoryToUnchecked()
