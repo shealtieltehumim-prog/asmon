@@ -157,18 +157,22 @@ jobs:
             $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save("shots\$name.png")
           }
-          Copy-Item templates\hello_win64.asm "$env:RUNNER_TEMP\hello.asm"
-          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\hello.asm" -PassThru
+          Copy-Item tests\debug_crash_test.asm "$env:RUNNER_TEMP\test.asm"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\test.asm" -PassThru
           Start-Sleep 15
           if ($p.HasExited) { throw "asmon.exe exited at startup with code $($p.ExitCode)" }
           Shot "1-start"
           $ws = New-Object -ComObject WScript.Shell
           $null = $ws.AppActivate($p.Id); Start-Sleep 2
-          $ws.SendKeys("{F9}"); Start-Sleep 15
+          $ws.SendKeys("{F9}"); Start-Sleep 15          # build and run: prints, then crashes
           Shot "2-build-and-run"
-          $ws.SendKeys("{F5}"); Start-Sleep 20
-          $ws.SendKeys("{F10}"); Start-Sleep 5
-          Shot "3-debug"
+          $ws.SendKeys("{F5}"); Start-Sleep 20          # debug: stops at the first line of main
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          Shot "3-debug-steps"
+          $ws.SendKeys("{F5}"); Start-Sleep 10          # continue to the crash
+          Shot "4-debug-crash"
           if ($p.HasExited) { throw "asmon.exe crashed during the test" }
           Stop-Process -Id $p.Id -Force
           Get-ChildItem shots
