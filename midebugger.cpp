@@ -62,8 +62,9 @@ void MiDebugger::start(const QList<int> &breakpointLines)
     //! WinLibs' gdb embeds Python; without PYTHONHOME it prints "Could not find
     //! platform independent libraries" into the program's output.
     const QDir gdbPrefix(QFileInfo(cfg.gdb).absolutePath() + "/..");
-    if (QFileInfo(cfg.gdb).isAbsolute() && !gdbPrefix.entryList({ "python3*" }, QDir::Dirs).isEmpty() == false
-            && !QDir(gdbPrefix.absolutePath() + "/lib").entryList({ "python3*" }, QDir::Dirs).isEmpty()) {
+    const bool bundledPython = QFileInfo(cfg.gdb).isAbsolute()
+        && !QDir(gdbPrefix.absolutePath() + "/lib").entryList({ "python3*" }, QDir::Dirs).isEmpty();
+    if (bundledPython) {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("PYTHONHOME", QDir::toNativeSeparators(gdbPrefix.absolutePath()));
         gdb->setProcessEnvironment(env);
