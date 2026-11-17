@@ -75,6 +75,133 @@
     </message>
 </context>
 <context>
+    <name>DebugPanels</name>
+    <message>
+        <source>Registers</source>
+        <translation>אוגרים</translation>
+    </message>
+    <message>
+        <source>Memory</source>
+        <translation>זיכרון</translation>
+    </message>
+    <message>
+        <source>Stack</source>
+        <translation>מחסנית</translation>
+    </message>
+    <message>
+        <source>Disassembly</source>
+        <translation>דיסאסמבלי</translation>
+    </message>
+    <message>
+        <source>Watch</source>
+        <translation>מעקב</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>אוגר</translation>
+    </message>
+    <message>
+        <source>Hex (double-click to edit)</source>
+        <translation>Hex (דאבל-קליק לעריכה)</translation>
+    </message>
+    <message>
+        <source>Decimal</source>
+        <translation>עשרוני</translation>
+    </message>
+    <message>
+        <source>Flags: </source>
+        <translation>דגלים: </translation>
+    </message>
+    <message>
+        <source>address, label, register or [rbp-8]</source>
+        <translation>כתובת, תווית, אוגר או [rbp-8]</translation>
+    </message>
+    <message>
+        <source>Go</source>
+        <translation>עבור</translation>
+    </message>
+    <message>
+        <source>Address:</source>
+        <translation>כתובת:</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>כתובת</translation>
+    </message>
+    <message>
+        <source>Value</source>
+        <translation>ערך</translation>
+    </message>
+    <message>
+        <source>→ code, line %1</source>
+        <translation>← קוד, שורה %1</translation>
+    </message>
+    <message>
+        <source>empty = follow the current instruction</source>
+        <translation>ריק = עקוב אחרי ההוראה הנוכחית</translation>
+    </message>
+    <message>
+        <source>Unknown address: %1</source>
+        <translation>כתובת לא מוכרת: %1</translation>
+    </message>
+    <message>
+        <source>label, register or [rbp-8]</source>
+        <translation>תווית, אוגר או [rbp-8]</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>אוטומטי</translation>
+    </message>
+    <message>
+        <source>Hex</source>
+        <translation>Hex</translation>
+    </message>
+    <message>
+        <source>Binary</source>
+        <translation>בינארי</translation>
+    </message>
+    <message>
+        <source>Signed</source>
+        <translation>עם סימן</translation>
+    </message>
+    <message>
+        <source>Unsigned</source>
+        <translation>בלי סימן</translation>
+    </message>
+    <message>
+        <source>Characters</source>
+        <translation>תווים</translation>
+    </message>
+    <message>
+        <source>Float</source>
+        <translation>נקודה צפה</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>הוסף</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>הסר</translation>
+    </message>
+    <message>
+        <source>bytes:</source>
+        <translation>בתים:</translation>
+    </message>
+    <message>
+        <source>Expression</source>
+        <translation>ביטוי</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>סוג</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>לא ידוע</translation>
+    </message>
+</context>
+<context>
     <name>DebugTableWidget</name>
     <message>
         <source>Variable or expression</source>
@@ -482,14 +609,6 @@
         <translation>המשך</translation>
     </message>
     <message>
-        <source>Memory</source>
-        <translation>זיכרון</translation>
-    </message>
-    <message>
-        <source>Registers</source>
-        <translation>אוגרים</translation>
-    </message>
-    <message>
         <source>Debugging finished.</source>
         <translation>הדיבוג הסתיים.</translation>
     </message>
@@ -656,6 +775,57 @@
     <message>
         <source>Debugging Linux programs from Windows is not supported yet. You can build and run them (F9).</source>
         <translation>דיבוג של תוכניות לינוקס מתוך Windows עדיין לא נתמך. אפשר לבנות ולהריץ אותן (F9).</translation>
+    </message>
+    <message>
+        <source>Debugger</source>
+        <translation>דיבאגר</translation>
+    </message>
+    <message>
+        <source>Step out</source>
+        <translation>צא מהפונקציה</translation>
+    </message>
+    <message>
+        <source>Step one instruction (stepi)</source>
+        <translation>הוראה אחת (stepi)</translation>
+    </message>
+    <message>
+        <source>Stopped outside your code at 0x%1 (see Disassembly).</source>
+        <translation>נעצר מחוץ לקוד שלך, בכתובת 0x%1 (ראה דיסאסמבלי).</translation>
+    </message>
+    <message>
+        <source>line %1</source>
+        <translation>שורה %1</translation>
+    </message>
+    <message>
+        <source>The program crashed: %1 (%2) at %3. Registers and memory show the state at the crash; Stop ends the session.</source>
+        <translation>התוכנית קרסה: %1 (%2) ב%3. האוגרים והזיכרון מראים את המצב ברגע הקריסה; עצור מסיים את הדיבוג.</translation>
+    </message>
+    <message>
+        <source>The program finished with exit code %1.</source>
+        <translation>התוכנית הסתיימה עם קוד יציאה %1.</translation>
+    </message>
+</context>
+<context>
+    <name>MiDebugger</name>
+    <message>
+        <source>Could not start gdb (%1).</source>
+        <translation>לא ניתן להפעיל את gdb ‏(%1).</translation>
+    </message>
+    <message>
+        <source>Entry point &quot;main&quot; was not found. Debugging needs a global label &quot;main&quot;.</source>
+        <translation>נקודת הכניסה "main" לא נמצאה. דיבוג דורש תווית גלובלית בשם "main".</translation>
+    </message>
+    <message>
+        <source>gdb could not start the program: %1</source>
+        <translation>gdb לא הצליח להפעיל את התוכנית: %1</translation>
+    </message>
+    <message>
+        <source>Could not match the listing to the program: stepping by line is not available, single instructions still work.</source>
+        <translation>לא ניתן להתאים את ה-listing לתוכנית: צעד לפי שורה לא זמין, הוראה בודדת עדיין עובדת.</translation>
+    </message>
+    <message>
+        <source>Step out: %1</source>
+        <translation>יציאה מפונקציה: %1</translation>
     </message>
 </context>
 <context>

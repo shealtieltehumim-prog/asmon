@@ -17,7 +17,6 @@ section .bss
 section .text
 global main
 main:
-    mov rbp, rsp; for correct debugging
     sub rsp, 40                 ; 32 shadow space + 8 to realign the stack
 
     mov ecx, -11                ; STD_OUTPUT_HANDLE

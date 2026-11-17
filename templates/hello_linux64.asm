@@ -9,7 +9,6 @@ section .data
 section .text
 global main
 main:
-    mov rbp, rsp; for correct debugging
     mov rax, 1              ; sys_write
     mov rdi, 1              ; fd 1 = stdout
     lea rsi, [rel msg]      ; buffer

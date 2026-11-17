@@ -78,6 +78,8 @@
 #include "commandpalette.h"
 #include "buildoutputview.h"
 #include "linuxtarget.h"
+#include "midebugger.h"
+#include "debugpanels.h"
 #include <QComboBox>
 #include <QFileSystemModel>
 #include <QTreeView>
@@ -174,7 +176,11 @@ private:
     CodeEditor *prevCodeEditor;
     QTimer *timer;
     QElapsedTimer programExecutionTime;
-    Debugger *debugger;
+    MiDebugger *debugger;
+    DebugPanels *debugPanels;
+    QDockWidget *debugDock;
+    QAction *debugStepOutAction;
+    QAction *debugStepInsnAction;
     bool programIsBuilded;
     QPointer<DebugTableWidget> registersWindow;
     QDockWidget *registersDock;
@@ -250,6 +256,12 @@ public slots:
     void openFromExplorer(const QModelIndex &index);
     void switchTheme(bool dark);
     void restartApplication();
+    void onDebugStopped(quint64 pc, int line);
+    void onDebugCrashed(const QString &signal, const QString &meaning, quint64 pc, int line);
+    void onDebugFinished(int exitCode);
+    void onDebugRunning();
+    void debugStepOut();
+    void debugStepInstruction();
     void refreshBuildOutput();
     bool linuxTargetSelected() const;
     void buildForLinuxTarget(Tab *currentTab);

@@ -52,6 +52,9 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    debugpanels.cpp \
+    midebugger.cpp \
+    gdbmi.cpp \
     linuxtarget.cpp \
     buildoutputview.cpp \
     commandpalette.cpp \
@@ -80,6 +83,9 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
     regexp.h \
     theme.h \
+    debugpanels.h \
+    midebugger.h \
+    gdbmi.h \
     linuxtarget.h \
     buildoutputview.h \
     commandpalette.h \

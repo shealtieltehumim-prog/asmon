@@ -8,7 +8,6 @@ section .data
 section .text
 global main
 main:
-    mov rbp, rsp; for correct debugging
     PRINT_STRING msg
     NEWLINE
     xor rax, rax            ; return 0

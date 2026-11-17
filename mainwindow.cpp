@@ -73,6 +73,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     memoryDock = 0;
     registersDock = 0;
     debugToolBar = 0;
+    debugDock = 0;
+    debugPanels = 0;
+    debugStepOutAction = 0;
+    debugStepInsnAction = 0;
     explorerDock = 0;
     targetBox = 0;
     commandPalette = 0;
@@ -676,6 +680,30 @@ void MainWindow::createAsmonUi()
     darkThemeAction->setCheckable(true);
     darkThemeAction->setChecked(Theme::isDark());
     connect(darkThemeAction, SIGNAL(toggled(bool)), this, SLOT(switchTheme(bool)));
+
+    //! Debug / RE panels: only visible while debugging
+    debugPanels = new DebugPanels;
+    debugDock = new QDockWidget(tr("Debugger"), this);
+    debugDock->setObjectName("debugDock");
+    debugDock->setWidget(debugPanels);
+    debugDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+    addDockWidget(Qt::RightDockWidgetArea, debugDock);
+    debugDock->hide();
+
+    debugStepOutAction = new QAction(Theme::icon("stepout"), tr("Step out"), this);
+    debugStepOutAction->setProperty("asmonIcon", "stepout");
+    debugStepOutAction->setProperty("en", "Step out finish");
+    debugStepOutAction->setShortcut(QKeySequence("Shift+F11"));
+    debugStepOutAction->setEnabled(false);
+    connect(debugStepOutAction, SIGNAL(triggered()), this, SLOT(debugStepOut()));
+    debugStepInsnAction = new QAction(tr("Step one instruction (stepi)"), this);
+    debugStepInsnAction->setProperty("en", "Step instruction stepi");
+    debugStepInsnAction->setShortcut(QKeySequence("Ctrl+F11"));
+    debugStepInsnAction->setEnabled(false);
+    connect(debugStepInsnAction, SIGNAL(triggered()), this, SLOT(debugStepInstruction()));
+    debugMenu->insertAction(debugToggleBreakpointAction, debugStepOutAction);
+    debugMenu->insertAction(debugToggleBreakpointAction, debugStepInsnAction);
+    debugToolBar->addAction(debugStepOutAction);
 
     //! Build output: listing / disassembly / hex of what was built
     buildOutputView = new BuildOutputView;
@@ -1286,7 +1314,7 @@ void MainWindow::buildProgram(bool debugMode)
     QString path = Common::pathInTemp("program.asm");
 
     Tab *currentTab = (Tab *) tabs->currentWidget();
-    currentTab->saveCodeToFile(path, assembler, false, debugMode && settings.value("insertdebugstring", true).toBool());
+    currentTab->saveCodeToFile(path, assembler, false, debugMode && settings.value("insertdebugstring", false).toBool());
 
     if (debugMode) {
         //! Save input to file
@@ -1629,106 +1657,143 @@ void MainWindow::printOutput(QString msg, int index)
 
 void MainWindow::debug()
 {
-    //! Start debugger if true
+    //! Asmon: gdb/MI debugger (MiDebugger) with the RE panels (DebugPanels).
     if (!debugger && linuxTargetSelected()) {
         printLogWithTime(tr("Debugging Linux programs from Windows is not supported yet. "
                             "You can build and run them (F9).") + '\n', Theme::color("errorcolor"));
         return;
     }
-    if (!debugger) {
-        debuggerWasStarted = false;
-        buildProgram(true);
-        if (!programIsBuilded) {
-            printLogWithTime(tr("Before debugging you need to build the program.") + '\n', Theme::color("errorcolor"));
-            return;
-        }
-        ((Tab *) tabs->currentWidget())->clearOutput();
-        printLogWithTime(tr("Debugging started...") + '\n', Theme::color("successcolor"));
-        Tab *currentTab = (Tab *) tabs->currentWidget();
-        CodeEditor *code = currentTab->code;
-
-        //! Determine executable path
-        QString exePath = Common::pathInTemp("AsmonProg.exe");
-
-        //! Determine working directory path
-        QString workingDirectoryPath;
-        QString codePath = currentTab->getCurrentFilePath();
-        if (!codePath.isEmpty()) {
-            workingDirectoryPath = QFileInfo(codePath).absoluteDir().absolutePath();
-        } else {
-            workingDirectoryPath = Common::pathInTemp("");
-        }
-        workingDirectoryPath.replace("\\", "/");
-
-        //! Determine input path
-        QString inputPath = Common::pathInTemp("input.txt");
-        inputPath.replace("\\", "/");
-
-        debugger = new Debugger(compilerOut, exePath, workingDirectoryPath, inputPath, assembler);
-        connect(debugger, SIGNAL(highlightLine(int)), code, SLOT(updateDebugLine(int)));
-        connect(debugger, SIGNAL(finished()), this, SLOT(debugExit()), Qt::QueuedConnection);
-        connect(debugger, SIGNAL(started()), this, SLOT(enableDebugActions()));
-        connect(debugger, SIGNAL(started()), this, SLOT(showAnyCommandWidget()));
-        connect(code, SIGNAL(breakpointsChanged(quint64,bool)), debugger, SLOT(changeBreakpoint(quint64,bool)));
-        connect(code, SIGNAL(addWatchSignal(const RuQPlainTextEdit::Watch &)),
-                   this, SLOT(setShowMemoryToChecked(RuQPlainTextEdit::Watch)));
-        connect(debugger, SIGNAL(printLog(QString,QColor)), this, SLOT(printLog(QString,QColor)));
-        connect(debugger, SIGNAL(printOutput(QString)), this, SLOT(printOutput(QString)));
-        connect(debugger, SIGNAL(inMacro()), this, SLOT(debugNextNi()), Qt::QueuedConnection);
-        connect(debugger, SIGNAL(wasStopped()), this, SLOT(changeDebugActionToStart()));
-        connect(debugger, SIGNAL(needToContinue()), this, SLOT(debug()));
-        code->setDebugEnabled();
-    }
-    //Pause or continue debugger
-    else {
-        debugAction->setEnabled(false);
-        if (debugger->isStopped()) {
-            debugAction->setText(tr("Pause"));
-            debugAction->setIcon(Theme::icon("pause"));
-            debugAction->setProperty("asmonIcon", "pause");
-            debugger->doInput(QString("c\n"), ni);
-            debugAction->setShortcut(QString());
-        } else {
-            debugAction->setText(tr("Continue"));
-            debugAction->setIcon(Theme::icon("continue"));
-            debugAction->setProperty("asmonIcon", "continue");
-            debugAction->setShortcut(debugKey);
+    if (debugger) {
+        //! Continue or pause
+        if (debugger->isStopped())
+            debugger->continueRun();
+        else
             debugger->pause();
-        }
-        debugAction->setEnabled(true);
+        return;
     }
+
+    buildProgram(true);
+    if (!programIsBuilded) {
+        printLogWithTime(tr("Before debugging you need to build the program.") + '\n', Theme::color("errorcolor"));
+        return;
+    }
+    Tab *currentTab = (Tab *) tabs->currentWidget();
+    currentTab->clearOutput();
+    CodeEditor *code = currentTab->code;
+    printLogWithTime(tr("Debugging started...") + '\n', Theme::color("successcolor"));
+
+    MiDebugger::Config cfg;
+    #ifdef Q_OS_WIN32
+        cfg.gdb = Common::applicationDataPath()
+            + (settings.value("mode", QString("x64")).toString() == "x86" ? "/MinGW/bin/gdb.exe"
+                                                                           : "/MinGW64/bin/gdb.exe");
+        cfg.windows = true;
+    #else
+        cfg.gdb = "gdb";
+        cfg.windows = false;
+    #endif
+    cfg.executable = Common::pathInTemp("AsmonProg.exe");
+    const QString codePath = currentTab->getCurrentFilePath();
+    cfg.workingDir = codePath.isEmpty() ? Common::pathInTemp("") : QFileInfo(codePath).absolutePath();
+    cfg.workingDir.replace("\\", "/");
+    currentTab->saveInputToFile(Common::pathInTemp("input.txt"));
+    cfg.inputFile = Common::pathInTemp("input.txt");
+    cfg.listing = Common::pathInTemp("program.lst");
+    cfg.assembler = assembler;
+
+    debugger = new MiDebugger(cfg, this);
+    connect(debugger, &MiDebugger::stopped, this, &MainWindow::onDebugStopped);
+    connect(debugger, &MiDebugger::crashed, this, &MainWindow::onDebugCrashed);
+    connect(debugger, &MiDebugger::finished, this, &MainWindow::onDebugFinished);
+    connect(debugger, &MiDebugger::running, this, &MainWindow::onDebugRunning);
+    connect(debugger, &MiDebugger::programOutput, this, [this](const QString &t) { printOutput(t); });
+    connect(debugger, &MiDebugger::consoleOutput, this, [this](const QString &t) {
+        printLog(t, Theme::color("fontcolor"));
+    });
+    connect(debugger, &MiDebugger::log, this, [this](const QString &t, bool error) {
+        printLog(t, Theme::color(error ? "errorcolor" : "fontcolor"));
+    });
+    connect(debugger, &MiDebugger::ended, this, &MainWindow::debugExit, Qt::QueuedConnection);
+    connect(code, &CodeEditor::breakpointsChanged, debugger, [this](quint64 line, bool on) {
+        if (debugger)
+            debugger->setBreakpoint(int(line), on);
+    });
+    connect(code, &RuQPlainTextEdit::addWatchSignal, debugPanels, &DebugPanels::addWatch);
+    debugPanels->attach(debugger);
+
+    code->setDebugEnabled();
+    enableDebugActions();
+    showAnyCommandWidget();
+    debugDock->show();
+    debugDock->raise();
+
+    QList<int> lines;
+    for (quint64 l : *(code->getBreakpoints()))
+        lines << int(l);
+    debugger->start(lines);
+}
+
+void MainWindow::onDebugStopped(quint64 pc, int line)
+{
+    if (!debugger)
+        return;
+    changeDebugActionToStart();
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    if (line > 0) {
+        code->updateDebugLine(line);
+    } else {
+        code->updateDebugLine(-2);
+        printLogWithTime(tr("Stopped outside your code at 0x%1 (see Disassembly).").arg(pc, 0, 16) + '\n',
+                         Theme::color("fontcolor"));
+        debugPanels->showTab(DebugPanels::DisassemblyTab);
+    }
+}
+
+void MainWindow::onDebugCrashed(const QString &signal, const QString &meaning, quint64 pc, int line)
+{
+    changeDebugActionToStart();
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    if (line > 0)
+        code->updateDebugLine(line);
+    const QString where = line > 0 ? tr("line %1").arg(line) : QString("0x%1").arg(pc, 0, 16);
+    printLogWithTime(tr("The program crashed: %1 (%2) at %3. Registers and memory show the state at the crash; "
+                        "Stop ends the session.").arg(signal, meaning, where) + '\n',
+                     Theme::color("errorcolor"));
+    debugPanels->showTab(DebugPanels::RegistersTab);
+}
+
+void MainWindow::onDebugFinished(int exitCode)
+{
+    printLogWithTime(tr("The program finished with exit code %1.").arg(exitCode) + '\n',
+                     Theme::color(exitCode == 0 ? "successcolor" : "errorcolor"));
+}
+
+void MainWindow::onDebugRunning()
+{
+    debugAction->setText(tr("Pause"));
+    debugAction->setIcon(Theme::icon("pause"));
+    debugAction->setProperty("asmonIcon", "pause");
+    //! F5 stays active while running: it pauses the program.
+    if (tabs && tabs->count() > 0)
+        ((Tab *) tabs->currentWidget())->code->updateDebugLine(-2);
 }
 
 void MainWindow::changeDebugActionToStart()
 {
     debugAction->setText(tr("Continue"));
     debugAction->setIcon(Theme::icon("continue"));
-            debugAction->setProperty("asmonIcon", "continue");
+    debugAction->setProperty("asmonIcon", "continue");
     debugAction->setShortcut(debugKey);
-    if (!debuggerWasStarted)
-        debuggerWasStarted = true;
-    else {
-        debugShowRegisters();
-        debugShowMemory();
-    }
 }
 
 void MainWindow::enableDebugActions()
 {
-    debugAction->setText(tr("Continue"));
-    debugAction->setIcon(Theme::icon("continue"));
-            debugAction->setProperty("asmonIcon", "continue");
+    changeDebugActionToStart();
 
-    //! Set all user's breakpoints
-    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
-    int lineNumber;
-    foreach (lineNumber, *(code->getBreakpoints())) {
-        debugger->changeBreakpoint(lineNumber, true);
-    }
-
-    //! Enable all actions
     debugNextAction->setEnabled(true);
     debugNextNiAction->setEnabled(true);
+    debugStepOutAction->setEnabled(true);
+    debugStepInsnAction->setEnabled(true);
     debugShowRegistersAction->setEnabled(true);
     debugShowMemoryAction->setEnabled(true);
     stopAction->setEnabled(true);
@@ -1742,21 +1807,21 @@ void MainWindow::enableDebugActions()
     runAction->setEnabled(false);
 
     debugToolBar->show();
-
-    //! Restore windows (registers are shown by default while debugging)
-    debugShowRegistersAction->setChecked(settings.value("debugregisters", true).toBool());
-    debugShowMemoryAction->setChecked(settings.value("debugmemory", false).toBool());
 }
 
 void MainWindow::disableDebugActions(bool start)
 {
     debugAction->setText(tr("Debug"));
     debugAction->setIcon(Theme::icon("debug"));
-            debugAction->setProperty("asmonIcon", "debug");
+    debugAction->setProperty("asmonIcon", "debug");
     debugAction->setShortcut(debugKey);
 
     debugNextAction->setEnabled(false);
     debugNextNiAction->setEnabled(false);
+    if (debugStepOutAction) {
+        debugStepOutAction->setEnabled(false);
+        debugStepInsnAction->setEnabled(false);
+    }
     if (debugToolBar)
         debugToolBar->hide();
     debugShowRegistersAction->setEnabled(false);
@@ -1774,16 +1839,28 @@ void MainWindow::disableDebugActions(bool start)
     runAction->setEnabled(true);
 }
 
-void MainWindow::debugNext()
+void MainWindow::debugNext()          // F11: step into
 {
-    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
-    if (code->isMacroOnCurrentDebugLine()) {
-        debugNextNi();
-    } else {
-        debugNextAction->setEnabled(false);
-        debugger->doInput(QString("si\n"), si);
-        debugNextAction->setEnabled(true);
-    }
+    if (debugger)
+        debugger->stepInto();
+}
+
+void MainWindow::debugNextNi()        // F10: step over
+{
+    if (debugger)
+        debugger->stepOver();
+}
+
+void MainWindow::debugStepOut()       // Shift+F11
+{
+    if (debugger)
+        debugger->stepOut();
+}
+
+void MainWindow::debugStepInstruction()
+{
+    if (debugger)
+        debugger->stepInstruction();
 }
 
 void MainWindow::debugToggleBreakpoint()
@@ -1792,208 +1869,58 @@ void MainWindow::debugToggleBreakpoint()
     code->setBreakpointOnCurrentLine();
 }
 
-void MainWindow::debugNextNi()
-{
-    debugNextNiAction->setEnabled(false);
-    if (debugger) {
-        debugger->doInput(QString("ni\n"), ni);
-    }
-    debugNextNiAction->setEnabled(true);
-}
-
 void MainWindow::debugShowMemory()
 {
-    if (debugShowMemoryAction->isChecked()) {
-        if (!memoryWindow) {
-            memoryDock = new QDockWidget(tr("Memory"), this);
-            memoryDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-
-            //! Create table
-            memoryWindow = new DebugTableWidget(0, 3, memoryTable, memoryDock);
-            connect(memoryWindow, SIGNAL(closeSignal()), this, SLOT(setShowMemoryToUnchecked()));
-            connect(memoryWindow, SIGNAL(debugShowMemory()), this, SLOT(debugShowMemory()));
-            CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
-            connect(code, SIGNAL(addWatchSignal(const RuQPlainTextEdit::Watch &)),
-                    memoryWindow, SLOT(addVariable(const RuQPlainTextEdit::Watch &)));
-            connect(debugger, SIGNAL(printMemory(QList<Debugger::memoryInfo>)),
-                    memoryWindow, SLOT(setValuesFromDebugger(QList<Debugger::memoryInfo>)));
-
-            memoryDock->setWidget(memoryWindow);
-            memoryDock->setFeatures(QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
-            addDockWidget(Qt::TopDockWidgetArea, memoryDock);
-            memoryDock->setObjectName("memoryDock");
-
-            restoreState(settings.value("debugstate").toByteArray());
-            if (registersDock)
-                registersDock->show();
-            if (memoryDock)
-                memoryDock->show();
-
-            //! Fill table
-            memoryWindow->initializeMemoryWindow(watches);
-        }
-        if (debugger->isStopped()) {
-            debugger->setWatchesCount(memoryWindow->rowCount() - 1);
-            for (int i = 0; i < memoryWindow->rowCount() - 1; i++) {
-                if (memoryWindow->cellWidget(i, 2)) {
-                    WatchSettingsWidget *settings = (WatchSettingsWidget *) memoryWindow->cellWidget(i, 2);
-
-                    int arraySize = 0;
-
-                    int size = settings->sizeComboBox->currentIndex();
-                    QStringList sizeFormat;
-                    sizeFormat << "int" << "short" << "char" << "long long";
-
-                    bool ok;
-                    arraySize = settings->arraySizeEdit->text().toInt(&ok);
-                    if (!ok && sizeFormat[size] == "long long") {
-                        arraySize = 1;
-                        ok = true;
-                    }
-                    QString watchAsArray;
-                    if (ok && arraySize > 0)
-                        watchAsArray = "[" + QString::number(arraySize) + "]";
-
-                    int type = settings->typeComboBox->currentIndex();
-                    QStringList printFormat;
-                    printFormat << "p" << "p/x" << "p/t" << "p/c" << "p/d" << "p/u" << "p/f";
-                    //! If true, watch as variable
-                    if (! settings->addressCheckbox->isChecked()) {
-                        debugger->doInput(printFormat[type] + " (" + sizeFormat[size] + watchAsArray + ")" +
-                                          "(" + memoryWindow->item(i, 0)->text() + ")" + "\n", infoMemory);
-                    } else {
-                        //! Watch as random address
-                        debugger->doInput(printFormat[type] + " (" + sizeFormat[size] + watchAsArray + ")" +
-                                          "*((" + sizeFormat[size] + "*) " + "(" + memoryWindow->item(i, 0)->text() + ")" + ")" +
-                                          "\n", infoMemory);
-                    }
-                }
-            }
-            static SignalLocker locker;
-            if (memoryWindow->rowCount() > 1 && locker.tryLock()) {
-                connect(debugger, SIGNAL(printMemory(QList<Debugger::memoryInfo>)), &locker, SLOT(unlock()), Qt::UniqueConnection);
-                connect(debugger, SIGNAL(finished()), &locker, SLOT(unlock()), Qt::UniqueConnection);
-            }
-        }
-    } else
-        if (memoryWindow) {
-            saveWatches(memoryWindow);
-            memoryWindow->close();
-            memoryWindow->clear();
-            delete memoryWindow;
-            memoryWindow = 0;
-            memoryDock->close();
-            delete memoryDock;
-            memoryDock = 0;
-        }
+    if (!debugDock)
+        return;
+    debugDock->show();
+    debugDock->raise();
+    debugPanels->showTab(DebugPanels::MemoryTab);
 }
 
-void MainWindow::saveWatches(DebugTableWidget *table)
+void MainWindow::saveWatches(DebugTableWidget *)
 {
-    watches.clear();
-    for (int i = 0; i < table->rowCount() - 1; i++) {
-        RuQPlainTextEdit::Watch watch;
-        watch.name = table->item(i, 0)->text();
-        WatchSettingsWidget *settings = (WatchSettingsWidget *) table->cellWidget(i, 2);
-        watch.type = settings->typeComboBox->currentIndex();
-        watch.size = settings->sizeComboBox->currentIndex();
-        watch.address = settings->addressCheckbox->isChecked();
-        bool ok;
-        watch.arraySize = settings->arraySizeEdit->text().toInt(&ok);
-        if (!ok)
-            watch.arraySize = 0;
-        watches.append(watch);
-    }
 }
 
 void MainWindow::setShowMemoryToUnchecked()
 {
-    debugShowMemoryAction->setChecked(false);
 }
 
 void MainWindow::setShowMemoryToChecked(const RuQPlainTextEdit::Watch &variable)
 {
-    if (!debugShowMemoryAction->isChecked()) {
-        watches.append(variable);
-        debugShowMemoryAction->setChecked(true);
-    }
+    debugPanels->addWatch(variable);
 }
 
 void MainWindow::debugShowRegisters()
 {
-    if (debugShowRegistersAction->isChecked()) {
-        if (!registersWindow) {
-            registersDock = new QDockWidget(tr("Registers"), this);
-            registersDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-
-            int regCount;
-            if (settings.value("mode", QString("x64")).toString() == "x86") {
-                regCount = 16;
-            } else {
-                regCount = 24;
-            }
-            if (settings.value("allregisters", false).toBool()) {
-                regCount += 33;
-            }
-            registersWindow = new DebugTableWidget(regCount, 3, registersTable, registersDock);
-            connect(registersWindow, SIGNAL(closeSignal()), this, SLOT(setShowRegistersToUnchecked()));
-            connect(debugger, SIGNAL(printRegisters(QList<Debugger::registersInfo>)),
-                    registersWindow, SLOT(setValuesFromDebugger(QList<Debugger::registersInfo>)));
-
-            registersDock->setWidget(registersWindow);
-            registersDock->setFeatures(QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
-            addDockWidget(Qt::RightDockWidgetArea, registersDock);
-            registersDock->setObjectName("registersDock");
-
-            restoreState(settings.value("debugstate").toByteArray());
-            if (registersDock)
-                registersDock->show();
-            if (memoryDock)
-                memoryDock->show();
-        }
-        static SignalLocker locker;
-        if (debugger->isStopped() && locker.tryLock()) {
-            connect(debugger, SIGNAL(printRegisters(QList<Debugger::registersInfo>)), &locker, SLOT(unlock()), Qt::UniqueConnection);
-            connect(debugger, SIGNAL(finished()), &locker, SLOT(unlock()), Qt::UniqueConnection);
-            if (settings.value("allregisters", false).toBool())
-                debugger->doInput(QString("info all-registers\n"), infoRegisters);
-            else
-                debugger->doInput(QString("info registers\n"), infoRegisters);
-        }
-    } else
-        if (registersWindow) {
-            registersWindow->close();
-            registersWindow->clear();
-            delete registersWindow;
-            registersWindow = 0;
-            registersDock->close();
-            delete registersDock;
-            registersDock = 0;
-        }
+    if (!debugDock)
+        return;
+    debugDock->show();
+    debugDock->raise();
+    debugPanels->showTab(DebugPanels::RegistersTab);
 }
 
 void MainWindow::setShowRegistersToUnchecked()
 {
-    debugShowRegistersAction->setChecked(false);
 }
 
 void MainWindow::debugExit()
 {
-    settings.setValue("debugregisters", debugShowRegistersAction->isChecked());
-    settings.setValue("debugmemory", debugShowMemoryAction->isChecked());
-    settings.setValue("debugstate", saveState());
-    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
-    disconnect(code, SIGNAL(addWatchSignal(const RuQPlainTextEdit::Watch &)),
-               this, SLOT(setShowMemoryToChecked(RuQPlainTextEdit::Watch)));
-    disconnect(debugger, SIGNAL(printLog(QString,QColor)), this, SLOT(printLog(QString,QColor)));
-    disconnect(debugger, SIGNAL(printOutput(QString)), this, SLOT(printOutput(QString)));
-    code->setDebugDisabled();
-     //! Many actions performed here - deleting of highlighting too
-    delete debugger;
+    if (!debugger)
+        return;
+    MiDebugger *d = debugger;
     debugger = 0;
+    d->disconnect(this);
+    d->stop();
+    d->deleteLater();
+    debugPanels->attach(nullptr);
+    if (tabs && tabs->count() > 0) {
+        CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+        code->disconnect(debugPanels);
+        code->setDebugDisabled();
+    }
     closeAnyCommandWidget();
-    debugShowRegistersAction->setChecked(false);
-    debugShowMemoryAction->setChecked(false);
+    debugDock->hide();
     printLogWithTime(tr("Debugging finished.") + '\n', Theme::color("successcolor"));
     disableDebugActions();
 }
@@ -2003,7 +1930,7 @@ void MainWindow::showAnyCommandWidget()
     debugAnyCommandWidget->show();
     debugAnyCommandWidget->setFocusOnLineEdit();
     connect(debugAnyCommandWidget, SIGNAL(performCommand(QString,bool)),
-            this, SLOT(debugRunCommand(QString,bool)));
+            this, SLOT(debugRunCommand(QString,bool)), Qt::UniqueConnection);
 }
 
 void MainWindow::closeAnyCommandWidget()
@@ -2015,16 +1942,10 @@ void MainWindow::closeAnyCommandWidget()
 
 void MainWindow::debugRunCommand(QString command, bool print)
 {
-    static SignalLocker locker;
-    if (debugger->isStopped() && locker.tryLock()) {
-        connect(debugger, SIGNAL(printLog(QString,QColor)), &locker, SLOT(unlock()), Qt::UniqueConnection);
-        connect(debugger, SIGNAL(finished()), &locker, SLOT(unlock()), Qt::UniqueConnection);
-        printLog("> " + command + "\n", QColor(Theme::isDark() ? "#4fc1ff" : "#2047f7"));
-        if (print)
-            debugger->doInput("p " + command + "\n", anyAction);
-        else
-            debugger->doInput(command + "\n", anyAction);
-    }
+    if (!debugger || !debugger->isStopped())
+        return;
+    printLog("> " + command + "\n", QColor(Theme::isDark() ? "#4fc1ff" : "#2047f7"));
+    debugger->consoleCommand(print ? "print " + command : command);
 }
 
 void MainWindow::find()
@@ -2281,7 +2202,7 @@ void MainWindow::openSettings()
         settingsUi.registersYesRadioButton->setChecked(true);
     else
         settingsUi.registersNoRadioButton->setChecked(true);
-    settingsUi.insertDebugStringCheckBox->setChecked(settings.value("insertdebugstring", true).toBool());
+    settingsUi.insertDebugStringCheckBox->setChecked(settings.value("insertdebugstring", false).toBool());
 
     //! Colors
     initColorButtons(Theme::isDark(), false);
