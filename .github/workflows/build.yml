@@ -88,6 +88,22 @@ jobs:
             rm -f "$T/$x.exe"
           done
           rm -rf dist/MinGW64/share/cmake-* dist/MinGW64/share/doc/doxygen dist/MinGW64/share/cppcheck
+          # trim what an assembly IDE does not use (sizes measured on the r3 build)
+          G=dist/MinGW64/libexec/gcc/x86_64-w64-mingw32
+          rm -f $G/*/f951.exe $G/*/cc1obj.exe $G/*/cc1objplus.exe $G/*/lto1.exe   # Fortran, Obj-C, LTO (~150 MB)
+          rm -f "$T/gfortran.exe" "$T/x86_64-w64-mingw32-gfortran.exe" "$T"/libgfortran*.dll dist/MinGW64/lib/libgfortran*
+          rm -rf dist/MinGW64/share/man dist/MinGW64/share/info dist/MinGW64/share/locale
+          # LLVM: keep only ld.lld, llvm-objdump and lldb (+ the DLLs they load); drop clang,
+          # its headers and the ARM/i686 sysroots (~530 MB)
+          L=dist/LLVM
+          mkdir -p keep-llvm/bin
+          for f in ld.lld.exe llvm-objdump.exe lldb.exe lldb-server.exe lldb-dap.exe lldb-argdumper.exe; do
+            [ -f "$L/bin/$f" ] && cp "$L/bin/$f" keep-llvm/bin/
+          done
+          cp "$L"/bin/*.dll keep-llvm/bin/
+          [ -d "$L/python" ] && cp -r "$L/python" keep-llvm/
+          cp "$L"/LICENSE* keep-llvm/ 2>/dev/null || true
+          rm -rf "$L" && mv keep-llvm "$L"
           mkdir -p dist/NASM
           cp "$T/nasm.exe" dist/NASM/
           cp "$T/ndisasm.exe" dist/NASM/ 2>/dev/null || true
@@ -128,6 +144,39 @@ jobs:
           $G d.o ../dist/NASM/macro64.o -g -o d.exe -m64 $L
           echo 41 | ./d.exe | tee d.txt; grep -q "42" d.txt
           echo "SMOKE TEST PASSED"
+
+      - name: GUI test on the runner's desktop (screenshots)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          Copy-Item templates\hello_win64.asm "$env:RUNNER_TEMP\hello.asm"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\hello.asm" -PassThru
+          Start-Sleep 15
+          if ($p.HasExited) { throw "asmon.exe exited at startup with code $($p.ExitCode)" }
+          Shot "1-start"
+          $ws = New-Object -ComObject WScript.Shell
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          $ws.SendKeys("{F9}"); Start-Sleep 15
+          Shot "2-build-and-run"
+          $ws.SendKeys("{F5}"); Start-Sleep 20
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          Shot "3-debug"
+          if ($p.HasExited) { throw "asmon.exe crashed during the test" }
+          Stop-Process -Id $p.Id -Force
+          Get-ChildItem shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-gui-screenshots
+          path: shots
 
       - uses: actions/upload-artifact@v4
         with:
