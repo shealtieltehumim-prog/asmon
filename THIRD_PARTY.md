@@ -1,0 +1,30 @@
+# רכיבי צד שלישי ורישיונות / Third-party components and licenses
+
+אסמון עצמו מופץ ברישיון **GNU GPL v3** (ראו `COPYING`). הוא פורק של **SASM** מאת Dmitriy Manushin (‎© 2013, ‏GPL v3, ‏https://github.com/Dman95/SASM). הודעות זכויות היוצרים המקוריות נשמרו בכל קבצי המקור.
+
+Asmon is licensed under the **GNU GPL v3** (see `COPYING`). It is a fork of **SASM** by Dmitriy Manushin (© 2013, GPL v3). The original copyright notices are kept in every source file.
+
+המתקין והגרסה הניידת כוללים תוכנות נפרדות של צד שלישי. כל אחת מהן נשארת תחת הרישיון שלה. הן נארזות יחד עם אסמון ("aggregation") ולא מקושרות לקוד שלו. הגרסאות המדויקות שנארזו בכל בנייה מופיעות בקובץ `licenses/VERSIONS.txt`.
+
+The installer and the portable package include separate third-party programs, each under its own license, distributed alongside Asmon (aggregation), not linked into it. The exact versions in a given build are listed in `licenses/VERSIONS.txt`.
+
+| רכיב / Component | רישיון / License | קוד מקור / Source | רכיב במתקין |
+|---|---|---|---|
+| Qt 6 (Core, Gui, Widgets, Network, Svg) | LGPL-3.0 (dynamically linked) | https://download.qt.io/official_releases/qt/ | ליבה |
+| GCC, GNU Binutils, GDB (WinLibs build) | GPL-3.0+ (GCC runtime: GPL-3.0 with GCC Runtime Library Exception) | https://github.com/brechtsanders/winlibs_mingw/releases · https://gcc.gnu.org · https://sourceware.org/binutils · https://sourceware.org/gdb | ליבה |
+| MinGW-w64 runtime and headers | ZPL-2.1, public domain and permissive licenses (see its COPYING files) | https://www.mingw-w64.org | ליבה |
+| NASM | BSD-2-Clause | https://github.com/netwide-assembler/nasm | ליבה |
+| FASM (from SASM) | FASM license (free redistribution) | https://flatassembler.net | ליבה |
+| LLVM (lld, llvm-objdump, lldb; llvm-mingw build) | Apache-2.0 WITH LLVM-exception | https://github.com/mstorsjo/llvm-mingw · https://github.com/llvm/llvm-project | LLVM |
+| Ghidra | Apache-2.0 (some bundled parts under their own licenses, see `tools/ghidra/licenses` and `tools/ghidra/GPL`) | https://github.com/NationalSecurityAgency/ghidra | Ghidra |
+| Eclipse Temurin JDK 21 | GPL-2.0 with Classpath Exception | https://github.com/adoptium/temurin21-binaries | Ghidra |
+| Cutter / Rizin | GPL-3.0 / LGPL-3.0 | https://github.com/rizinorg/cutter · https://github.com/rizinorg/rizin | Cutter |
+| x64dbg | GPL-3.0 | https://github.com/x64dbg/x64dbg | x64dbg |
+| ImHex | GPL-2.0 | https://github.com/WerWolv/ImHex | ImHex |
+
+**MASM לא נארז.** הוא קנייני של Microsoft. מי שרוצה להשתמש בו יכול להתקין אותו בעצמו, ולהגדיר את הנתיב שלו בהגדרות המתקדמות.
+MASM is not included (proprietary, Microsoft).
+
+**קוד מקור של רכיבי GPL.** את הקוד של אסמון עצמו אפשר להוריד מהריפו בכל גרסה (תג git לכל release). לכלים של צד שלישי שמופצים ב-GPL, הקוד המדויק של הגרסה שנארזה נמצא בדף ה-release שלה (הקישורים למעלה, לפי הגרסאות שב-`licenses/VERSIONS.txt`). אם קישור כזה מפסיק לעבוד, אפשר לפתוח issue בריפו ונספק את הקוד.
+
+Source for GPL components: Asmon's own source is in this repository (a git tag per release). For bundled third-party GPL programs the corresponding source is at the upstream release of the exact version listed in `licenses/VERSIONS.txt`; if a link stops working, open an issue and the source will be provided.
