@@ -14,7 +14,7 @@ jobs:
       - name: Install Qt 6
         run: |
           sudo apt-get update
-          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools libgl1-mesa-dev
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools qt6-svg-dev libgl1-mesa-dev
       - name: Build
         run: |
           mkdir build && cd build
@@ -39,6 +39,7 @@ jobs:
           install: >-
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-svg
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-qt6-translations
             make
