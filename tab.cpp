@@ -56,6 +56,9 @@ Tab::Tab(QWidget *parent) :
     //! Setting input and output fields
     input = new RuQTextEdit;
     output = new RuQTextEdit;
+    //! Asmon: program input/output behave like a terminal: left-to-right.
+    input->setLayoutDirection(Qt::LeftToRight);
+    output->setLayoutDirection(Qt::LeftToRight);
     output->setReadOnly(true);
     inputLayout = new QVBoxLayout;
     outputLayout = new QVBoxLayout;

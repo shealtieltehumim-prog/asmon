@@ -221,6 +221,7 @@ QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QSplitter::handle { background: %4; }
 QStatusBar { background: %1; color: %6; border-top: 1px solid %4; }
+QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
 QToolTip { background: %3; color: %5; border: 1px solid %4; padding: 4px; }
 QCheckBox, QRadioButton, QLabel, QGroupBox { color: %5; }
 QGroupBox { border: 1px solid %4; border-radius: 6px; margin-top: 10px; padding-top: 6px; }

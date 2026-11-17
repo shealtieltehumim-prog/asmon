@@ -52,6 +52,7 @@ DebugAnyCommandWidget::DebugAnyCommandWidget(QWidget *parent) :
 
     anyCommandLabel = new QLabel(tr("GDB command:"));
     command = new QLineEdit;
+    command->setLayoutDirection(Qt::LeftToRight); // gdb commands are LTR
     performButton = new QPushButton(tr("Perform"));
     printCheckBox = new QCheckBox(tr("Print"));
     printCheckBox->setChecked(false);

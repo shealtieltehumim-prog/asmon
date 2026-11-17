@@ -51,7 +51,7 @@
     </message>
     <message>
         <source>Info</source>
-        <translation>אודות</translation>
+        <translation>פירוט</translation>
     </message>
     <message>
         <source>Registers</source>
@@ -63,7 +63,7 @@
     </message>
     <message>
         <source>Wrong variable or address: &quot;%1&quot;</source>
-        <translation>משתנה או כתובת שגויים：&quot;%1&quot;</translation>
+        <translation>משתנה או כתובת שגויים:&quot;%1&quot;</translation>
     </message>
     <message>
         <source>Delete watch</source>
@@ -103,7 +103,7 @@
     </message>
     <message>
         <source>Replace with:</source>
-        <translation>החלף ב-:</translation>
+        <translation>החלף ב:</translation>
     </message>
     <message>
         <source>Match case</source>
@@ -111,7 +111,7 @@
     </message>
     <message>
         <source>Find next</source>
-        <translation>הבא</translation>
+        <translation>מצא הבא</translation>
     </message>
     <message>
         <source>Find all</source>
@@ -180,7 +180,7 @@
     <name>MainWindow</name>
     <message>
         <source>Build log:</source>
-        <translation>דו&quot;ח בנייה:</translation>
+        <translation>יומן בנייה:</translation>
     </message>
     <message>
         <source>File</source>
@@ -188,15 +188,15 @@
     </message>
     <message>
         <source>Edit</source>
-        <translation>ערוך</translation>
+        <translation>עריכה</translation>
     </message>
     <message>
         <source>Build</source>
-        <translation>בנה</translation>
+        <translation>בנייה</translation>
     </message>
     <message>
         <source>Debug</source>
-        <translation>ניפוי באגים</translation>
+        <translation>דיבוג</translation>
     </message>
     <message>
         <source>Settings</source>
@@ -228,11 +228,11 @@
     </message>
     <message>
         <source>Save .exe</source>
-        <translation>שמור .exe</translation>
+        <translation>שמור קובץ הרצה (.exe)</translation>
     </message>
     <message>
         <source>Exit</source>
-        <translation>צא</translation>
+        <translation>יציאה</translation>
     </message>
     <message>
         <source>Find and replace</source>
@@ -240,11 +240,11 @@
     </message>
     <message>
         <source>Undo</source>
-        <translation>הקודם</translation>
+        <translation>בטל</translation>
     </message>
     <message>
         <source>Redo</source>
-        <translation>שחזר</translation>
+        <translation>בצע שוב</translation>
     </message>
     <message>
         <source>Cut</source>
@@ -268,19 +268,19 @@
     </message>
     <message>
         <source>Comment</source>
-        <translation>הוסף הערה</translation>
+        <translation>הפוך להערה</translation>
     </message>
     <message>
         <source>Remove comment</source>
-        <translation>הסר הערה</translation>
+        <translation>בטל הערה</translation>
     </message>
     <message>
         <source>Indent</source>
-        <translation>הוסף ריווח</translation>
+        <translation>הגדל הזחה</translation>
     </message>
     <message>
         <source>Remove indent</source>
-        <translation>הסר ריווח</translation>
+        <translation>הקטן הזחה</translation>
     </message>
     <message>
         <source>Build this</source>
@@ -308,7 +308,7 @@
     </message>
     <message>
         <source>Toggle breakpoint</source>
-        <translation>סמן\הסר נקודת עצירה</translation>
+        <translation>הוסף/הסר נקודת עצירה</translation>
     </message>
     <message>
         <source>Show registers</source>
@@ -376,15 +376,15 @@
     </message>
     <message>
         <source>Unable to start assembler. Check your settings.</source>
-        <translation>אין אפשרות להתחיל את האסמבלר. בדוק את ההגדרות.</translation>
+        <translation>לא ניתן להפעיל את האסמבלר. בדוק את ההגדרות.</translation>
     </message>
     <message>
         <source>Unable to start linker. Check your settings.</source>
-        <translation>אין אפשרות להתחיל את הלינקר. בדוק את ההגדרות.</translation>
+        <translation>לא ניתן להפעיל את הלינקר. בדוק את ההגדרות.</translation>
     </message>
     <message>
         <source>Warning! Errors have occurred in the build:</source>
-        <translation>אזהרה! שגיאות נמצאו בבנייה:</translation>
+        <translation>אזהרה! נמצאו שגיאות בבנייה:</translation>
     </message>
     <message>
         <source>Built successfully.</source>
@@ -392,39 +392,39 @@
     </message>
     <message>
         <source>The program is already running.</source>
-        <translation>התוכנה עדיין רצה.</translation>
+        <translation>התוכנית כבר רצה.</translation>
     </message>
     <message>
         <source>The program is executing...</source>
-        <translation>מריץ את התוכנה...</translation>
+        <translation>מריץ את התוכנית...</translation>
     </message>
     <message>
         <source>The program finished normally. Execution time: %1 s</source>
-        <translation>התוכנה סיימה את ריצתה בהצלחה. זמן ריצה: %1 שניות</translation>
+        <translation>התוכנית הסתיימה בהצלחה. זמן ריצה: %1 שניות</translation>
     </message>
     <message>
         <source>The program crashed! Execution time: %1 s</source>
-        <translation>התוכנה קרסה! זמן ריצה: %1 שניות</translation>
+        <translation>התוכנית קרסה! זמן ריצה: %1 שניות</translation>
     </message>
     <message>
         <source>The program stopped.</source>
-        <translation>התוכנה עצרה.</translation>
+        <translation>התוכנית נעצרה.</translation>
     </message>
     <message>
         <source>The program is not running.</source>
-        <translation>התוכנה לא רצה.</translation>
+        <translation>התוכנית לא רצה.</translation>
     </message>
     <message>
         <source>Before debugging you need to build the program.</source>
-        <translation>לפני ניפוי הבאגים יש לבנות את התוכנה.</translation>
+        <translation>לפני דיבוג יש לבנות את התוכנית.</translation>
     </message>
     <message>
         <source>Debugging started...</source>
-        <translation>ניפוי הבאגים החל...</translation>
+        <translation>הדיבוג החל...</translation>
     </message>
     <message>
         <source>Pause</source>
-        <translation>הפסק</translation>
+        <translation>השהה</translation>
     </message>
     <message>
         <source>Continue</source>
@@ -440,11 +440,11 @@
     </message>
     <message>
         <source>Debugging finished.</source>
-        <translation>ניפוי הבאגים הסתיים.</translation>
+        <translation>הדיבוג הסתיים.</translation>
     </message>
     <message>
         <source>In the previous session was not open any of the saved tabs!</source>
-        <translation>בשימוש הקודם בתוכנה אף אחת מהלשוניות השמורות לא היו פתוחות!</translation>
+        <translation>בהפעלה הקודמת לא היו קבצים פתוחים.</translation>
     </message>
     <message>
         <source>Please set path to MASM assembler (ml.exe) and linker (link.exe) on your computer </source>
@@ -452,7 +452,7 @@
     </message>
     <message>
         <source>in fields &quot;Assembler path&quot; and &quot;Linker path&quot; above.</source>
-        <translation>בשדות ההזנה &quot;Assembler path&quot; ו &quot;Linker path&quot; לעיל.</translation>
+        <translation>בשדות "מיקום אסמבלר" ו"מיקום לינקר" שלמעלה.</translation>
     </message>
     <message>
         <source>Warning!</source>
@@ -464,7 +464,7 @@
     </message>
     <message>
         <source>Close help</source>
-        <translation>עזרה צמודה</translation>
+        <translation>סגור עזרה</translation>
     </message>
     <message>
         <source>Licensed under the GNU GPL v3.0</source>
@@ -535,19 +535,19 @@
     <name>RuQPlainTextEdit</name>
     <message>
         <source>Comment</source>
-        <translation>הוסף הערה</translation>
+        <translation>הפוך להערה</translation>
     </message>
     <message>
         <source>Remove comment</source>
-        <translation>הסר הערה</translation>
+        <translation>בטל הערה</translation>
     </message>
     <message>
         <source>Undo</source>
-        <translation>חזור</translation>
+        <translation>בטל</translation>
     </message>
     <message>
         <source>Redo</source>
-        <translation>החזר</translation>
+        <translation>בצע שוב</translation>
     </message>
     <message>
         <source>Cut</source>
@@ -578,11 +578,11 @@
     <name>RuQTextEdit</name>
     <message>
         <source>Undo</source>
-        <translation>חזור</translation>
+        <translation>בטל</translation>
     </message>
     <message>
         <source>Redo</source>
-        <translation>החזר</translation>
+        <translation>בצע שוב</translation>
     </message>
     <message>
         <source>Cut</source>
@@ -616,12 +616,12 @@
         <translation>הגדרות</translation>
     </message>
     <message>
-        <source>SASM Options</source>
-        <translation>אפשרויות SASM</translation>
+        <source>Asmon Options</source>
+        <translation>אפשרויות אסמון</translation>
     </message>
     <message>
         <source>Common</source>
-        <translation>הגדרות נפוצות</translation>
+        <translation>כללי</translation>
     </message>
     <message>
         <source>On start:</source>
@@ -629,11 +629,11 @@
     </message>
     <message>
         <source>Open get started window</source>
-        <translation>פתח חלון &quot;התחל עבודה&quot;</translation>
+        <translation>פתח את מסך הפתיחה</translation>
     </message>
     <message>
         <source>Restore previous session</source>
-        <translation>התחל מאיפה שהפסקת</translation>
+        <translation>שחזר את ההפעלה הקודמת</translation>
     </message>
     <message>
         <source>Language:</source>
@@ -641,15 +641,15 @@
     </message>
     <message>
         <source>Français</source>
-        <translation></translation>
+        <translation>Français</translation>
     </message>
     <message>
         <source>To apply the changes require a restart!</source>
-        <translation>עליך להתחיל מחדש את התוכנה על מנת ליישם את השינויים!</translation>
+        <translation>יש להפעיל מחדש כדי שהשינויים ייכנסו לתוקף.</translation>
     </message>
     <message>
         <source>Show all registers in debug:</source>
-        <translation>הצג את כל האוגרים בניפוי הבאגים:</translation>
+        <translation>הצג את כל האוגרים בזמן דיבוג:</translation>
     </message>
     <message>
         <source>Yes</source>
@@ -661,7 +661,7 @@
     </message>
     <message>
         <source>Insert debug string:</source>
-        <translation>הכנס מחרוזת ניפוי באגים:</translation>
+        <translation>הוסף שורת עזר לדיבוג:</translation>
     </message>
     <message>
         <source>Code editor</source>
@@ -669,7 +669,7 @@
     </message>
     <message>
         <source>Font:</source>
-        <translation>פונט:</translation>
+        <translation>גופן:</translation>
     </message>
     <message>
         <source>Size:</source>
@@ -681,7 +681,7 @@
     </message>
     <message>
         <source>Reset all (need a restart)...</source>
-        <translation>שחזר הכל (דורש הפעלה מחדש)...</translation>
+        <translation>אפס הכול (דורש הפעלה מחדש)...</translation>
     </message>
     <message>
         <source>Colors</source>
@@ -689,23 +689,23 @@
     </message>
     <message>
         <source>Preset color theme:</source>
-        <translation>נושא צבע מוגדר מראש:</translation>
+        <translation>ערכת צבעים מוכנה:</translation>
     </message>
     <message>
         <source>Light</source>
-        <translation>אוֹר</translation>
+        <translation>בהיר</translation>
     </message>
     <message>
         <source>Dark</source>
-        <translation>אפל</translation>
+        <translation>כהה</translation>
     </message>
     <message>
         <source>Syntax highlighting</source>
-        <translation>סימון תחביר</translation>
+        <translation>הדגשת תחביר</translation>
     </message>
     <message>
         <source>System:</source>
-        <translation>מערכת:</translation>
+        <translation>הנחיות:</translation>
     </message>
     <message>
         <source>Bold:</source>
@@ -741,7 +741,7 @@
     </message>
     <message>
         <source>Quotation:</source>
-        <translation>ציטוטים:</translation>
+        <translation>מחרוזות:</translation>
     </message>
     <message>
         <source>Memory:</source>
@@ -749,7 +749,7 @@
     </message>
     <message>
         <source>I/O macro:</source>
-        <translation>מקרו I/O:</translation>
+        <translation>מאקרו קלט/פלט:</translation>
     </message>
     <message>
         <source>Registers:</source>
@@ -757,7 +757,7 @@
     </message>
     <message>
         <source>Enable highlighting</source>
-        <translation>אפשר צבעים</translation>
+        <translation>הפעל הדגשה</translation>
     </message>
     <message>
         <source>Current line:</source>
@@ -765,19 +765,19 @@
     </message>
     <message>
         <source>Debugging line:</source>
-        <translation>שורת ניפוי באגים:</translation>
+        <translation>שורת דיבוג:</translation>
     </message>
     <message>
         <source>Line number panel:</source>
-        <translation>פאנל מספר שורות:</translation>
+        <translation>רקע מספרי שורות:</translation>
     </message>
     <message>
         <source>Line number font:</source>
-        <translation>פונט מספר שורה:</translation>
+        <translation>צבע מספרי שורות:</translation>
     </message>
     <message>
         <source>Build</source>
-        <translation>בנה</translation>
+        <translation>בנייה</translation>
     </message>
     <message>
         <source>Mode:</source>
@@ -817,7 +817,7 @@
     </message>
     <message>
         <source>Linking options:</source>
-        <translation>אפשרויות לינקינג:</translation>
+        <translation>אפשרויות קישור:</translation>
     </message>
     <message>
         <source>Assembler path:</source>
@@ -829,11 +829,11 @@
     </message>
     <message>
         <source>Disable linking:</source>
-        <translation>כבה לינקינג:</translation>
+        <translation>ללא קישור:</translation>
     </message>
     <message>
         <source>Build in current directory:</source>
-        <translation>בנה בתיקייה נוכחית:</translation>
+        <translation>בנה בתיקייה הנוכחית:</translation>
     </message>
     <message>
         <source>Object file name:</source>
@@ -867,7 +867,7 @@
     </message>
     <message>
         <source>Smart</source>
-        <translation>Smart</translation>
+        <translation>חכם</translation>
     </message>
     <message>
         <source>Hex</source>
@@ -879,7 +879,7 @@
     </message>
     <message>
         <source>Char</source>
-        <translation>Char</translation>
+        <translation>תו</translation>
     </message>
     <message>
         <source>Int</source>

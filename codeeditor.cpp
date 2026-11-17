@@ -50,15 +50,31 @@
 CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     RuQPlainTextEdit(parent), debugImage(":/images/debugLine.png"),
     breakpointImage(":/images/breakpoint.png"),
-    settings("SASM Project", "SASM")
+    settings()
 {
     hasBreakpoints = withBeakpoints;
     prevBlockCount = -1;
     setDebugMode(false);
     debugAreaWidth = 3 + debugImage.width() + 1;
     setWordWrapMode(QTextOption::NoWrap);
+    //! Asmon: code is always left-to-right, even in the Hebrew (RTL) interface.
+    //! Every line is laid out as an LTR paragraph, so a line such as
+    //! "mov rax, 1 ; הערה" keeps its code on the left and the Hebrew comment
+    //! is shown as a right-to-left run inside it (Unicode bidi).
+    setLayoutDirection(Qt::LeftToRight);
+    {
+        QTextOption option = document()->defaultTextOption();
+        option.setTextDirection(Qt::LeftToRight);
+        option.setAlignment(Qt::AlignLeft | Qt::AlignAbsolute);
+        document()->setDefaultTextOption(option);
+        //! Arrow keys move visually: inside a Hebrew run "right" really goes
+        //! right (Qt's default logical movement jumps back and forth there).
+        document()->setDefaultCursorMoveStyle(
+            settings.value("visualcursor", true).toBool() ? Qt::VisualMoveStyle : Qt::LogicalMoveStyle);
+    }
     firstTopMargin = contentOffset().y();
     lineNumberArea = new LineNumberArea(this);
+    lineNumberArea->setLayoutDirection(Qt::LeftToRight);
     lineNumberPanelColor = Theme::color("linenumberpanelcolor");
 
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberAreaWidth(int)));
@@ -115,6 +131,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 {
     // !Paint on line number area
     QPainter painter(lineNumberArea);
+    painter.setLayoutDirection(Qt::LeftToRight); // Asmon: same gutter in RTL UI
     painter.fillRect(event->rect(), lineNumberPanelColor);
 
     QTextBlock block = firstVisibleBlock();
@@ -127,7 +144,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
             QString number = QString::number(blockNumber + 1);
             painter.setPen(Theme::color("linenumberfontcolor"));
             painter.drawText(0, top, lineNumberArea->width() - debugAreaWidth, fontMetrics().height(),
-                             Qt::AlignRight, number);
+                             Qt::AlignRight | Qt::AlignAbsolute, number);
 
             if (blockNumber + 1 == currentDebugLine)
                 //! Blocks counting starts with 0, line number is equivalent (block number + 1)

@@ -31,7 +31,7 @@
       <locale language="English" country="UnitedStates"/>
      </property>
      <property name="text">
-      <string>SASM Options</string>
+      <string>Asmon Options</string>
      </property>
     </widget>
    </item>

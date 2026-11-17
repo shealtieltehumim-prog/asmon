@@ -243,6 +243,7 @@ public slots:
     void updateExplorerRoot();
     void openFromExplorer(const QModelIndex &index);
     void switchTheme(bool dark);
+    void restartApplication();
     //! Actions and Menus
     void newFile();
     void openFile();

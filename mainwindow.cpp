@@ -105,8 +105,13 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     splitter->restoreState(settings.value("logsplitterstate").toByteArray());
 
     //! Open documents from command line
-    for (int i = 1; i < args.size(); i++)
+    for (int i = 1; i < args.size(); i++) {
+        if (args[i] == "--asmon-restart") {
+            restorePrevSession(true);
+            continue;
+        }
         openFile(args[i]);
+    }
 }
 
 void MainWindow::enableOrDisableLinkingEdit(int disableLinkingCheckboxState)
@@ -675,6 +680,26 @@ void MainWindow::createAsmonUi()
     viewMenu->addAction(focusModeAction);
     viewMenu->addSeparator();
     viewMenu->addAction(darkThemeAction);
+
+    //! Language: Hebrew <-> English (needs a restart; tabs are restored)
+    const bool hebrew = settings.value("language", 7).toInt() == 7;
+    QAction *languageAction = new QAction(hebrew ? QString("Switch to English (restart)")
+                                                 : QString::fromUtf8("החלף לעברית (הפעלה מחדש)"), this);
+    languageAction->setProperty("en", "Language English Hebrew");
+    connect(languageAction, &QAction::triggered, this, [this, hebrew]() {
+        settings.setValue("language", hebrew ? 1 : 7);
+        restartApplication();
+    });
+    viewMenu->addAction(languageAction);
+}
+
+void MainWindow::restartApplication()
+{
+    //! close() runs closeEvent: unsaved files are asked about, the session is saved.
+    if (!close())
+        return;
+    QProcess::startDetached(QCoreApplication::applicationFilePath(), QStringList() << "--asmon-restart");
+    qApp->quit();
 }
 
 void MainWindow::showCommandPalette()
@@ -2558,6 +2583,9 @@ void MainWindow::openHelp()
     //! language 0=Russian
     if (settings.value("language", 0).toInt() == 0) {
         helpFile.setFileName(":help/help.html");
+    } else if (settings.value("language", 0).toInt() == 7) {
+        //! Asmon: Hebrew help
+        helpFile.setFileName(":help/helpHE.html");
     } else {
         //! English and other languages
         helpFile.setFileName(":help/helpENG.html");

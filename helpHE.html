@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8"><title>עזרה — אסמון</title></head>
+<body dir="rtl">
+<h1>אסמון — עזרה מהירה</h1>
+<p>אסמון היא סביבת פיתוח לאסמבלי (NASM כברירת מחדל): כותבים, בונים, מריצים ומדבגים מחלון אחד.
+היא מבוססת על SASM של דמיטרי מנושין, ומופצת ברישיון GNU GPL v3.</p>
+
+<h2>הכי חשוב</h2>
+<table border="0" cellpadding="4">
+<tr><td><b>F9</b></td><td>בנה והרץ</td></tr>
+<tr><td><b>Ctrl+F9</b></td><td>בנה בלבד</td></tr>
+<tr><td><b>F5</b></td><td>התחל דיבוג / המשך</td></tr>
+<tr><td><b>F10</b></td><td>צעד מעל (Step over)</td></tr>
+<tr><td><b>F11</b></td><td>צעד לתוך (Step into)</td></tr>
+<tr><td><b>F8</b></td><td>הוסף/הסר נקודת עצירה בשורה הנוכחית</td></tr>
+<tr><td><b>Ctrl+R</b></td><td>הצג/הסתר אוגרים (בזמן דיבוג)</td></tr>
+<tr><td><b>Ctrl+Shift+P</b></td><td>לוח הפקודות: כל פעולה בתוכנה, בחיפוש בעברית או באנגלית</td></tr>
+<tr><td><b>Ctrl+B</b></td><td>סייר הקבצים</td></tr>
+<tr><td><b>Ctrl+K ואז Z</b></td><td>מצב ריכוז: רק העורך נשאר על המסך</td></tr>
+<tr><td><b>Ctrl+Shift+A / Ctrl+Shift+Q</b></td><td>הפוך שורות להערה / בטל הערה</td></tr>
+</table>
+
+<h2>התוכנית הראשונה</h2>
+<p>קובץ חדש (Ctrl+N) נפתח עם תבנית מוכנה. נקודת הכניסה היא התווית <code>main</code>, ו-<code>ret</code> בסופה מחזיר את השליטה למערכת.</p>
+<pre dir="ltr">%include "io64.inc"
+
+section .data
+    msg db 'Hello, world!', 0
+
+section .text
+global main
+main:
+    mov rbp, rsp        ; for correct debugging
+    PRINT_STRING msg
+    NEWLINE
+    xor rax, rax
+    ret</pre>
+
+<h2>מאקרו קלט/פלט (io64.inc / io.inc)</h2>
+<p>הקובץ <code>io64.inc</code> (ל-64 ביט) או <code>io.inc</code> (ל-32 ביט) נותן פקודות פשוטות להדפסה ולקריאה, בלי להתעסק בקריאות מערכת.
+<i>גודל</i> הוא מספר הבתים: 1, 2, 4 או 8.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>מאקרו</th><th>מה הוא עושה</th></tr>
+<tr><td dir="ltr">PRINT_STRING data</td><td>מדפיס מחרוזת שמסתיימת ב-0</td></tr>
+<tr><td dir="ltr">PRINT_CHAR data</td><td>מדפיס תו אחד</td></tr>
+<tr><td dir="ltr">PRINT_DEC size, data</td><td>מדפיס מספר עשרוני עם סימן</td></tr>
+<tr><td dir="ltr">PRINT_UDEC size, data</td><td>מדפיס מספר עשרוני בלי סימן</td></tr>
+<tr><td dir="ltr">PRINT_HEX size, data</td><td>מדפיס מספר בבסיס 16</td></tr>
+<tr><td dir="ltr">NEWLINE</td><td>מעבר שורה</td></tr>
+<tr><td dir="ltr">GET_DEC size, data</td><td>קורא מספר עשרוני (עם סימן) מהקלט</td></tr>
+<tr><td dir="ltr">GET_UDEC size, data</td><td>קורא מספר עשרוני בלי סימן</td></tr>
+<tr><td dir="ltr">GET_HEX size, data</td><td>קורא מספר בבסיס 16</td></tr>
+<tr><td dir="ltr">GET_CHAR data</td><td>קורא תו אחד</td></tr>
+<tr><td dir="ltr">GET_STRING data, maxsz</td><td>קורא מחרוזת (עד maxsz תווים)</td></tr>
+</table>
+<p>הקלט לתוכנית נלקח מחלון <b>קלט</b> שבצד, והפלט מופיע בחלון <b>פלט</b>.</p>
+
+<h2>דיבוג</h2>
+<ul>
+<li>לחיצה על מספר השורה (או F8) מוסיפה נקודת עצירה.</li>
+<li>F5 מתחיל דיבוג. בזמן דיבוג מופיעים כפתורי הצעדים בסרגל, וחלון האוגרים נפתח לבד.</li>
+<li>לחיצה ימנית על משתנה בעורך מוסיפה אותו לחלון הזיכרון (מעקב).</li>
+<li>בתחתית יש שורת פקודה ל-GDB, לפקודות מתקדמות.</li>
+</ul>
+
+<h2>עברית בקוד</h2>
+<p>הקוד תמיד מוצג משמאל לימין. הערות ומחרוזות בעברית מוצגות נכון, והחיצים זזים לפי מה שרואים על המסך.
+מגבלה ידועה: אם באותה שורה יש גם מחרוזת בעברית וגם הערה בעברית, הן עלולות להתערבב בתצוגה (התוכן עצמו נשמר נכון).
+עדיף לשים הערה כזו בשורה נפרדת.</p>
+
+<h2>הגדרות</h2>
+<p>ההגדרות נשמרות בקובץ טקסט קריא, <code>Asmon.ini</code>. בגרסה הניידת הוא נמצא בתיקייה <code>data</code> שליד התוכנה.
+ערכת נושא בהירה או כהה: תצוגה ← ערכת נושא כהה. החלפת שפה: לוח הפקודות ← "English".</p>
+</body>
+</html>

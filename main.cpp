@@ -46,6 +46,7 @@
 #include <QtSingleApplication>
 #include <QFile>
 #include "theme.h"
+#include <QThread>
 
 /**
  * @file main.cpp
@@ -67,6 +68,12 @@ int main(int argc, char *argv[])
     QSettings settings;
     Theme::ensureInitialized(settings);
     Theme::apply(a);
+    //! Restart requested by the app itself (e.g. after a language switch):
+    //! wait until the previous instance has exited before going on.
+    if (a.arguments().contains("--asmon-restart")) {
+        for (int i = 0; i < 50 && a.isRunning(); ++i)
+            QThread::msleep(100);
+    }
     if (a.isRunning()) {
         //we already have one instance of our application
         if (argc <= 1) {
@@ -78,86 +85,33 @@ int main(int argc, char *argv[])
         }
         return 0;
     }
-    QTranslator translator, qtTranslator, addTranslator;
     //! No first-run language dialog: Hebrew is the default (index 7, see settings.ui).
     if (!settings.contains("language"))
         settings.setValue("language", 7);
-    if (settings.value("language", 0).toInt() == 0) { //russian language
-        translator.load(":/translations/language_ru.qm");
-        a.installTranslator(&translator);
 
-        qtTranslator.load(":/translations/qt_ru.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 2) { //turkish language
-        translator.load(":/translations/language_tr.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_tr.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 3) { //chinese language
-        translator.load(":/translations/language_zh.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_zh.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 4) { //german language
-        translator.load(":/translations/language_de.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_de.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 5) { //italian language
-        translator.load(":/translations/language_it.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_it.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 6) { //polish language
-        translator.load(":/translations/language_pl.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_pl.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 7) { //hebrew language
-        translator.load(":/translations/language_he.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_he.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 8) { //spanish language
-        translator.load(":/translations/language_es.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_es.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 9) { //portuguese portuguese language
-        translator.load(":/translations/language_pt_PT.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_pt_PT.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 10) { //french language
-        translator.load(":/translations/language_fr.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_fr.qm");
-        a.installTranslator(&qtTranslator);
-    } else if (settings.value("language", 0).toInt() == 11) { // brazilian portuguese language
-        translator.load(":/translations/language_pt_BR.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_pt_PT.qm");
-        a.installTranslator(&qtTranslator);
-
-        addTranslator.load(":/translations/qt_pt_BR.qm");
-        a.installTranslator(&addTranslator);
-    } else if (settings.value("language", 0).toInt() == 12) {  // japanese language
-        translator.load(":/translations/language_ja.qm");
-        a.installTranslator(&translator);
-
-        qtTranslator.load(":/translations/qt_ja.qm");
-        a.installTranslator(&qtTranslator);
+    //! Language index -> translation file suffix, in the order of the settings combo box.
+    //! Index 1 is English (the source language, no translation file).
+    static const char *const kLanguages[] = { "ru", "", "tr", "zh", "de", "it", "pl", "he",
+                                              "es", "pt_PT", "fr", "pt_BR", "ja" };
+    const int languageIndex = settings.value("language", 7).toInt();
+    QTranslator translator, qtTranslator, addTranslator;
+    if (languageIndex >= 0 && languageIndex < int(sizeof(kLanguages) / sizeof(*kLanguages))
+            && kLanguages[languageIndex][0] != '\0') {
+        const QString code = QString::fromLatin1(kLanguages[languageIndex]);
+        if (translator.load(":/translations/language_" + code + ".qm"))
+            a.installTranslator(&translator);
+        //! Brazilian Portuguese uses the European Qt file plus its own additions.
+        const QString qtCode = (code == "pt_BR") ? QString("pt_PT") : code;
+        if (qtTranslator.load(":/translations/qt_" + qtCode + ".qm"))
+            a.installTranslator(&qtTranslator);
+        if (code == "pt_BR" && addTranslator.load(":/translations/qt_pt_BR.qm"))
+            a.installTranslator(&addTranslator);
     }
+
+    //! Asmon: right-to-left interface for Hebrew. Code editors stay left-to-right
+    //! (see CodeEditor), so assembly reads normally while menus, docks and dialogs mirror.
+    if (languageIndex == 7)
+        a.setLayoutDirection(Qt::RightToLeft);
 
     MainWindow w(a.arguments());
 
