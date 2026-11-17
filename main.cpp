@@ -41,7 +41,6 @@
 #include "mainwindow.h"
 #include <QApplication>
 #include <QTranslator>
-#include <QTextCodec>
 #include <QSettings>
 #include <QPushButton>
 #include <QtSingleApplication>
@@ -89,10 +88,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     QTranslator translator, qtTranslator, addTranslator;
-    #if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-        QTextCodec *codec = QTextCodec::codecForName("UTF-8");
-        QTextCodec::setCodecForCStrings(codec);
-    #endif
     if (!settings.contains("language")) { //language choosing
         QStringList items;
         items << QString("Русский") << QString("English") << QString("Türk") <<

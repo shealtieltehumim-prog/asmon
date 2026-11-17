@@ -6,7 +6,9 @@
 
 QT       += core gui
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+lessThan(QT_MAJOR_VERSION, 6): error("Asmon requires Qt 6")
+QT += widgets
+CONFIG += c++17
 
 TARGET = sasm
 TEMPLATE = app
@@ -72,6 +74,7 @@ SOURCES += main.cpp\
     gccbasedassembler.cpp
 
 HEADERS  += mainwindow.h \
+    regexp.h \
     tab.h \
     highlighter.h \
     codeeditor.h \

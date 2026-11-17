@@ -39,6 +39,7 @@
 ****************************************************************************/
 
 
+#include "../regexp.h"
 #include "qtlocalpeer.h"
 #include <QCoreApplication>
 #include <QDataStream>
@@ -78,7 +79,7 @@ QtLocalPeer::QtLocalPeer(QObject* parent, const QString &appId)
 #endif
         prefix = id.section(QLatin1Char('/'), -1);
     }
-    prefix.remove(QRegExp("[^a-zA-Z]"));
+    prefix.remove(RegExp("[^a-zA-Z]"));
     prefix.truncate(6);
 
     QByteArray idc = id.toUtf8();

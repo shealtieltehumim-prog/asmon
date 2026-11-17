@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "regexp.h"
 #include "ruqplaintextedit.h"
 
 /**
@@ -222,7 +223,7 @@ RuQPlainTextEdit::Watch RuQPlainTextEdit::variableOnCurrentLine()
                       "\\bdy\\b" << "\\bequ\\b";
     bool isVariableLine = false;
     foreach (const QString &pattern, memoryPatterns)
-        if (text.indexOf(QRegExp(pattern)) != -1) {
+        if (text.indexOf(RegExp(pattern)) != -1) {
             isVariableLine = true;
             break;
         }

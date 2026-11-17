@@ -81,7 +81,7 @@ quint64 FASM::getMainOffset(QFile &lstOut, QString entryLabel)
     QFile lst(getListingFilePath(lstOut));
     lst.open(QFile::ReadOnly);
     QTextStream lstStream(&lst);
-    QRegExp mainLabel(entryLabel + ":");
+    RegExp mainLabel(entryLabel + ":");
     bool flag = false;
     while (!lstStream.atEnd()) {
         QString line = lstStream.readLine();
@@ -171,12 +171,12 @@ QString FASM::getStartText()
 void FASM::putDebugString(CodeEditor *code)
 {
     //add : mov ebp, esp for making frame for correct debugging if this code has not been added yet
-    int index = code->toPlainText().indexOf(QRegExp("main:"));
+    int index = code->toPlainText().indexOf(RegExp("main:"));
     if (index != -1) {
         index = code->toPlainText().indexOf(QChar(':'), index);
         if (isx86()) {
             if (code->toPlainText().indexOf(
-                        QRegExp("\\s+([Pp][Uu][Ss][Hh] +[Ee][Bb][Pp]\\s+)?[Mm][Oo][Vv] +[Ee][Bb][Pp] *, *[Ee][Ss][Pp]"), index + 1) != index + 1) {
+                        RegExp("\\s+([Pp][Uu][Ss][Hh] +[Ee][Bb][Pp]\\s+)?[Mm][Oo][Vv] +[Ee][Bb][Pp] *, *[Ee][Ss][Pp]"), index + 1) != index + 1) {
                 QTextCursor cursor = code->textCursor();
                 cursor.movePosition(QTextCursor::Start);
                 cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, index + 1);
@@ -184,7 +184,7 @@ void FASM::putDebugString(CodeEditor *code)
             }
         } else {
             if (code->toPlainText().indexOf(
-                        QRegExp("\\s+([Pp][Uu][Ss][Hh] +[Rr][Bb][Pp]\\s+)?[Mm][Oo][Vv] +[Rr][Bb][Pp] *, *[Rr][Ss][Pp]"), index + 1) != index + 1) {
+                        RegExp("\\s+([Pp][Uu][Ss][Hh] +[Rr][Bb][Pp]\\s+)?[Mm][Oo][Vv] +[Rr][Bb][Pp] *, *[Rr][Ss][Pp]"), index + 1) != index + 1) {
                 QTextCursor cursor = code->textCursor();
                 cursor.movePosition(QTextCursor::Start);
                 cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, index + 1);
@@ -202,8 +202,8 @@ QString FASM::getAssemblerOptions()
 void FASM::fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightingRules,
                               QList<QTextCharFormat *> &formats,
                               bool &multiLineComments,
-                              QRegExp &commentStartExpression,
-                              QRegExp &commentEndExpression)
+                              RegExp &commentStartExpression,
+                              RegExp &commentEndExpression)
 {
     typedef Assembler::HighlightingRule HighlightingRule;
     QTextCharFormat &keywordFormat = *formats[0];
@@ -321,23 +321,23 @@ void FASM::fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightin
                         "\\bPREFETCH\\b" << "\\bPREFETCHL\\b" << "\\bPREFETCHW\\b" << "\\bCLFLUSH\\b" <<
                         "\\bSYSENTER\\b" << "\\bSYSEXIT\\b" << "\\bSYSCALL\\b" << "\\bSYSRET\\b";
     foreach (const QString &pattern, keywordPatterns) {
-        rule.pattern = QRegExp(pattern);
+        rule.pattern = RegExp(pattern);
         rule.pattern.setCaseSensitivity(Qt::CaseInsensitive);
         rule.format = keywordFormat;
         highlightingRules.append(rule);
     }
 
     //labels
-    rule.pattern = QRegExp("\\S+:");
+    rule.pattern = RegExp("\\S+:");
     rule.format = labelFormat;
     highlightingRules.append(rule);
 
     //memory
     rule.format = memoryFormat;
     QStringList memoryPatterns;
-    rule.pattern = QRegExp("\\[");
+    rule.pattern = RegExp("\\[");
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\]");
+    rule.pattern = RegExp("\\]");
     highlightingRules.append(rule);
     memoryPatterns << "\\bdb\\b" << "\\bdw\\b" << "\\bdu\\b" <<
                       "\\bdd\\b" << "\\bdp\\b" << "\\bdf\\b" <<
@@ -354,20 +354,20 @@ void FASM::fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightin
                       "\\bdup\\b" << "\\bfile\\b" << "\\bptr\\b" <<
                       "\\blabel\\b";
     foreach (const QString &pattern, memoryPatterns) {
-        rule.pattern = QRegExp(pattern);
+        rule.pattern = RegExp(pattern);
         rule.pattern.setCaseSensitivity(Qt::CaseInsensitive);
         highlightingRules.append(rule);
     }
 
     //numbers
     rule.format = numberFormat;
-    rule.pattern = QRegExp("\\b[\\-\\+]?\\d+[bod]?\\b");
+    rule.pattern = RegExp("\\b[\\-\\+]?\\d+[bod]?\\b");
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\b0[bo]\\d+\\b");
+    rule.pattern = RegExp("\\b0[bo]\\d+\\b");
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\b[0-9A-Fa-f]+h\\b"); //hexadecimal notation
+    rule.pattern = RegExp("\\b[0-9A-Fa-f]+h\\b"); //hexadecimal notation
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\b0[xh][0-9A-Fa-f]+\\b"); //hexadecimal notation
+    rule.pattern = RegExp("\\b0[xh][0-9A-Fa-f]+\\b"); //hexadecimal notation
     highlightingRules.append(rule);
 
     //registers
@@ -396,20 +396,20 @@ void FASM::fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightin
                         "\\br14b\\b" << "\\br15\\b" << "\\br15d\\b" <<
                         "\\br15w\\b" << "\\br15b\\b";
     foreach (const QString &pattern, registerPatterns) {
-        rule.pattern = QRegExp(pattern);
+        rule.pattern = RegExp(pattern);
         rule.pattern.setCaseSensitivity(Qt::CaseInsensitive);
         rule.format = registerFormat;
         highlightingRules.append(rule);
     }
 
     //.labels and numbers with point
-    rule.pattern = QRegExp("\\.[^\\s:]+[^:]");
+    rule.pattern = RegExp("\\.[^\\s:]+[^:]");
     rule.format = labelWithDotFormat;
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\.[^\\s:]+:");
+    rule.pattern = RegExp("\\.[^\\s:]+:");
     rule.format = labelFormat;
     highlightingRules.append(rule);
-    rule.pattern = QRegExp("\\b[\\-\\+]?\\d+\\.\\d+\\b");
+    rule.pattern = RegExp("\\b[\\-\\+]?\\d+\\.\\d+\\b");
     rule.format = numberFormat;
     highlightingRules.append(rule);
 
@@ -449,31 +449,31 @@ void FASM::fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightin
                       "\\birp\\b" << "\\birps\\b" << "\\bmatch\\b" <<
                       "\\bfix\\b";
     foreach (const QString &pattern, systemPatterns) {
-        rule.pattern = QRegExp(pattern);
+        rule.pattern = RegExp(pattern);
         rule.pattern.setCaseSensitivity(Qt::CaseInsensitive);
         highlightingRules.append(rule);
     }
 
     //quotations
-    rule.pattern = QRegExp("\".*\"");
+    rule.pattern = RegExp("\".*\"");
     rule.format = quotationFormat;
     rule.pattern.setMinimal(true);
     highlightingRules.append(rule);
 
-    rule.pattern = QRegExp("'.*'");
+    rule.pattern = RegExp("'.*'");
     rule.pattern.setMinimal(true);
     highlightingRules.append(rule);
 
-    rule.pattern = QRegExp("`.*`");
+    rule.pattern = RegExp("`.*`");
     rule.pattern.setMinimal(true);
     highlightingRules.append(rule);
 
     //comments
-    rule.pattern = QRegExp(";[^\n]*");
+    rule.pattern = RegExp(";[^\n]*");
     rule.format = commentFormat;
     rule.isComment = true;
     highlightingRules.append(rule);
     multiLineComments = false;
-    commentStartExpression = QRegExp();
-    commentEndExpression = QRegExp();
+    commentStartExpression = RegExp();
+    commentEndExpression = RegExp();
 }

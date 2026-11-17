@@ -41,6 +41,7 @@
 #ifndef DEBUGGER_H
 #define DEBUGGER_H
 
+#include "regexp.h"
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
@@ -136,7 +137,7 @@ private:
     QString exitMessage;
 
     //! Message on exit which shows when "continue" command used
-    QRegExp cExitMessage;
+    RegExp cExitMessage;
 
     //! Path to executable
     QString exePath;

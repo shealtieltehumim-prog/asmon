@@ -41,6 +41,7 @@
 #ifndef HIGHLIGHTER_H
 #define HIGHLIGHTER_H
 
+#include "regexp.h"
 #include <QSyntaxHighlighter>
 #include <QSettings>
 #include <QTextDocument>
@@ -73,8 +74,8 @@ private:
 
      bool isCommentInQuote(const QString &text, int index);
 
-     QRegExp commentStartExpression;
-     QRegExp commentEndExpression;
+     RegExp commentStartExpression;
+     RegExp commentEndExpression;
      bool multiLineComments;
      QTextCharFormat commentFormat;
 };

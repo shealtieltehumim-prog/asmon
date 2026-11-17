@@ -44,7 +44,7 @@
 #include <QObject>
 #include <QMap>
 #include <QList>
-#include <QRegExp>
+#include "regexp.h"
 #include <QFile>
 #include <QTextStream>
 #include <QVector>
@@ -79,7 +79,7 @@ public:
         quint64 numInCode;
          //! Address of instruction on this line in memory
         quint64 numInMem;
-        bool operator ==(const LineNum& ln)
+        bool operator ==(const LineNum& ln) const
         {
             return ln.numInCode == numInCode;
         }
@@ -92,7 +92,7 @@ public:
         HighlightingRule() : isComment(false) {
         }
         //! Pattern to highlight
-        QRegExp pattern;
+        RegExp pattern;
         //! Highlighting format - foreground color, background color, bold style and etc.
         QTextCharFormat format;
         bool isComment;
@@ -139,8 +139,8 @@ public:
     virtual void fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightingRules,
                                      QList<QTextCharFormat *> &formats,
                                      bool &multiLineComments,
-                                     QRegExp &commentStartExpression,
-                                     QRegExp &commentEndExpression) = 0;
+                                     RegExp &commentStartExpression,
+                                     RegExp &commentEndExpression) = 0;
 
     //! Returns the default start text (default project code)
     virtual QString getStartText() = 0;
