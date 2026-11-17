@@ -186,3 +186,49 @@ jobs:
         with:
           name: asmon-windows-x64
           path: dist
+
+  re-tools:
+    # External RE tools for the "RE" menu, packed as optional installer components.
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download Ghidra, JDK, Cutter, x64dbg, ImHex (official releases)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dl, tools | Out-Null
+          function Get-Asset($repo, $pattern) {
+            $rel = gh release view -R $repo --json tagName,assets | ConvertFrom-Json
+            $a = $rel.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
+            if (-not $a) { throw "No asset matching $pattern in $repo $($rel.tagName)" }
+            Write-Host "$repo $($rel.tagName): $($a.name) ($([math]::Round($a.size/1MB)) MB)"
+            gh release download $rel.tagName -R $repo -p $a.name -D dl --clobber
+            return "dl\$($a.name)"
+          }
+          # extract; if the archive holds a single top folder, use its contents
+          function Expand-Tool($zip, $name) {
+            $tmp = "dl\x-$name"
+            7z x $zip "-o$tmp" -y | Out-Null
+            $items = @(Get-ChildItem $tmp)
+            if ($items.Count -eq 1 -and $items[0].PSIsContainer) { Move-Item $items[0].FullName "tools\$name" }
+            else { Move-Item $tmp "tools\$name" }
+          }
+          Expand-Tool (Get-Asset 'NationalSecurityAgency/ghidra' '^ghidra_.*_PUBLIC_\d+\.zip$') 'ghidra'
+          Expand-Tool (Get-Asset 'adoptium/temurin21-binaries' '^OpenJDK21U-jdk_x64_windows_hotspot_.*\.zip$') 'jdk'
+          Expand-Tool (Get-Asset 'rizinorg/cutter' '^Cutter-v.*-Windows-x86_64\.zip$') 'cutter'
+          Expand-Tool (Get-Asset 'x64dbg/x64dbg' '^snapshot_.*\.zip$') 'x64dbg'
+          Expand-Tool (Get-Asset 'WerWolv/ImHex' '^imhex-.*-Windows-Portable-x86_64\.zip$') 'imhex'
+          Write-Host "--- launchers"
+          Get-ChildItem tools\ghidra\ghidraRun.bat, tools\jdk\bin\java.exe | ForEach-Object { $_.FullName }
+          Get-ChildItem -Recurse tools\cutter, tools\x64dbg, tools\imhex -Include cutter.exe, x64dbg.exe, x32dbg.exe, imhex*.exe | ForEach-Object { $_.FullName }
+          & tools\jdk\bin\java.exe -version
+          Write-Host "--- sizes (MB)"
+          Get-ChildItem tools -Directory | ForEach-Object {
+            $mb = [math]::Round((Get-ChildItem $_.FullName -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
+            Write-Host "$($_.Name): $mb"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-re-tools-windows
+          path: tools

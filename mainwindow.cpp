@@ -705,6 +705,44 @@ void MainWindow::createAsmonUi()
     debugMenu->insertAction(debugToggleBreakpointAction, debugStepInsnAction);
     debugToolBar->addAction(debugStepOutAction);
 
+    //! RE menu: open the program in external reverse-engineering tools
+    {
+        QMenu *reMenu = new QMenu(tr("RE"), this);
+        menuBar()->insertMenu(settingsMenu->menuAction(), reMenu);
+        for (const ReTools::Tool &tool : ReTools::all()) {
+            const QString id = tool.id;
+            QAction *current = reMenu->addAction(tr("Open the program in %1").arg(tool.name));
+            current->setProperty("en", QString("RE open program in ") + tool.name);
+            current->setProperty("reTool", id);
+            connect(current, &QAction::triggered, this, [this, id]() { openInReTool(id, false); });
+            QAction *other = reMenu->addAction(tr("Open a file in %1...").arg(tool.name));
+            other->setProperty("en", QString("RE open file in ") + tool.name);
+            other->setProperty("reTool", id);
+            connect(other, &QAction::triggered, this, [this, id]() { openInReTool(id, true); });
+            reMenu->addSeparator();
+        }
+        QAction *headers = reMenu->addAction(tr("Headers and sections (objdump -x)"));
+        headers->setProperty("en", "objdump headers sections binutils");
+        connect(headers, &QAction::triggered, this, [this]() {
+            buildOutputDock->show();
+            buildOutputDock->raise();
+            buildOutputView->showHeaders();
+            refreshBuildOutput();
+        });
+        //! Mark tools that are not installed (checked each time the menu opens).
+        connect(reMenu, &QMenu::aboutToShow, this, [this, reMenu]() {
+            const bool x86 = settings.value("mode", QString("x64")).toString() == "x86";
+            for (QAction *a : reMenu->actions()) {
+                const QString id = a->property("reTool").toString();
+                if (id.isEmpty())
+                    continue;
+                const bool installed = !ReTools::find(id, x86).isEmpty();
+                a->setEnabled(installed);
+                a->setStatusTip(installed ? QString() : tr("Not installed"));
+            }
+        });
+    }
+
     //! Build output: listing / disassembly / hex of what was built
     buildOutputView = new BuildOutputView;
     buildOutputDock = new QDockWidget(tr("Build output"), this);
@@ -870,6 +908,54 @@ void MainWindow::newFromTemplate(const QString &resource)
     newFile();
     Tab *tab = (Tab *) tabs->currentWidget();
     tab->code->setPlainText(QString::fromUtf8(f.readAll()));
+}
+
+void MainWindow::openInReTool(const QString &id, bool pickFile)
+{
+    QString file;
+    if (pickFile) {
+        file = QFileDialog::getOpenFileName(this, tr("Open a binary"), saveOpenDirectory,
+                                            tr("Programs and objects (*.exe *.dll *.o *.obj *.elf *.bin *.so);;All files (*)"));
+        if (file.isEmpty())
+            return;
+    } else {
+        if (!programIsBuilded)
+            buildProgram(false);
+        if (!programIsBuilded)
+            return;
+        //! Copy the program next to its source with a stable name, so the
+        //! tool's project/analysis keeps pointing at a real file.
+        const QString built = Common::pathInTemp("AsmonProg.exe");
+        file = built;
+        if (tabs && tabs->count() > 0) {
+            const QString src = ((Tab *) tabs->currentWidget())->getCurrentFilePath();
+            if (!src.isEmpty()) {
+                QFileInfo fi(src);
+                QString dest = fi.absolutePath() + "/" + fi.completeBaseName();
+                #ifdef Q_OS_WIN32
+                if (!linuxTargetSelected())
+                    dest += ".exe";
+                #endif
+                QFile::remove(dest);
+                if (QFile::copy(built, dest))
+                    file = dest;
+            }
+        }
+    }
+    QString error;
+    const bool x86 = settings.value("mode", QString("x64")).toString() == "x86";
+    if (!ReTools::launch(id, file, x86, &error)) {
+        printLogWithTime(error + '\n', Theme::color("errorcolor"));
+        return;
+    }
+    if (id == "ghidra") {
+        QApplication::clipboard()->setText(QDir::toNativeSeparators(file));
+        printLogWithTime(tr("Ghidra is starting. The program's path is on the clipboard: in Ghidra choose "
+                            "File > Import File (I) and paste it.") + '\n', Theme::color("fontcolor"));
+    } else {
+        printLogWithTime(tr("Opening %1 in %2...").arg(QDir::toNativeSeparators(file), id) + '\n',
+                         Theme::color("fontcolor"));
+    }
 }
 
 bool MainWindow::linuxTargetSelected() const

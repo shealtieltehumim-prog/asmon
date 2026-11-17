@@ -54,6 +54,8 @@ BuildOutputView::BuildOutputView(QWidget *parent) : QWidget(parent)
     tabs->addTab(listingView, tr("Listing"));
     tabs->addTab(disasmView, tr("Disassembly"));
     tabs->addTab(hexView, tr("Hex"));
+    headersView = makeView();
+    tabs->addTab(headersView, tr("Headers"));
     layout->addWidget(tabs);
 
     connect(binaryChoice, SIGNAL(currentIndexChanged(int)), this, SLOT(refresh()));
@@ -160,6 +162,15 @@ void BuildOutputView::refresh()
         disasmView->setPlainText(text);
     }
 
+    //! Headers and sections (binutils/llvm objdump -x)
+    QProcess headers;
+    headers.start(objdumpPath, QStringList() << "-x" << bin);
+    if (headers.waitForFinished(15000) && headers.exitStatus() == QProcess::NormalExit)
+        headersView->setPlainText(QString::fromLocal8Bit(headers.readAllStandardOutput()
+                                                          + headers.readAllStandardError()));
+    else
+        headersView->setPlainText(tr("Could not run objdump (%1).").arg(objdumpPath));
+
     //! Hex
     QFile f(bin);
     if (f.open(QIODevice::ReadOnly)) {
@@ -171,4 +182,9 @@ void BuildOutputView::refresh()
         hexView->setPlainText(text);
         status->setText(QString("%1 — %2 B").arg(QFileInfo(bin).fileName()).arg(size));
     }
+}
+
+void BuildOutputView::showHeaders()
+{
+    tabs->setCurrentWidget(headersView);
 }

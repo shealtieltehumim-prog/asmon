@@ -4,7 +4,10 @@
 ****************************************************************************/
 #include "midebugger.h"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QTimer>
 #include <cstdio>
@@ -56,6 +59,15 @@ void MiDebugger::start(const QList<int> &breakpointLines)
     connect(gdb, &QProcess::readyReadStandardOutput, this, &MiDebugger::onReadyRead);
     connect(gdb, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MiDebugger::onProcessFinished);
+    //! WinLibs' gdb embeds Python; without PYTHONHOME it prints "Could not find
+    //! platform independent libraries" into the program's output.
+    const QDir gdbPrefix(QFileInfo(cfg.gdb).absolutePath() + "/..");
+    if (QFileInfo(cfg.gdb).isAbsolute() && !gdbPrefix.entryList({ "python3*" }, QDir::Dirs).isEmpty() == false
+            && !QDir(gdbPrefix.absolutePath() + "/lib").entryList({ "python3*" }, QDir::Dirs).isEmpty()) {
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("PYTHONHOME", QDir::toNativeSeparators(gdbPrefix.absolutePath()));
+        gdb->setProcessEnvironment(env);
+    }
     gdb->start(cfg.gdb, QStringList() << "--interpreter=mi3" << "-nx" << "-q" << cfg.executable);
     if (!gdb->waitForStarted(10000)) {
         emit log(tr("Could not start gdb (%1).").arg(cfg.gdb), true);

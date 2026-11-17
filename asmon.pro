@@ -52,6 +52,7 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
     gdbmi.cpp \
@@ -83,6 +84,7 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
     regexp.h \
     theme.h \
+    retools.h \
     debugpanels.h \
     midebugger.h \
     gdbmi.h \

@@ -49,6 +49,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QClipboard>
 #include <QTime>
 #include <QPointer>
 #include <QColorDialog>
@@ -80,6 +81,7 @@
 #include "linuxtarget.h"
 #include "midebugger.h"
 #include "debugpanels.h"
+#include "retools.h"
 #include <QComboBox>
 #include <QFileSystemModel>
 #include <QTreeView>
@@ -261,6 +263,7 @@ public slots:
     void onDebugFinished(int exitCode);
     void onDebugRunning();
     void debugStepOut();
+    void openInReTool(const QString &id, bool pickFile);
     void debugStepInstruction();
     void refreshBuildOutput();
     bool linuxTargetSelected() const;

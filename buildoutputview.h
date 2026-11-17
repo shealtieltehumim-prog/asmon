@@ -33,6 +33,9 @@ public:
     //! Hex dump helper (also used by tests): at most maxBytes bytes.
     static QString hexDump(const QByteArray &data, qint64 baseOffset = 0);
 
+    //! Switch to the Headers tab (objdump -x).
+    void showHeaders();
+
 public slots:
     void refresh();
 
@@ -44,6 +47,7 @@ private:
     QPlainTextEdit *listingView;
     QPlainTextEdit *disasmView;
     QPlainTextEdit *hexView;
+    QPlainTextEdit *headersView;
     QComboBox *binaryChoice;
     QLabel *status;
     QCheckBox *hideIncluded;
