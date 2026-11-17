@@ -1,0 +1,60 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools libgl1-mesa-dev
+      - name: Build
+        run: |
+          mkdir build && cd build
+          qmake6 ../asmon.pro
+          make -j"$(nproc)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-linux-x64
+          path: build/asmon
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-translations
+            make
+      - name: Build
+        run: |
+          mkdir build && cd build
+          qmake6 ../asmon.pro CONFIG+=release
+          mingw32-make -j"$(nproc)"
+      - name: Deploy Qt runtime
+        run: |
+          mkdir -p dist
+          cp build/release/asmon.exe dist/ 2>/dev/null || cp build/asmon.exe dist/
+          windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/asmon.exe
+          ldd dist/asmon.exe | grep -i ucrt64 | awk '{print $3}' | xargs -r -I{} cp -n {} dist/
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-windows-x64
+          path: dist

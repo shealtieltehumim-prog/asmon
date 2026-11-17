@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "theme.h"
 #include "mainwindow.h"
 
 /**
@@ -46,10 +47,10 @@
  */
 
 MainWindow::MainWindow(const QStringList &args, QWidget *parent)
-    : QMainWindow(parent), settings("SASM Project", "SASM")
+    : QMainWindow(parent)
 {
-    setWindowTitle("SASM");
-    setWindowIcon(QIcon(":images/mainIcon.png"));
+    setWindowTitle("Asmon");
+    setWindowIcon(QIcon(":/icons/app.svg"));
 
     //! Set save and open directory
     saveOpenDirectory = settings.value("saveopendirectory", QString(Common::applicationDataPath() + "/Projects")).toString();
@@ -61,6 +62,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     settingsWindow = 0;
     closeFromCloseAll = false;
     settingsStartTextEditor = 0;
+    settingsHighlighter = 0;
     help = 0;
     registersWindow = 0;
     memoryWindow = 0;
@@ -70,6 +72,9 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     tabs = 0;
     memoryDock = 0;
     registersDock = 0;
+    debugToolBar = 0;
+    explorerDock = 0;
+    commandPalette = 0;
 
     //! Initialize assembler
     assembler = 0;
@@ -92,6 +97,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     createActions();
     createMenus();
     createToolBars();
+    createAsmonUi();
     refreshEditMenu();
     setAcceptDrops(true);
 
@@ -158,7 +164,7 @@ void MainWindow::initUi()
     compilerOut->setReadOnly(true);
     compilerOut->setMinimumHeight(100);
     QFont compilerOutFont;
-    compilerOutFont.setPointSize(settings.value("fontsize", 12).toInt());
+    compilerOutFont.setPointSize(settings.value("fontsize", 11).toInt());
     compilerOut->setFont(compilerOutFont);
     compilerOut->setText(tr("Build log:") + '\n');
 
@@ -212,6 +218,7 @@ void MainWindow::createMenus()
     editMenu->addAction(deleteTabAction);
     connect(editMenu, SIGNAL(aboutToShow()), this, SLOT(refreshEditMenu()));
     connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(refreshEditMenu()));
+    viewMenu = menuBar()->addMenu(tr("View"));
     buildMenu = menuBar()->addMenu(tr("Build"));
     buildMenu->addAction(buildAction);
     buildMenu->addSeparator();
@@ -243,7 +250,11 @@ void MainWindow::createActions()
 {
     QSettings keySettings(Common::applicationDataPath() + "/keys.ini", QSettings::IniFormat);
 
-    newAction = new QAction(QIcon(":/images/new.png"), tr("New"), this);
+    newAction = new QAction(Theme::icon("new"), tr("New"), this);
+
+    newAction->setProperty("en", "New");
+
+    newAction->setProperty("asmonIcon", "new");
     QString key = keySettings.value("new", "default").toString();
     QKeySequence stdKey(QKeySequence::New);
     if (key == "default")
@@ -251,7 +262,11 @@ void MainWindow::createActions()
     newAction->setShortcut(key);
     connect(newAction, SIGNAL(triggered()), this, SLOT(newFile()));
 
-    openAction = new QAction(QIcon(":/images/open.png"), tr("Open"), this);
+    openAction = new QAction(Theme::icon("open"), tr("Open"), this);
+
+    openAction->setProperty("en", "Open");
+
+    openAction->setProperty("asmonIcon", "open");
     key = keySettings.value("open", "default").toString();
     stdKey = QKeySequence(QKeySequence::Open);
     if (key == "default")
@@ -260,6 +275,8 @@ void MainWindow::createActions()
     connect(openAction, SIGNAL(triggered()), this, SLOT(openFile()));
 
     closeAction = new QAction(tr("Close file"), this);
+
+    closeAction->setProperty("en", "Close file");
     key = keySettings.value("close", "default").toString();
     stdKey = QKeySequence(QKeySequence::Close);
     if (key == "default")
@@ -268,7 +285,13 @@ void MainWindow::createActions()
     connect(closeAction, SIGNAL(triggered()), this, SLOT(closeFile()));
 
     
-    saveAction = new QAction(QIcon(":/images/save.png"), tr("Save"), this);
+    saveAction = new QAction(Theme::icon("save"), tr("Save"), this);
+
+    
+    saveAction->setProperty("en", "Save");
+
+    
+    saveAction->setProperty("asmonIcon", "save");
     key = keySettings.value("save", "default").toString();
     stdKey = QKeySequence(QKeySequence::Save);
     if (key == "default")
@@ -277,6 +300,8 @@ void MainWindow::createActions()
     connect(saveAction, SIGNAL(triggered()), this, SLOT(saveFile()));
 
     saveAsAction = new QAction(tr("Save as"), this);
+
+    saveAsAction->setProperty("en", "Save as");
     key = keySettings.value("saveAs", "default").toString();
     stdKey = QKeySequence(QKeySequence::SaveAs);
     if (key == "default")
@@ -285,6 +310,8 @@ void MainWindow::createActions()
     connect(saveAsAction, SIGNAL(triggered()), this, SLOT(saveAsFile()));
 
     saveExeAction = new QAction(tr("Save .exe"), this);
+
+    saveExeAction->setProperty("en", "Save .exe");
     key = keySettings.value("save_exe", "default").toString();
     if (key == "default")
         key = "Ctrl+Shift+E";
@@ -292,6 +319,8 @@ void MainWindow::createActions()
     connect(saveExeAction, SIGNAL(triggered()), this, SLOT(saveExe()));
 
     exitAction = new QAction(tr("Exit"), this);
+
+    exitAction->setProperty("en", "Exit");
     key = keySettings.value("exit", "default").toString();
     stdKey = QKeySequence(QString("Ctrl+Q"));
     if (key == "default")
@@ -300,6 +329,8 @@ void MainWindow::createActions()
     connect(exitAction, SIGNAL(triggered()), this, SLOT(closeApp()));
 
     findAction = new QAction(tr("Find and replace"), this);
+
+    findAction->setProperty("en", "Find and replace");
     key = keySettings.value("find", "default").toString();
     stdKey = QKeySequence(QKeySequence::Find);
     if (key == "default")
@@ -308,35 +339,46 @@ void MainWindow::createActions()
     connect(findAction, SIGNAL(triggered()), this, SLOT(find()));
 
 
-    undoAction = new QAction(QIcon(":/images/undo.png"), tr("Undo"), this);
+    undoAction = new QAction(tr("Undo"), this);
+
+
+    undoAction->setProperty("en", "Undo");
     key = keySettings.value("undo", "default").toString();
     stdKey = QKeySequence(QKeySequence::Undo);
     if (key == "default")
         key = stdKey.toString();
     undoAction->setShortcut(key);
 
-    redoAction = new QAction(QIcon(":/images/redo.png"), tr("Redo"), this);
+    redoAction = new QAction(tr("Redo"), this);
+
+    redoAction->setProperty("en", "Redo");
     key = keySettings.value("redo", "default").toString();
     stdKey = QKeySequence(QKeySequence::Redo);
     if (key == "default")
         key = stdKey.toString();
     redoAction->setShortcut(key);
 
-    cutAction = new QAction(QIcon(":/images/cut.png"), tr("Cut"), this);
+    cutAction = new QAction(tr("Cut"), this);
+
+    cutAction->setProperty("en", "Cut");
     key = keySettings.value("cut", "default").toString();
     stdKey = QKeySequence(QKeySequence::Cut);
     if (key == "default")
         key = stdKey.toString();
     cutAction->setShortcut(key);
 
-    copyAction = new QAction(QIcon(":/images/copy.png"), tr("Copy"), this);
+    copyAction = new QAction(tr("Copy"), this);
+
+    copyAction->setProperty("en", "Copy");
     key = keySettings.value("copy", "default").toString();
     stdKey = QKeySequence(QKeySequence::Copy);
     if (key == "default")
         key = stdKey.toString();
     copyAction->setShortcut(key);
 
-    pasteAction = new QAction(QIcon(":/images/paste.png"), tr("Paste"), this);
+    pasteAction = new QAction(tr("Paste"), this);
+
+    pasteAction->setProperty("en", "Paste");
     key = keySettings.value("paste", "default").toString();
     stdKey = QKeySequence(QKeySequence::Paste);
     if (key == "default")
@@ -344,6 +386,8 @@ void MainWindow::createActions()
     pasteAction->setShortcut(key);
 
     deleteAction = new QAction(tr("Delete"), this);
+
+    deleteAction->setProperty("en", "Delete");
     key = keySettings.value("delete", "default").toString();
     stdKey = QKeySequence(QKeySequence::Delete);
     if (key == "default")
@@ -351,6 +395,8 @@ void MainWindow::createActions()
     deleteAction->setShortcut(key);
 
     selectAllAction = new QAction(tr("Select all"), this);
+
+    selectAllAction->setProperty("en", "Select all");
     key = keySettings.value("selectAll", "default").toString();
     stdKey = QKeySequence(QKeySequence::SelectAll);
     if (key == "default")
@@ -358,6 +404,8 @@ void MainWindow::createActions()
     selectAllAction->setShortcut(key);
 
     commentAction = new QAction(tr("Comment"), this);
+
+    commentAction->setProperty("en", "Comment");
     key = keySettings.value("comment", "default").toString();
     stdKey = QKeySequence(QString("Shift+Ctrl+A"));
     if (key == "default")
@@ -365,6 +413,8 @@ void MainWindow::createActions()
     commentAction->setShortcut(key);
 
     uncommentAction = new QAction(tr("Remove comment"), this);
+
+    uncommentAction->setProperty("en", "Remove comment");
     key = keySettings.value("uncomment", "default").toString();
     stdKey = QKeySequence(QString("Shift+Ctrl+Q"));
     if (key == "default")
@@ -372,6 +422,8 @@ void MainWindow::createActions()
     uncommentAction->setShortcut(key);
 
     putTabAction = new QAction(tr("Indent"), this);
+
+    putTabAction->setProperty("en", "Indent");
     key = keySettings.value("putTab", "default").toString();
     stdKey = QKeySequence(QString("Tab"));
     if (key == "default")
@@ -379,6 +431,8 @@ void MainWindow::createActions()
     putTabAction->setShortcut(key);
 
     deleteTabAction = new QAction(tr("Remove indent"), this);
+
+    deleteTabAction->setProperty("en", "Remove indent");
     key = keySettings.value("deleteTab", "default").toString();
     stdKey = QKeySequence(QString("Shift+Tab"));
     if (key == "default")
@@ -387,7 +441,13 @@ void MainWindow::createActions()
     //! Action in edit menu connects in refreshEditMenu function!
 
 
-    buildAction = new QAction(QIcon(":/images/build.png"), tr("Build this"), this);
+    buildAction = new QAction(Theme::icon("build"), tr("Build this"), this);
+
+
+    buildAction->setProperty("en", "Build this");
+
+
+    buildAction->setProperty("asmonIcon", "build");
     key = keySettings.value("build", "default").toString();
     stdKey = QKeySequence(QString("Ctrl+F9"));
     if (key == "default")
@@ -395,7 +455,11 @@ void MainWindow::createActions()
     buildAction->setShortcut(key);
     connect(buildAction, SIGNAL(triggered()), this, SLOT(buildProgram()));
 
-    runAction = new QAction(QIcon(":/images/run.png"), tr("Build and run"), this);
+    runAction = new QAction(Theme::icon("run"), tr("Build and run"), this);
+
+    runAction->setProperty("en", "Build and run");
+
+    runAction->setProperty("asmonIcon", "run");
     key = keySettings.value("run", "default").toString();
     stdKey = QKeySequence(QString("F9"));
     if (key == "default")
@@ -404,14 +468,24 @@ void MainWindow::createActions()
     connect(runAction, SIGNAL(triggered()), this, SLOT(runProgram()));
 
     runExeAction = new QAction(tr("Run in new window"), this);
+
+    runExeAction->setProperty("en", "Run in new window");
     connect(runExeAction, SIGNAL(triggered()), this, SLOT(runExeProgram()));
 
-    stopAction = new QAction(QIcon(":/images/stop.png"), tr("Stop"), this);
+    stopAction = new QAction(Theme::icon("stop"), tr("Stop"), this);
+
+    stopAction->setProperty("en", "Stop");
+
+    stopAction->setProperty("asmonIcon", "stop");
     connect(stopAction, SIGNAL(triggered()), this, SLOT(stopProgram()));
     //! Enable in runProgram(), disable in stop
     stopAction->setEnabled(false);
 
-    debugAction = new QAction(QIcon(":/images/debug.png"), tr("Debug"), this);
+    debugAction = new QAction(Theme::icon("debug"), tr("Debug"), this);
+
+    debugAction->setProperty("en", "Debug");
+
+    debugAction->setProperty("asmonIcon", "debug");
     key = keySettings.value("debug", "default").toString();
     stdKey = QKeySequence(QString("F5"));
     if (key == "default")
@@ -420,7 +494,11 @@ void MainWindow::createActions()
     debugKey = key;
     connect(debugAction, SIGNAL(triggered()), this, SLOT(debug()));
 
-    debugNextNiAction = new QAction(QIcon(":/images/stepover.png"), tr("Step over"), this);
+    debugNextNiAction = new QAction(Theme::icon("stepover"), tr("Step over"), this);
+
+    debugNextNiAction->setProperty("en", "Step over");
+
+    debugNextNiAction->setProperty("asmonIcon", "stepover");
     key = keySettings.value("stepOver", "default").toString();
     stdKey = QKeySequence(QString("F10"));
     if (key == "default")
@@ -428,7 +506,11 @@ void MainWindow::createActions()
     debugNextNiAction->setShortcut(key);
     connect(debugNextNiAction, SIGNAL(triggered()), this, SLOT(debugNextNi()));
 
-    debugNextAction = new QAction(QIcon(":/images/stepinto.png"), tr("Step into"), this);
+    debugNextAction = new QAction(Theme::icon("stepinto"), tr("Step into"), this);
+
+    debugNextAction->setProperty("en", "Step into");
+
+    debugNextAction->setProperty("asmonIcon", "stepinto");
     key = keySettings.value("stepInto", "default").toString();
     stdKey = QKeySequence(QString("F11"));
     if (key == "default")
@@ -437,6 +519,8 @@ void MainWindow::createActions()
     connect(debugNextAction, SIGNAL(triggered()), this, SLOT(debugNext()));
 
     debugToggleBreakpointAction = new QAction(tr("Toggle breakpoint"), this);
+
+    debugToggleBreakpointAction->setProperty("en", "Toggle breakpoint");
     key = keySettings.value("breakpoint", "default").toString();
     stdKey = QKeySequence(QString("F8"));
     if (key == "default")
@@ -445,6 +529,8 @@ void MainWindow::createActions()
     connect(debugToggleBreakpointAction, SIGNAL(triggered()), this, SLOT(debugToggleBreakpoint()));
 
     debugShowRegistersAction = new QAction(tr("Show registers"), this);
+
+    debugShowRegistersAction->setProperty("en", "Show registers");
     key = keySettings.value("showRegisters", "default").toString();
     stdKey = QKeySequence(QString("Ctrl+R"));
     if (key == "default")
@@ -454,6 +540,8 @@ void MainWindow::createActions()
     connect(debugShowRegistersAction, SIGNAL(toggled(bool)), this, SLOT(debugShowRegisters()), Qt::QueuedConnection);
 
     debugShowMemoryAction = new QAction(tr("Show memory"), this);
+
+    debugShowMemoryAction->setProperty("en", "Show memory");
     key = keySettings.value("showMemory", "default").toString();
     stdKey = QKeySequence(QString("Ctrl+M"));
     if (key == "default")
@@ -466,6 +554,9 @@ void MainWindow::createActions()
 
 
     settingsAction = new QAction(tr("Settings"), this);
+
+
+    settingsAction->setProperty("en", "Settings");
     connect(settingsAction, SIGNAL(triggered()), this, SLOT(openSettings()));
 
     connect(mainWidget, SIGNAL(currentChanged(int)), this, SLOT(changeActionsState(int)));
@@ -473,6 +564,8 @@ void MainWindow::createActions()
     changeActionsState(mainWidget->currentIndex());
 
     helpAction = new QAction(tr("Help"), this);
+
+    helpAction->setProperty("en", "Help");
     key = keySettings.value("help", "default").toString();
     stdKey = QKeySequence(QKeySequence::HelpContents);
     if (key == "default")
@@ -481,39 +574,186 @@ void MainWindow::createActions()
     connect(helpAction, SIGNAL(triggered()), this, SLOT(openHelp()));
 
     aboutAction = new QAction(tr("About"), this);
+
+    aboutAction->setProperty("en", "About");
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(openAbout()));
 }
 
 void MainWindow::createToolBars()
 {
-    fileToolBar = addToolBar(tr("File"));
+    //! Asmon: one quiet toolbar. Step buttons live in a second toolbar that is
+    //! visible only while debugging. Undo/cut/copy/paste stay in the Edit menu.
+    fileToolBar = addToolBar(tr("Main"));
+    fileToolBar->setObjectName("MainToolBar");
+    fileToolBar->setMovable(false);
+    fileToolBar->setIconSize(QSize(18, 18));
     fileToolBar->addAction(newAction);
     fileToolBar->addAction(openAction);
     fileToolBar->addAction(saveAction);
-    fileToolBar->setObjectName("File");
-
-    editToolBar = addToolBar(tr("Edit"));
-    editToolBar->addAction(undoAction);
-    editToolBar->addAction(redoAction);
-    editToolBar->addAction(cutAction);
-    editToolBar->addAction(copyAction);
-    editToolBar->addAction(pasteAction);
-    editToolBar->setObjectName("Edit");
-
-    buildToolBar = addToolBar(tr("Build"));
-    buildToolBar->addAction(buildAction);
-    buildToolBar->addAction(runAction);
-    buildToolBar->addAction(stopAction);
-    buildToolBar->setObjectName("Build");
+    fileToolBar->addSeparator();
+    fileToolBar->addAction(runAction);
+    fileToolBar->addAction(buildAction);
+    fileToolBar->addAction(debugAction);
+    fileToolBar->addAction(stopAction);
 
     debugToolBar = addToolBar(tr("Debug"));
-    debugToolBar->addAction(debugAction);
+    debugToolBar->setObjectName("DebugToolBar");
+    debugToolBar->setMovable(false);
+    debugToolBar->setIconSize(QSize(18, 18));
     debugToolBar->addAction(debugNextNiAction);
     debugToolBar->addAction(debugNextAction);
-    debugToolBar->addAction(stopAction);
-    debugToolBar->setObjectName("Debug");
+    debugToolBar->hide();
+
+    editToolBar = 0;
+    buildToolBar = 0;
 
     restoreState(settings.value("windowstate").toByteArray());
+    debugToolBar->hide();
+}
+
+void MainWindow::createAsmonUi()
+{
+    //! Command palette (Ctrl+Shift+P)
+    commandPalette = new CommandPalette(this);
+    commandPaletteAction = new QAction(Theme::icon("palette"), tr("Command palette..."), this);
+    commandPaletteAction->setProperty("en", "Command palette...");
+    commandPaletteAction->setProperty("asmonIcon", "palette");
+    commandPaletteAction->setShortcut(QKeySequence("Ctrl+Shift+P"));
+    commandPaletteAction->setShortcutContext(Qt::ApplicationShortcut);
+    connect(commandPaletteAction, SIGNAL(triggered()), this, SLOT(showCommandPalette()));
+    addAction(commandPaletteAction);
+
+    //! File explorer
+    explorerModel = new QFileSystemModel(this);
+    explorerModel->setNameFilters(QStringList() << "*.asm" << "*.inc" << "*.s" << "*.S" << "*.nasm"
+                                                << "*.lst" << "*.txt" << "*.md");
+    explorerModel->setNameFilterDisables(false);
+    explorerView = new QTreeView;
+    explorerView->setModel(explorerModel);
+    for (int c = 1; c < explorerModel->columnCount(); ++c)
+        explorerView->hideColumn(c);
+    explorerView->setHeaderHidden(true);
+    explorerView->setFrameShape(QFrame::NoFrame);
+    explorerView->setIndentation(14);
+    connect(explorerView, SIGNAL(activated(QModelIndex)), this, SLOT(openFromExplorer(QModelIndex)));
+    explorerDock = new QDockWidget(tr("Explorer"), this);
+    explorerDock->setObjectName("explorerDock");
+    explorerDock->setWidget(explorerView);
+    explorerDock->setFeatures(QDockWidget::DockWidgetClosable);
+    explorerDock->setMinimumWidth(180);
+    addDockWidget(layoutDirection() == Qt::RightToLeft ? Qt::RightDockWidgetArea : Qt::LeftDockWidgetArea,
+                  explorerDock);
+    toggleExplorerAction = explorerDock->toggleViewAction();
+    toggleExplorerAction->setText(tr("Explorer"));
+    toggleExplorerAction->setIcon(Theme::icon("explorer"));
+    toggleExplorerAction->setProperty("asmonIcon", "explorer");
+    toggleExplorerAction->setShortcut(QKeySequence("Ctrl+B"));
+    explorerDock->setVisible(settings.value("explorervisible", false).toBool());
+    connect(explorerDock, SIGNAL(visibilityChanged(bool)), this, SLOT(toggleExplorer(bool)));
+    connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(updateExplorerRoot()));
+    updateExplorerRoot();
+
+    //! Focus mode: only the editor stays visible
+    focusModeAction = new QAction(tr("Focus mode"), this);
+    focusModeAction->setProperty("en", "Focus mode");
+    focusModeAction->setCheckable(true);
+    focusModeAction->setShortcut(QKeySequence("Ctrl+K, Z"));
+    focusModeAction->setShortcutContext(Qt::ApplicationShortcut);
+    connect(focusModeAction, SIGNAL(toggled(bool)), this, SLOT(toggleFocusMode(bool)));
+    addAction(focusModeAction);
+
+    //! Theme
+    darkThemeAction = new QAction(tr("Dark theme"), this);
+    darkThemeAction->setProperty("en", "Dark theme");
+    darkThemeAction->setCheckable(true);
+    darkThemeAction->setChecked(Theme::isDark());
+    connect(darkThemeAction, SIGNAL(toggled(bool)), this, SLOT(switchTheme(bool)));
+
+    viewMenu->addAction(commandPaletteAction);
+    viewMenu->addSeparator();
+    viewMenu->addAction(toggleExplorerAction);
+    viewMenu->addAction(focusModeAction);
+    viewMenu->addSeparator();
+    viewMenu->addAction(darkThemeAction);
+}
+
+void MainWindow::showCommandPalette()
+{
+    commandPalette->popup(menuBar());
+}
+
+void MainWindow::toggleFocusMode(bool on)
+{
+    if (on) {
+        hiddenByFocusMode.clear();
+        QList<QWidget *> candidates;
+        candidates << menuBar() << fileToolBar << debugToolBar << compilerOut;
+        for (QDockWidget *d : findChildren<QDockWidget *>())
+            candidates << d;
+        for (QWidget *w : candidates) {
+            if (w && w->isVisible()) {
+                hiddenByFocusMode << w;
+                w->hide();
+            }
+        }
+        printLogWithTime(tr("Focus mode: press Ctrl+K, Z to exit.") + '\n', Theme::color("fontcolor"));
+    } else {
+        for (QWidget *w : hiddenByFocusMode)
+            if (w)
+                w->show();
+        hiddenByFocusMode.clear();
+    }
+}
+
+void MainWindow::toggleExplorer(bool on)
+{
+    settings.setValue("explorervisible", on);
+    if (on)
+        updateExplorerRoot();
+}
+
+void MainWindow::updateExplorerRoot()
+{
+    if (!explorerDock)
+        return;
+    QString dir = saveOpenDirectory;
+    if (tabs && tabs->count() > 0) {
+        QString path = ((Tab *) tabs->currentWidget())->getCurrentFilePath();
+        if (!path.isEmpty())
+            dir = QFileInfo(path).absolutePath();
+    }
+    if (dir.isEmpty() || !QDir(dir).exists())
+        dir = QDir::homePath();
+    explorerModel->setRootPath(dir);
+    explorerView->setRootIndex(explorerModel->index(dir));
+    explorerDock->setWindowTitle(tr("Explorer") + " — " + QDir(dir).dirName());
+}
+
+void MainWindow::openFromExplorer(const QModelIndex &index)
+{
+    const QString path = explorerModel->filePath(index);
+    if (QFileInfo(path).isFile())
+        openFile(path);
+}
+
+void MainWindow::switchTheme(bool dark)
+{
+    Theme::setTheme(settings, dark);
+    Theme::apply(*qApp);
+    for (QAction *a : findChildren<QAction *>()) {
+        const QString name = a->property("asmonIcon").toString();
+        if (!name.isEmpty())
+            a->setIcon(Theme::icon(name));
+    }
+    //! Editors get their colours after the style sheet re-polish has run,
+    //! otherwise the re-polish restores the old palette.
+    QTimer::singleShot(0, this, [this]() {
+        for (RuQPlainTextEdit *e : findChildren<RuQPlainTextEdit *>())
+            e->applyThemeColors();
+        for (RuQTextEdit *e : findChildren<RuQTextEdit *>())
+            e->applyThemeColors();
+        recreateHighlighter();
+    });
 }
 
 void MainWindow::refreshEditMenu()
@@ -691,7 +931,7 @@ void MainWindow::saveExe()
     if (saveFileName.isEmpty())
         return;
     saveOpenDirectory = QFileInfo(saveFileName).absoluteDir().absolutePath();
-    QFile exeFile(Common::pathInTemp("SASMprog.exe"));
+    QFile exeFile(Common::pathInTemp("AsmonProg.exe"));
     QFile::remove(saveFileName);
     exeFile.copy(saveFileName);
 }
@@ -819,11 +1059,11 @@ void MainWindow::buildProgram(bool debugMode)
     programIsBuilded = false;
 
     using Common::applicationDataPath;
-    printLogWithTime(tr("Build started...") + '\n', settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
+    printLogWithTime(tr("Build started...") + '\n', Theme::color("fontcolor"));
     QCoreApplication::processEvents();
 
     if (! QFile::exists(applicationDataPath())) {
-        printLogWithTime(tr("Error! Program directory does not exist. Please reinstall the program.") + '\n', Qt::red);
+        printLogWithTime(tr("Error! Program directory does not exist. Please reinstall the program.") + '\n', Theme::color("errorcolor"));
         QMessageBox::critical(0, tr("Error!"), tr("Directory NASM does not exist. Please reinstall the program."));
         return;
     }
@@ -859,7 +1099,7 @@ void MainWindow::buildProgram(bool debugMode)
     assemblerArguments.replaceInStrings("$LSTOUTPUT$", Common::pathInTemp("program.lst"));
     assemblerArguments.replaceInStrings("$PROGRAM.OBJ$",
         Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
-    assemblerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("SASMprog.exe"));
+    assemblerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("AsmonProg.exe"));
     assemblerArguments.replaceInStrings("$MACRO.OBJ$", stdioMacros);
     QProcess assemblerProcess;
     QString assemblerOutput = Common::pathInTemp("compilererror.txt");
@@ -881,7 +1121,7 @@ void MainWindow::buildProgram(bool debugMode)
     assemblerProcess.waitForFinished();
 
     if (assemblerProcess.error() != QProcess::UnknownError) {
-        printLogWithTime(tr("Unable to start assembler. Check your settings.") + '\n', Qt::red);
+        printLogWithTime(tr("Unable to start assembler. Check your settings.") + '\n', Theme::color("errorcolor"));
         return;
     }
 
@@ -893,7 +1133,7 @@ void MainWindow::buildProgram(bool debugMode)
     QFile macro;
     #ifdef Q_OS_WIN32
         QString linker = settings.value("linkerpath", applicationDataPath() + "/MinGW/bin/gcc.exe").toString();
-        if (settings.value("mode", QString("x86")).toString() == "x86") {
+        if (settings.value("mode", QString("x64")).toString() == "x86") {
             macro.setFileName(applicationDataPath() + "/NASM/macro.o");
         } else {
             macro.setFileName(applicationDataPath() + "/NASM/macro64.o");
@@ -908,7 +1148,7 @@ void MainWindow::buildProgram(bool debugMode)
         //! macro.c compilation
         QStringList gccMArguments;
         gccMArguments << "-x" << "c" << Common::pathInTemp("macro.c") << "-c" << "-g" << "-o" << stdioMacros;
-        if (settings.value("mode", QString("x86")).toString() == "x86")
+        if (settings.value("mode", QString("x64")).toString() == "x86")
             gccMArguments << "-m32";
         else
             gccMArguments << "-m64";
@@ -925,7 +1165,7 @@ void MainWindow::buildProgram(bool debugMode)
         linkerArguments.replaceInStrings("$PROGRAM.OBJ$",
             Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
         linkerArguments.replaceInStrings("$MACRO.OBJ$", stdioMacros);
-        linkerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("SASMprog.exe"));
+        linkerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("AsmonProg.exe"));
         linkerArguments.replaceInStrings("$SOURCE$", Common::pathInTemp("program.asm"));
         linkerArguments.replaceInStrings("$LSTOUTPUT$", Common::pathInTemp("program.lst"));
         QProcess linkerProcess;
@@ -936,7 +1176,7 @@ void MainWindow::buildProgram(bool debugMode)
         linkerProcess.waitForFinished();
 
         if (linkerProcess.error() != QProcess::UnknownError) {
-            printLogWithTime(tr("Unable to start linker. Check your settings.") + '\n', Qt::red);
+            printLogWithTime(tr("Unable to start linker. Check your settings.") + '\n', Theme::color("errorcolor"));
             return;
         }
     }
@@ -958,36 +1198,36 @@ void MainWindow::buildProgram(bool debugMode)
     logFile.close();
 
     bool builded;
-    if (QFile::exists(Common::pathInTemp("SASMprog.exe")))
+    if (QFile::exists(Common::pathInTemp("AsmonProg.exe")))
         builded = true;
     else
         builded = false;
     if (!builded) {
-        printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Qt::red);
+        printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
 
         //! Print errors
-        printLog(logText, Qt::red);
+        printLog(logText, Theme::color("errorcolor"));
         if (!disableLinking) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
             QTextStream logLinker(&logFile);
             logText = logLinker.readAll();
             logFile.close();
-            printLog(logText, Qt::red);
+            printLog(logText, Theme::color("errorcolor"));
         }
 
         //! QMessageBox::critical(0, tr("Warning!"), tr("Errors have occurred in the build!"));
     } else {
-        printLogWithTime(tr("Built successfully.") + '\n', Qt::darkGreen);
+        printLogWithTime(tr("Built successfully.") + '\n', Theme::color("successcolor"));
         //! print warnings
-        printLog(logText, Qt::red);
+        printLog(logText, Theme::color("errorcolor"));
         if (!disableLinking) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
             QTextStream logLinker(&logFile);
             logText = logLinker.readAll();
             logFile.close();
-            printLog(logText, Qt::red);
+            printLog(logText, Theme::color("errorcolor"));
         }
         programIsBuilded = true;
     }
@@ -996,7 +1236,7 @@ void MainWindow::buildProgram(bool debugMode)
 void MainWindow::runProgram()
 {
     if (!programStopped) {
-        QMessageBox::information(0, QString("SASM"), tr("The program is already running."));
+        QMessageBox::information(0, QString("Asmon"), tr("The program is already running."));
         return;
     }
     outputIndex = tabs->currentIndex();
@@ -1013,14 +1253,14 @@ void MainWindow::runProgram()
 
     ((Tab *) tabs->currentWidget())->clearOutput();
 
-    printLogWithTime(tr("The program is executing...") + '\n', settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
+    printLogWithTime(tr("The program is executing...") + '\n', Theme::color("fontcolor"));
     QCoreApplication::processEvents();
 
     QString input = Common::pathInTemp("input.txt");
     Tab *currentTab = (Tab *) tabs->currentWidget();
     currentTab->saveInputToFile(input);
 
-    QString program = Common::pathInTemp("SASMprog.exe");
+    QString program = Common::pathInTemp("AsmonProg.exe");
     runProcess->setStandardInputFile(input);
 
     //! Run program in code directory if it exists
@@ -1063,11 +1303,11 @@ void MainWindow::testStopOfProgram()
             if (runProcess->exitStatus() == QProcess::NormalExit)
                 printLogWithTime(tr("The program finished normally. Execution time: %1 s")
                                  .arg(programExecutionTime.elapsed() / 1000.0)
-                                 + '\n', Qt::darkGreen);
+                                 + '\n', Theme::color("successcolor"));
             else
                 printLogWithTime(tr("The program crashed! Execution time: %1 s").
                                  arg(programExecutionTime.elapsed() / 1000.0)
-                                 + '\n', Qt::red);
+                                 + '\n', Theme::color("errorcolor"));
             programStopped = true;
         }
         timer->stop();
@@ -1083,7 +1323,7 @@ void MainWindow::runExeProgram()
        return;
     }
 
-    QString program = Common::pathInTemp("SASMprog.exe");
+    QString program = Common::pathInTemp("AsmonProg.exe");
     runProcess->startDetached(program, QStringList());
 }
 
@@ -1097,9 +1337,9 @@ void MainWindow::stopProgram()
 
         runProcess->kill();
 
-        printLogWithTime(tr("The program stopped.") + '\n', Qt::darkGreen);
+        printLogWithTime(tr("The program stopped.") + '\n', Theme::color("successcolor"));
     } else {
-        QMessageBox::information(0, QString("SASM"), tr("The program is not running."));
+        QMessageBox::information(0, QString("Asmon"), tr("The program is not running."));
     }
 }
 
@@ -1143,16 +1383,16 @@ void MainWindow::debug()
         debuggerWasStarted = false;
         buildProgram(true);
         if (!programIsBuilded) {
-            printLogWithTime(tr("Before debugging you need to build the program.") + '\n', Qt::red);
+            printLogWithTime(tr("Before debugging you need to build the program.") + '\n', Theme::color("errorcolor"));
             return;
         }
         ((Tab *) tabs->currentWidget())->clearOutput();
-        printLogWithTime(tr("Debugging started...") + '\n', Qt::darkGreen);
+        printLogWithTime(tr("Debugging started...") + '\n', Theme::color("successcolor"));
         Tab *currentTab = (Tab *) tabs->currentWidget();
         CodeEditor *code = currentTab->code;
 
         //! Determine executable path
-        QString exePath = Common::pathInTemp("SASMprog.exe");
+        QString exePath = Common::pathInTemp("AsmonProg.exe");
 
         //! Determine working directory path
         QString workingDirectoryPath;
@@ -1188,12 +1428,14 @@ void MainWindow::debug()
         debugAction->setEnabled(false);
         if (debugger->isStopped()) {
             debugAction->setText(tr("Pause"));
-            debugAction->setIcon(QIcon(":/images/debugPause.png"));
+            debugAction->setIcon(Theme::icon("pause"));
+            debugAction->setProperty("asmonIcon", "pause");
             debugger->doInput(QString("c\n"), ni);
             debugAction->setShortcut(QString());
         } else {
             debugAction->setText(tr("Continue"));
-            debugAction->setIcon(QIcon(":/images/continue.png"));
+            debugAction->setIcon(Theme::icon("continue"));
+            debugAction->setProperty("asmonIcon", "continue");
             debugAction->setShortcut(debugKey);
             debugger->pause();
         }
@@ -1204,7 +1446,8 @@ void MainWindow::debug()
 void MainWindow::changeDebugActionToStart()
 {
     debugAction->setText(tr("Continue"));
-    debugAction->setIcon(QIcon(":/images/continue.png"));
+    debugAction->setIcon(Theme::icon("continue"));
+            debugAction->setProperty("asmonIcon", "continue");
     debugAction->setShortcut(debugKey);
     if (!debuggerWasStarted)
         debuggerWasStarted = true;
@@ -1217,7 +1460,8 @@ void MainWindow::changeDebugActionToStart()
 void MainWindow::enableDebugActions()
 {
     debugAction->setText(tr("Continue"));
-    debugAction->setIcon(QIcon(":/images/continue.png"));
+    debugAction->setIcon(Theme::icon("continue"));
+            debugAction->setProperty("asmonIcon", "continue");
 
     //! Set all user's breakpoints
     CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
@@ -1241,19 +1485,24 @@ void MainWindow::enableDebugActions()
     buildAction->setEnabled(false);
     runAction->setEnabled(false);
 
-    //! Restore windows
-    debugShowRegistersAction->setChecked(settings.value("debugregisters", false).toBool());
+    debugToolBar->show();
+
+    //! Restore windows (registers are shown by default while debugging)
+    debugShowRegistersAction->setChecked(settings.value("debugregisters", true).toBool());
     debugShowMemoryAction->setChecked(settings.value("debugmemory", false).toBool());
 }
 
 void MainWindow::disableDebugActions(bool start)
 {
     debugAction->setText(tr("Debug"));
-    debugAction->setIcon(QIcon(":/images/debug.png"));
+    debugAction->setIcon(Theme::icon("debug"));
+            debugAction->setProperty("asmonIcon", "debug");
     debugAction->setShortcut(debugKey);
 
     debugNextAction->setEnabled(false);
     debugNextNiAction->setEnabled(false);
+    if (debugToolBar)
+        debugToolBar->hide();
     debugShowRegistersAction->setEnabled(false);
     debugShowMemoryAction->setEnabled(false);
     stopAction->setEnabled(false);
@@ -1422,7 +1671,7 @@ void MainWindow::debugShowRegisters()
             registersDock->setAllowedAreas(Qt::AllDockWidgetAreas);
 
             int regCount;
-            if (settings.value("mode", QString("x86")).toString() == "x86") {
+            if (settings.value("mode", QString("x64")).toString() == "x86") {
                 regCount = 16;
             } else {
                 regCount = 24;
@@ -1489,7 +1738,7 @@ void MainWindow::debugExit()
     closeAnyCommandWidget();
     debugShowRegistersAction->setChecked(false);
     debugShowMemoryAction->setChecked(false);
-    printLogWithTime(tr("Debugging finished.") + '\n', Qt::darkGreen);
+    printLogWithTime(tr("Debugging finished.") + '\n', Theme::color("successcolor"));
     disableDebugActions();
 }
 
@@ -1514,7 +1763,7 @@ void MainWindow::debugRunCommand(QString command, bool print)
     if (debugger->isStopped() && locker.tryLock()) {
         connect(debugger, SIGNAL(printLog(QString,QColor)), &locker, SLOT(unlock()), Qt::UniqueConnection);
         connect(debugger, SIGNAL(finished()), &locker, SLOT(unlock()), Qt::UniqueConnection);
-        printLog("> " + command + "\n", QColor(32, 71, 247));
+        printLog("> " + command + "\n", QColor(Theme::isDark() ? "#4fc1ff" : "#2047f7"));
         if (print)
             debugger->doInput("p " + command + "\n", anyAction);
         else
@@ -1634,7 +1883,7 @@ void MainWindow::restorePrevSession(bool notNotify)
 {
     int count = settings.value("tabscount", 0).toInt();
     if (count == 0 && !notNotify) {
-        QMessageBox::information(0, QString("SASM"),
+        QMessageBox::information(0, QString("Asmon"),
                                  tr("In the previous session was not open any of the saved tabs!"));
         return;
     }
@@ -1770,8 +2019,8 @@ void MainWindow::openSettings()
     settingsUi.startWindow->setCurrentIndex(settings.value("startwindow", 0).toInt());
     settingsUi.language->setCurrentIndex(settings.value("language", 0).toInt());
     settingsUi.fontComboBox->setCurrentFont(QFont(settings.value("fontfamily",
-                                                                 QString("Courier New")).value<QString>()));
-    settingsUi.fontSizeSpinBox->setValue(settings.value("fontsize", 12).toInt());
+                                                                 Theme::defaultCodeFont()).value<QString>()));
+    settingsUi.fontSizeSpinBox->setValue(settings.value("fontsize", 11).toInt());
     if (settings.value("allregisters", false).toBool())
         settingsUi.registersYesRadioButton->setChecked(true);
     else
@@ -1779,7 +2028,7 @@ void MainWindow::openSettings()
     settingsUi.insertDebugStringCheckBox->setChecked(settings.value("insertdebugstring", true).toBool());
 
     //! Colors
-    initColorButtons(false, false);
+    initColorButtons(Theme::isDark(), false);
     //! Fonts
     for (int i = 0; i < fontCheckBoxes.size(); i++) {
         changeHighlightingFont((QWidget *) fontCheckBoxes[i], true);
@@ -1837,7 +2086,7 @@ void MainWindow::initColorButtons(bool dark, bool ignoreSettings) {
         name.remove("Button");
         name.replace("_2", "bg");
         name = name.toLower();
-        colorsMap.insert(name, defaultColors[i]);
+        colorsMap.insert(name, Theme::editorDefaults(dark).value(name, defaultColors[i]));
     }
 
     //! Colors
@@ -1847,11 +2096,15 @@ void MainWindow::initColorButtons(bool dark, bool ignoreSettings) {
 }
 
 void MainWindow::changeColorButtonsLight() {
+    Theme::setTheme(settings, false);
     initColorButtons(false, true);
+    Theme::apply(*qApp);
 }
 
 void MainWindow::changeColorButtonsDark() {
+    Theme::setTheme(settings, true);
     initColorButtons(true, true);
+    Theme::apply(*qApp);
 }
 
 void MainWindow::initAssemblerSettings(bool firstOpening)
@@ -1872,6 +2125,24 @@ void MainWindow::initAssemblerSettings(bool firstOpening)
         #else
             settingsUi.masmRadioButton->setEnabled(false);
         #endif
+
+        //! Asmon: NASM is the default; other assemblers are an advanced option.
+        {
+            QCheckBox *advanced = new QCheckBox(tr("Show other assemblers (advanced)"));
+            settingsUi.horizontalLayout_6->insertWidget(1, advanced);
+            QList<QWidget *> others;
+            others << settingsUi.gasRadioButton << settingsUi.fasmRadioButton << settingsUi.masmRadioButton;
+            const bool show = settings.value("showallassemblers", false).toBool()
+                              || settings.value("assembler", QString("NASM")).toString() != "NASM";
+            advanced->setChecked(show);
+            for (QWidget *w : others)
+                w->setVisible(show);
+            connect(advanced, &QCheckBox::toggled, this, [this, others](bool on) {
+                settings.setValue("showallassemblers", on);
+                for (QWidget *w : others)
+                    w->setVisible(on);
+            });
+        }
 
             /*!
              *
@@ -1997,7 +2268,7 @@ void MainWindow::recreateAssembler(bool start)
         assembler = 0;
     }
     bool x86 = true;
-    if (settings.value("mode", QString("x86")).toString() != "x86")
+    if (settings.value("mode", QString("x64")).toString() != "x86")
         x86 = false;
     /*!
      *
@@ -2064,7 +2335,7 @@ void MainWindow::changeStartText()
 void MainWindow::backupSettings()
 {
     backupAssembler = settings.value("assembler", QString("NASM")).toString();
-    backupMode = settings.value("mode", QString("x86")).toString();
+    backupMode = settings.value("mode", QString("x64")).toString();
     backupAssemblerOptions = settings.value("assemblyoptions", assembler->getAssemblerOptions()).toString();
     backupAssemblerPath = settings.value("assemblerpath", assembler->getAssemblerPath()).toString();
     backupLinkerOptions = settings.value("linkingoptions", assembler->getLinkerOptions()).toString();
@@ -2101,9 +2372,12 @@ void MainWindow::recreateHighlighter()
         Tab *currentTab = (Tab *) tabs->currentWidget();
         highlighter->setDocument(currentTab->getCodeDocument());
     }
-    delete settingsHighlighter;
-    settingsHighlighter = new Highlighter(assembler);
-    settingsHighlighter->setDocument(settingsStartTextEditor->document());
+    //! The settings window (and its preview editor) may not exist yet.
+    if (settingsStartTextEditor) {
+        delete settingsHighlighter;
+        settingsHighlighter = new Highlighter(assembler);
+        settingsHighlighter->setDocument(settingsStartTextEditor->document());
+    }
 }
 
 void MainWindow::saveSettings()
@@ -2122,7 +2396,7 @@ void MainWindow::saveSettings()
         tab->setFonts();
     }
     QFont compilerOutFont;
-    compilerOutFont.setPointSize(settings.value("fontsize", 12).toInt());
+    compilerOutFont.setPointSize(settings.value("fontsize", 11).toInt());
     compilerOut->setFont(compilerOutFont);
 
     settings.setValue("assemblyoptions", settingsUi.assemblyOptionsEdit->text());
@@ -2144,14 +2418,14 @@ void MainWindow::pickColor(QWidget *button, bool init, bool ignoreSettings)
     name.remove("Button");
     name.replace("_2", "bg");
     name = name.toLower();
-    QColor color = (ignoreSettings) ? colorsMap[name] : settings.value(name, colorsMap[name]).value<QColor>();
+    QColor color = (ignoreSettings) ? colorsMap[name] : (settings.contains(name) ? Theme::color(name) : colorsMap[name]);
     if (!init) {
-        QColor newColor = QColorDialog::getColor(settings.value(name, colorsMap[name]).value<QColor>());
+        QColor newColor = QColorDialog::getColor(color);
         if (newColor.isValid()) {
             color = newColor;
         }
     }
-    settings.setValue(name, color);
+    settings.setValue(name, color.name());
     if (name == "backgroundcolor") {
         int r, g, b;
         color.getRgb(&r, &g, &b);
@@ -2160,7 +2434,7 @@ void MainWindow::pickColor(QWidget *button, bool init, bool ignoreSettings)
             buttonName.remove("Button");
             buttonName.replace("_2", "bg");
             buttonName = buttonName.toLower();
-            settings.setValue(buttonName, color);
+            settings.setValue(buttonName, color.name());
             colorButtons[i]->setStyleSheet(QString("background-color: rgb(%1, %2, %3)").arg(r).arg(g).arg(b));
         }
     }
@@ -2309,20 +2583,15 @@ void MainWindow::openHelp()
 
 void MainWindow::openAbout()
 {
-    QMessageBox::about(this, tr("About SASM"),
-                       tr("SASM (SimpleASM) ") + SASM_VERSION + " - " +
-                       tr("simple Open Source IDE for NASM, MASM, GAS and FASM assembler languages.") + '\n' +
-                       tr("Licensed under the GNU GPL v3.0") + '\n' +
-                       tr("Based on the Qt.") + '\n' +
-                       tr("Copyright (c) 2013 Dmitriy Manushin") + '\n' +
-                       tr("Development and idea - Dmitriy Manushin") + '\n' +
-                       tr("Icon and advices - Alick Gaybullaev") + '\n' + '\n' +
-                       tr("Wishes and error messages are sent to the e-mail: Dman1095@gmail.com") + '\n' +
-                       tr("More information on the site: http://dman95.github.io/SASM/") + '\n' + '\n' +
-                       tr("Donate:") + '\n' +
-                       tr("PayPal - Dman1095@gmail.com") + '\n' +
-                       tr("WMZ - Z282016332582") + '\n' +
-                       tr("WMR - R331674303467")
+    QMessageBox::about(this, tr("About Asmon"),
+                       QString("Asmon ") + ASMON_VERSION + "\n" +
+                       tr("Assembly IDE with a built-in debugger and reverse-engineering tools.") + "\n\n" +
+                       tr("Licensed under the GNU GPL v3.0") + "\n" +
+                       "https://github.com/shealtieltehumim-prog/asmon" + "\n\n" +
+                       tr("Based on SASM %1 by Dmitriy Manushin (https://github.com/Dman95/SASM).").arg(SASM_VERSION) + "\n" +
+                       tr("Copyright (c) 2013 Dmitriy Manushin") + "\n" +
+                       tr("Icon and advices - Alick Gaybullaev") + "\n" +
+                       tr("Based on the Qt.")
                        );
 }
 

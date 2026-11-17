@@ -38,7 +38,8 @@
 **
 ****************************************************************************/
 
- #include "highlighter.h"
+ #include "theme.h"
+#include "highlighter.h"
 
 /**
  * @file highlighter.cpp
@@ -72,15 +73,15 @@
      formats << &keywordFormat << &registerFormat << &numberFormat << &memoryFormat <<
                 &labelFormat << &commentFormat << &systemFormat << &iomacrosFormat <<
                 &quotationFormat;
-     QSettings settings("SASM Project", "SASM");
+     QSettings settings;
      for (int i = 0; i < formats.size(); i++) {
-         formats[i]->setForeground(settings.value(names[i] + "color", defaultColors[i]).value<QColor>());
-         formats[i]->setBackground(settings.value(names[i] + "colorbg", QColor(255, 255, 255)).value<QColor>());
+         formats[i]->setForeground(Theme::color(names[i] + "color"));
+         formats[i]->setBackground(Theme::color(names[i] + "colorbg"));
          if (settings.value(names[i] + "bold", (i == 0) ? true : false).toBool())
              formats[i]->setFontWeight(QFont::Bold);
          formats[i]->setFontItalic(settings.value(names[i] + "italic", false).toBool());
      }
-     labelWithDotFormat.setForeground(settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
+     labelWithDotFormat.setForeground(Theme::color("fontcolor"));
      formats << &labelWithDotFormat;
      assembler->fillHighligherRules(highlightingRules, formats, multiLineComments, commentStartExpression, commentEndExpression);
  }

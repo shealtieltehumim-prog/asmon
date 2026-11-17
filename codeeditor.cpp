@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "theme.h"
 #include "regexp.h"
 #include "codeeditor.h"
 
@@ -58,7 +59,7 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     setWordWrapMode(QTextOption::NoWrap);
     firstTopMargin = contentOffset().y();
     lineNumberArea = new LineNumberArea(this);
-    lineNumberPanelColor = settings.value("linenumberpanelcolor", QColor(235, 235, 235)).value<QColor>();
+    lineNumberPanelColor = Theme::color("linenumberpanelcolor");
 
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberAreaWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
@@ -124,7 +125,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     while (block.isValid() && top <= event->rect().bottom()) {
         if (block.isVisible() && bottom >= event->rect().top()) {
             QString number = QString::number(blockNumber + 1);
-            painter.setPen(settings.value("linenumberfontcolor", QColor(30, 30, 30)).value<QColor>());
+            painter.setPen(Theme::color("linenumberfontcolor"));
             painter.drawText(0, top, lineNumberArea->width() - debugAreaWidth, fontMetrics().height(),
                              Qt::AlignRight, number);
 
@@ -228,7 +229,7 @@ void CodeEditor::highlightCurrentLine()
             if (!isReadOnly()) {
                 QTextEdit::ExtraSelection selection;
 
-                QColor lineColor = settings.value("currentlinecolor", QColor(232, 232, 255)).value<QColor>();
+                QColor lineColor = Theme::color("currentlinecolor");
 
                 selection.format.setBackground(lineColor);
                 selection.format.setProperty(QTextFormat::FullWidthSelection, true);
@@ -253,7 +254,7 @@ void CodeEditor::highlightDebugLine(int lineNumber, bool moveCursor)
         if (!isReadOnly() && lineNumber > 0) {
             QTextEdit::ExtraSelection selection;
 
-            QColor lineColor = settings.value("debuglinecolor", QColor(235, 200, 40)).value<QColor>();
+            QColor lineColor = Theme::color("debuglinecolor");
 
             selection.format.setBackground(lineColor);
             selection.format.setProperty(QTextFormat::FullWidthSelection, true);
@@ -466,4 +467,11 @@ bool CodeEditor::isMacroOnCurrentDebugLine()
 CodeEditor::~CodeEditor()
 {
     delete lineNumberArea;
+}
+
+void CodeEditor::applyThemeColors()
+{
+    RuQPlainTextEdit::applyThemeColors();
+    lineNumberPanelColor = Theme::color("linenumberpanelcolor");
+    repaintLineNumberArea();
 }

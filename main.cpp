@@ -44,8 +44,8 @@
 #include <QSettings>
 #include <QPushButton>
 #include <QtSingleApplication>
-#include <QInputDialog>
-#include <QPalette>
+#include <QFile>
+#include "theme.h"
 
 /**
  * @file main.cpp
@@ -54,28 +54,19 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-    #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    #endif
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QCoreApplication::setOrganizationName("Asmon");
+    QCoreApplication::setApplicationName("Asmon");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
     QtSingleApplication a(argc, argv);
-    QSettings settings("SASM Project", "SASM");
-    QPalette palette;
-    palette.setColor(QPalette::Window, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::WindowText, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    palette.setColor(QPalette::Base, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::AlternateBase, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::ToolTipBase, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::ToolTipText, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    palette.setColor(QPalette::Text, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    palette.setColor(QPalette::Button, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::ButtonText, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    palette.setColor(QPalette::BrightText, Qt::red);
-    palette.setColor(QPalette::Link, QColor(42, 130, 218));
-    palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
-    palette.setColor(QPalette::HighlightedText, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    a.setStyle("Fusion");
-    a.setPalette(palette);
+    //! Portable mode: a file named "portable" next to the executable keeps
+    //! the settings in "<exe dir>/data/Asmon/Asmon.ini" instead of the user profile.
+    if (QFile::exists(QCoreApplication::applicationDirPath() + "/portable"))
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                           QCoreApplication::applicationDirPath() + "/data");
+    QSettings settings;
+    Theme::ensureInitialized(settings);
+    Theme::apply(a);
     if (a.isRunning()) {
         //we already have one instance of our application
         if (argc <= 1) {
@@ -88,24 +79,9 @@ int main(int argc, char *argv[])
         return 0;
     }
     QTranslator translator, qtTranslator, addTranslator;
-    if (!settings.contains("language")) { //language choosing
-        QStringList items;
-        items << QString("Русский") << QString("English") << QString("Türk") <<
-                 QString("中国") << QString("Deutsch") << QString("Italiano") <<
-                 QString("Polski") << QString("עברית") << QString("Español") <<
-                 QString("Português") << QString("Français") << QString("Português brasileiro") <<
-                 QString("日本語");
-        bool ok = false;
-        QString selected = QInputDialog::getItem(0, QString("Choose language"),
-            QString("Language:"), items, 0, false, &ok);
-        if (ok) {
-            for (int i = 0; i < items.size(); ++i) {
-                if (selected == items[i]) {
-                    settings.setValue("language", i);
-                }
-            }
-        }
-    }
+    //! No first-run language dialog: Hebrew is the default (index 7, see settings.ui).
+    if (!settings.contains("language"))
+        settings.setValue("language", 7);
     if (settings.value("language", 0).toInt() == 0) { //russian language
         translator.load(":/translations/language_ru.qm");
         a.installTranslator(&translator);

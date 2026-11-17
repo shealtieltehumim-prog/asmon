@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Asmon
+Name[he]=אסמון
+GenericName=Assembly IDE
+Comment=Assembly IDE with debugger and reverse-engineering tools (fork of SASM)
+Icon=/usr/share/asmon/asmon.png
+Exec=asmon
+Terminal=false
+Type=Application
+Categories=Qt;Development;IDE;

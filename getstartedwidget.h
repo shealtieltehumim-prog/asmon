@@ -41,14 +41,13 @@
 #ifndef GETSTARTEDWIDGET_H
 #define GETSTARTEDWIDGET_H
 
-#include <QVBoxLayout>
-#include <QCommandLinkButton>
 #include <QLabel>
-#include <QSpacerItem>
+#include <QPushButton>
+#include <QWidget>
 
 /**
  * @file getstartedwidget.h
- * Defines the entry window.
+ * Defines the entry window (Asmon: minimal, centred welcome page).
  */
 
 class GetStartedWidget : public QWidget
@@ -57,20 +56,13 @@ class GetStartedWidget : public QWidget
 
 public:
     explicit GetStartedWidget(QWidget *parent = 0);
-    ~GetStartedWidget();
 
-    QCommandLinkButton *newButton;
-    QCommandLinkButton *openButton;
-    QCommandLinkButton *prevSessionButton;
+    QPushButton *newButton;
+    QPushButton *openButton;
+    QPushButton *prevSessionButton;
 
 private:
-    QHBoxLayout *labelLayout;
-    QVBoxLayout *layout;
-    QLabel *welcomeLabel;
-    QLabel *imgLabel;
-    QSpacerItem *spacer;
-    QSpacerItem *bottomSpacer;
-    QSpacerItem *leftSpacer;
+    QPushButton *makeLink(const QString &iconName, const QString &text, const QString &hint);
 };
 
 #endif // GETSTARTEDWIDGET_H

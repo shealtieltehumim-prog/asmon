@@ -64,6 +64,8 @@ class RuQTextEdit : public QTextEdit
     Q_OBJECT
 
 public:
+    //! Asmon: re-read colours after a theme switch
+    void applyThemeColors();
     RuQTextEdit(QWidget *parent = 0);
     ~RuQTextEdit();
 

@@ -75,8 +75,12 @@
 #include "fasm.h"
 #include "signallocker.h"
 #include "masm.h"
+#include "commandpalette.h"
+#include <QFileSystemModel>
+#include <QTreeView>
 
 #define SASM_VERSION "3.16.0"
+#define ASMON_VERSION "0.1.0"
 
 /**
  * @file mainwindow.h
@@ -173,6 +177,18 @@ private:
     QDockWidget *registersDock;
     QPointer<DebugTableWidget> memoryWindow;
     QDockWidget *memoryDock;
+    //! Asmon UI
+    QMenu *viewMenu;
+    QAction *commandPaletteAction;
+    QAction *focusModeAction;
+    QAction *toggleExplorerAction;
+    QAction *darkThemeAction;
+    CommandPalette *commandPalette;
+    QDockWidget *explorerDock;
+    QTreeView *explorerView;
+    QFileSystemModel *explorerModel;
+    QList<QWidget *> hiddenByFocusMode;
+    void createAsmonUi();
     QList<RuQPlainTextEdit::Watch> watches;
     DebugAnyCommandWidget *debugAnyCommandWidget;
     bool programStopped;
@@ -221,6 +237,12 @@ private:
     void closeEvent(QCloseEvent *e);
 
 public slots:
+    void showCommandPalette();
+    void toggleFocusMode(bool on);
+    void toggleExplorer(bool on);
+    void updateExplorerRoot();
+    void openFromExplorer(const QModelIndex &index);
+    void switchTheme(bool dark);
     //! Actions and Menus
     void newFile();
     void openFile();

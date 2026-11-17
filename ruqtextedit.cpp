@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "theme.h"
 #include "ruqtextedit.h"
 
 /**
@@ -49,11 +50,8 @@ RuQTextEdit::RuQTextEdit(QWidget *parent) :
     QTextEdit(parent)
 {
     setAcceptRichText(false);
-    QSettings settings("SASM Project", "SASM");
-    QPalette palette = this->palette();
-    palette.setColor(QPalette::Base, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::Text, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    setPalette(palette);
+    QSettings settings;
+    applyThemeColors();
 
     undoAction = new QAction(tr("Undo"), this);
     undoAction->setShortcut(QKeySequence::Undo);
@@ -156,4 +154,12 @@ RuQTextEdit::~RuQTextEdit()
     delete deleteAction;
     delete selectAllAction;
     delete clearAction;
+}
+
+void RuQTextEdit::applyThemeColors()
+{
+    //! A widget style sheet (not setPalette): it survives application style
+    //! sheet re-polishes when the theme changes.
+    setStyleSheet(QString("QTextEdit { background-color: %1; color: %2; border: none; }")
+                  .arg(Theme::color("backgroundcolor").name(), Theme::color("fontcolor").name()));
 }

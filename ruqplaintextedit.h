@@ -68,6 +68,8 @@ class RuQPlainTextEdit : public QPlainTextEdit
     Q_OBJECT
 
 public:
+    //! Asmon: re-read colours after a theme switch
+    virtual void applyThemeColors();
     //! The class constructor creates the editor, given a specified parent QWidget object.
     RuQPlainTextEdit(QWidget *parent = 0);
     ~RuQPlainTextEdit();

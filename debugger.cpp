@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "theme.h"
 #include "debugger.h"
 
 /**
@@ -61,7 +62,7 @@ Debugger::Debugger(QTextEdit *tEdit,
                    QWidget *parent)
     : QObject(parent)
 {
-    QSettings settings("SASM Project", "SASM");
+    QSettings settings;
     gdbRun = false;
     c = 0;
     pid = 0;
@@ -75,7 +76,7 @@ Debugger::Debugger(QTextEdit *tEdit,
     #ifdef Q_OS_WIN32
         QString gdb;
         QString objdump;
-        if (settings.value("mode", QString("x86")).toString() == "x86") {
+        if (settings.value("mode", QString("x64")).toString() == "x86") {
             gdb = QCoreApplication::applicationDirPath() + "/MinGW/bin/gdb.exe";
             objdump = QCoreApplication::applicationDirPath() + "/MinGW/bin/objdump.exe";
             if (! QFile::exists(gdb))
@@ -183,9 +184,9 @@ void Debugger::checkGdbRun()
 {
     checkGdbRunTimer->stop();
     if (!gdbRun) {
-        emit printLog(tr("GDB error\n"), Qt::red);
-        emit printLog(allBuffer, Qt::red);
-        emit printLog(allErrorBuffer, Qt::red);
+        emit printLog(tr("GDB error\n"), Theme::color("errorcolor"));
+        emit printLog(allBuffer, Theme::color("errorcolor"));
+        emit printLog(allErrorBuffer, Theme::color("errorcolor"));
         emit finished();
     }
 }
@@ -193,7 +194,7 @@ void Debugger::checkGdbRun()
 void Debugger::processMessage(QString output, QString error)
 {
     if (error.indexOf("PC register is not available") != -1) {
-        emit printLog(tr("GDB error\n"), Qt::red);
+        emit printLog(tr("GDB error\n"), Theme::color("errorcolor"));
         emit finished();
         return;
     }
@@ -391,7 +392,7 @@ void Debugger::processAction(QString output, QString error)
             if (signalMsg.indexIn(msg) != -1) {
                 QString recievedSignal = signalMsg.cap(1);
                 if (RegExp("SIG(TRAP|INT)").indexIn(recievedSignal) == -1) {
-                    emit printLog(recievedSignal, Qt::red);
+                    emit printLog(recievedSignal, Theme::color("errorcolor"));
                 }
                 msg.remove(signalMsg);
             }
@@ -480,7 +481,7 @@ void Debugger::processAction(QString output, QString error)
         QTextStream registersStream(&output);
         QList<registersInfo> registers;
         registersInfo info;
-        QSettings settings("SASM Project", "SASM");
+        QSettings settings;
 
         QSet<QString> general;
         QString ip;
@@ -495,7 +496,7 @@ void Debugger::processAction(QString output, QString error)
         RegExp ymm("ymm\\d+");
         RegExp fpu_stack("st\\d+");
 
-        if (settings.value("mode", QString("x86")).toString() == "x86") {
+        if (settings.value("mode", QString("x64")).toString() == "x86") {
             //x86
             general << "eax" << "ebx" << "ecx" << "edx" << "esi" << "edi" << "esp" << "ebp";
             ip = "eip";
@@ -524,7 +525,7 @@ void Debugger::processAction(QString output, QString error)
 
                 if (!readStruct(registersStream, &fields)) {
                     // bad news
-                    emit printLog(QString("can not parse register data: ") + info.name + "\n", Qt::red);
+                    emit printLog(QString("can not parse register data: ") + info.name + "\n", Theme::color("errorcolor"));
                     break;
                 }
 
@@ -537,9 +538,10 @@ void Debugger::processAction(QString output, QString error)
 
                 info.hexValue = "";
             } else {
-                // unknown register, try to skip it.
+                // unknown register (e.g. AVX-512 k0-k7, fs_base, gs_base on newer
+                // CPUs/gdb): skip it silently. Asmon: the old red log line flooded
+                // the build log on every step.
                 registersStream.readLine();
-                emit printLog(QString("unknown register: ") + info.name + "\n", Qt::red);
                 continue;
             }
 
@@ -560,7 +562,7 @@ void Debugger::processAction(QString output, QString error)
         return;
 
     //print information to log field
-    emit printLog(output, QSettings("SASM Project", "SASM").value("fontcolor", QColor(30, 30, 30)).value<QColor>());
+    emit printLog(output, Theme::color("fontcolor"));
 }
 
 bool Debugger::isStopped()
@@ -653,8 +655,8 @@ void Debugger::run()
     doInput(QString("cd " + workingDirectoryPath + "\n"), none);
     #ifdef Q_OS_WIN32
         doInput(QString("run\n"), none);
-        QSettings settings("SASM Project", "SASM");
-        if (settings.value("mode", QString("x86")).toString() == "x86") {
+        QSettings settings;
+        if (settings.value("mode", QString("x64")).toString() == "x86") {
             doInput(QString("p freopen(\"%1\", \"r\", (FILE *) {0, 0, 0, 1, 0, 0, 4096, 0, 0})\n").arg(inputPath), none);
         } else {
             doInput(QString("p freopen(\"%1\", \"r\", (FILE *) {0, 0, 0, 0, 0, 0, 1, 0, 0, 4096, 0, 0})\n").arg(inputPath), none);

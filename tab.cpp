@@ -86,7 +86,7 @@ Tab::Tab(QWidget *parent) :
     setFonts();
 
     //! Restore state
-    QSettings settings("SASM Project", "SASM");
+    QSettings settings;
     restoreGeometry(settings.value("tabgeometry").toByteArray());
     restoreState(settings.value("tabwindowstate").toByteArray());
 }
@@ -97,17 +97,17 @@ Tab::Tab(QWidget *parent) :
 */
 void Tab::setFonts()
 {
-    QSettings settings("SASM Project", "SASM");
+    QSettings settings;
 
     QFont codeFont;
-    codeFont.setPointSize(settings.value("fontsize", 12).toInt());
+    codeFont.setPointSize(settings.value("fontsize", 11).toInt());
     codeFont.setFamily(settings.value("fontfamily", QString("Courier")).value<QString>());
     codeFont.setStyleHint(QFont::Monospace);
     code->setFont(codeFont);
     code->repaintLineNumberArea();
 
     QFont logFont;
-    logFont.setPointSize(settings.value("fontsize", 12).toInt());
+    logFont.setPointSize(settings.value("fontsize", 11).toInt());
     input->setFont(logFont);
     output->setFont(logFont);
 }

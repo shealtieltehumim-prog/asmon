@@ -70,6 +70,7 @@ class CodeEditor : public RuQPlainTextEdit
     Q_OBJECT
 
 public:
+    void applyThemeColors() override;
     CodeEditor(QWidget *parent = 0, bool withBeakpoints = true);
     ~CodeEditor();
 

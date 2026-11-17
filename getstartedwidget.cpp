@@ -39,6 +39,10 @@
 ****************************************************************************/
 
 #include "getstartedwidget.h"
+#include "theme.h"
+#include <QHBoxLayout>
+#include <QIcon>
+#include <QVBoxLayout>
 /**
 
  * @file getstartedwidget.cpp
@@ -48,63 +52,63 @@
 GetStartedWidget::GetStartedWidget(QWidget *parent) :
     QWidget(parent)
 {
-    layout = new QVBoxLayout;
+    auto *outer = new QHBoxLayout(this);
+    auto *column = new QVBoxLayout;
+    column->setSpacing(6);
+    outer->addStretch(1);
+    outer->addLayout(column, 0);
+    outer->addStretch(1);
 
-    //header
-    labelLayout = new QHBoxLayout;
+    column->addStretch(2);
 
-    imgLabel = new QLabel;
-    imgLabel->setPixmap(QPixmap(":images/smallIcon.png"));
-    imgLabel->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
-    labelLayout->addWidget(imgLabel);
-    labelLayout->addSpacing(20);
+    auto *logo = new QLabel;
+    logo->setPixmap(QIcon(":/icons/app.svg").pixmap(96, 96));
+    logo->setAlignment(Qt::AlignCenter);
+    column->addWidget(logo);
+    column->addSpacing(8);
 
-    welcomeLabel = new QLabel;
-    QFont font("Arial", 24);
-    welcomeLabel->setFont(font);
-    welcomeLabel->setText(tr("Welcome to the SASM!"));
-    welcomeLabel->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
-    labelLayout->addWidget(welcomeLabel);
+    auto *title = new QLabel(tr("Asmon"));
+    QFont titleFont = title->font();
+    titleFont.setPointSize(26);
+    titleFont.setWeight(QFont::DemiBold);
+    title->setFont(titleFont);
+    title->setAlignment(Qt::AlignCenter);
+    column->addWidget(title);
 
-    leftSpacer = new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Fixed);
-    labelLayout->addSpacerItem(leftSpacer);
+    auto *subtitle = new QLabel(tr("Assembly: write, run, debug and reverse engineer"));
+    subtitle->setAlignment(Qt::AlignCenter);
+    subtitle->setForegroundRole(QPalette::PlaceholderText);
+    column->addWidget(subtitle);
+    column->addSpacing(28);
 
-    layout->addLayout(labelLayout);
+    newButton = makeLink("new", tr("New file"), "Ctrl+N");
+    openButton = makeLink("open", tr("Open file..."), "Ctrl+O");
+    prevSessionButton = makeLink("explorer", tr("Restore last session"), QString());
+    column->addWidget(newButton);
+    column->addWidget(openButton);
+    column->addWidget(prevSessionButton);
+    column->addSpacing(20);
 
+    auto *hint = new QLabel(tr("All commands: Ctrl+Shift+P"));
+    hint->setAlignment(Qt::AlignCenter);
+    hint->setForegroundRole(QPalette::PlaceholderText);
+    column->addWidget(hint);
 
-    //buttons
-    spacer = new QSpacerItem(0, 50, QSizePolicy::Fixed, QSizePolicy::Fixed);
-    layout->addSpacerItem(spacer);
-
-    newButton = new QCommandLinkButton(tr("Create new project"));
-    newButton->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed));
-    layout->addWidget(newButton);
-    layout->addSpacing(10);
-
-    openButton = new QCommandLinkButton(tr("Open project"));
-    openButton->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed));
-    layout->addWidget(openButton);
-    layout->addSpacing(10);
-
-    prevSessionButton = new QCommandLinkButton(tr("Restore last session"));
-    prevSessionButton->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed));
-    layout->addWidget(prevSessionButton);
-    layout->addSpacing(10);
-
-    bottomSpacer = new QSpacerItem(10, 100, QSizePolicy::Expanding, QSizePolicy::Expanding);
-    layout->addSpacerItem(bottomSpacer);
-
-
-    setLayout(layout);
+    column->addStretch(3);
+    setMinimumWidth(360);
 }
 
-GetStartedWidget::~GetStartedWidget()
+QPushButton *GetStartedWidget::makeLink(const QString &iconName, const QString &text, const QString &hint)
 {
-    delete welcomeLabel;
-    delete imgLabel;
-    delete labelLayout;
-    delete newButton;
-    delete openButton;
-    delete prevSessionButton;
-    delete layout;
+    auto *b = new QPushButton(Theme::icon(iconName), hint.isEmpty() ? text : text + "      " + hint);
+    b->setFlat(true);
+    b->setCursor(Qt::PointingHandCursor);
+    b->setMinimumWidth(320);
+    b->setIconSize(QSize(18, 18));
+    b->setStyleSheet("QPushButton { text-align: left; padding: 8px 12px; border: none; border-radius: 6px;"
+                     " background: transparent; }" +
+                     QString("QPushButton:hover { background: %1; }").arg(Theme::isDark() ? "#2a2d2e" : "#e8e8e8"));
+    if (layoutDirection() == Qt::RightToLeft)
+        b->setStyleSheet(b->styleSheet().replace("text-align: left", "text-align: right"));
+    return b;
 }

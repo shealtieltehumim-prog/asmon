@@ -1,0 +1,19 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/app.svg</file>
+        <file>icons/build.svg</file>
+        <file>icons/continue.svg</file>
+        <file>icons/debug.svg</file>
+        <file>icons/explorer.svg</file>
+        <file>icons/new.svg</file>
+        <file>icons/open.svg</file>
+        <file>icons/palette.svg</file>
+        <file>icons/pause.svg</file>
+        <file>icons/run.svg</file>
+        <file>icons/save.svg</file>
+        <file>icons/stepinto.svg</file>
+        <file>icons/stepout.svg</file>
+        <file>icons/stepover.svg</file>
+        <file>icons/stop.svg</file>
+    </qresource>
+</RCC>

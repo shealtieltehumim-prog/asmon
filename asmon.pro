@@ -7,10 +7,10 @@
 QT       += core gui
 
 lessThan(QT_MAJOR_VERSION, 6): error("Asmon requires Qt 6")
-QT += widgets
+QT += widgets svg
 CONFIG += c++17
 
-TARGET = sasm
+TARGET = asmon
 TEMPLATE = app
 
 isEmpty(PREFIX) {
@@ -21,27 +21,27 @@ BINDIR = $$PREFIX/bin
 DATADIR = $$PREFIX/share
 
 bsd {
-    binfile.files += sasm
+    binfile.files += $$OUT_PWD/$$TARGET
     binfile.files += BSD/bin/*
     binfile.path = $$BINDIR
-    data.files += BSD/share/sasm/*
-    data.path = $$DATADIR/sasm/
-    shortcutfiles.files += BSD/share/applications/sasm.desktop
+    data.files += BSD/share/asmon/*
+    data.path = $$DATADIR/asmon/
+    shortcutfiles.files += BSD/share/applications/asmon.desktop
     shortcutfiles.path = $$DATADIR/applications/
-    docfiles.files += BSD/share/doc/sasm/changelog.gz
-    docfiles.files += BSD/share/doc/sasm/copyright
-    docfiles.path = $$DATADIR/doc/sasm/
+    docfiles.files += BSD/share/doc/asmon/changelog.gz
+    docfiles.files += BSD/share/doc/asmon/copyright
+    docfiles.path = $$DATADIR/doc/asmon/
 } else {
-    binfile.files += sasm
+    binfile.files += $$OUT_PWD/$$TARGET
     binfile.files += Linux/bin/*
     binfile.path = $$BINDIR
-    data.files += Linux/share/sasm/*
-    data.path = $$DATADIR/sasm/
-    shortcutfiles.files += Linux/share/applications/sasm.desktop
+    data.files += Linux/share/asmon/*
+    data.path = $$DATADIR/asmon/
+    shortcutfiles.files += Linux/share/applications/asmon.desktop
     shortcutfiles.path = $$DATADIR/applications/
-    docfiles.files += Linux/share/doc/sasm/changelog.gz
-    docfiles.files += Linux/share/doc/sasm/copyright
-    docfiles.path = $$DATADIR/doc/sasm/
+    docfiles.files += Linux/share/doc/asmon/changelog.gz
+    docfiles.files += Linux/share/doc/asmon/copyright
+    docfiles.path = $$DATADIR/doc/asmon/
 }
 
 INSTALLS += binfile
@@ -52,6 +52,8 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    commandpalette.cpp \
+    theme.cpp \
         mainwindow.cpp \
     tab.cpp \
     highlighter.cpp \
@@ -75,6 +77,8 @@ SOURCES += main.cpp\
 
 HEADERS  += mainwindow.h \
     regexp.h \
+    theme.h \
+    commandpalette.h \
     tab.h \
     highlighter.h \
     codeeditor.h \
@@ -98,6 +102,7 @@ HEADERS  += mainwindow.h \
 FORMS += settings.ui
 
 RESOURCES += \
+    Icons.qrc \
     Languages.qrc \
     Images.qrc \
     Help.qrc

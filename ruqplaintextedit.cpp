@@ -38,6 +38,7 @@
 **
 ****************************************************************************/
 
+#include "theme.h"
 #include "regexp.h"
 #include "ruqplaintextedit.h"
 
@@ -49,11 +50,7 @@
 RuQPlainTextEdit::RuQPlainTextEdit(QWidget *parent) :
     QPlainTextEdit(parent)
 {
-    QSettings settings("SASM Project", "SASM");
-    QPalette palette = this->palette();
-    palette.setColor(QPalette::Base, settings.value("backgroundcolor", QColor(255, 255, 255)).value<QColor>());
-    palette.setColor(QPalette::Text, settings.value("fontcolor", QColor(30, 30, 30)).value<QColor>());
-    setPalette(palette);
+    applyThemeColors();
 
     setDebugDisabled();
 
@@ -290,4 +287,12 @@ RuQPlainTextEdit::~RuQPlainTextEdit()
     delete deleteAction;
     delete selectAllAction;
     delete addWatchAction;
+}
+
+void RuQPlainTextEdit::applyThemeColors()
+{
+    //! A widget style sheet (not setPalette): it survives application style
+    //! sheet re-polishes when the theme changes.
+    setStyleSheet(QString("QPlainTextEdit { background-color: %1; color: %2; border: none; }")
+                  .arg(Theme::color("backgroundcolor").name(), Theme::color("fontcolor").name()));
 }
