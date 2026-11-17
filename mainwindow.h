@@ -76,6 +76,9 @@
 #include "signallocker.h"
 #include "masm.h"
 #include "commandpalette.h"
+#include "buildoutputview.h"
+#include "linuxtarget.h"
+#include <QComboBox>
 #include <QFileSystemModel>
 #include <QTreeView>
 
@@ -185,6 +188,9 @@ private:
     QAction *darkThemeAction;
     CommandPalette *commandPalette;
     QDockWidget *explorerDock;
+    QComboBox *targetBox;
+    QDockWidget *buildOutputDock;
+    BuildOutputView *buildOutputView;
     QTreeView *explorerView;
     QFileSystemModel *explorerModel;
     QList<QWidget *> hiddenByFocusMode;
@@ -244,6 +250,14 @@ public slots:
     void openFromExplorer(const QModelIndex &index);
     void switchTheme(bool dark);
     void restartApplication();
+    void refreshBuildOutput();
+    bool linuxTargetSelected() const;
+    void buildForLinuxTarget(Tab *currentTab);
+    void newFromTemplate(const QString &resource);
+    QString prettifyBuildLog(const QString &text);
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+public slots:
     //! Actions and Menus
     void newFile();
     void openFile();

@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>templates/hello_linux64.asm</file>
+        <file>templates/hello_win64.asm</file>
+        <file>templates/hello_win64_api.asm</file>
+    </qresource>
+</RCC>

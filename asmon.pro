@@ -52,6 +52,8 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    linuxtarget.cpp \
+    buildoutputview.cpp \
     commandpalette.cpp \
     theme.cpp \
         mainwindow.cpp \
@@ -78,6 +80,8 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
     regexp.h \
     theme.h \
+    linuxtarget.h \
+    buildoutputview.h \
     commandpalette.h \
     tab.h \
     highlighter.h \
@@ -102,6 +106,7 @@ HEADERS  += mainwindow.h \
 FORMS += settings.ui
 
 RESOURCES += \
+    Templates.qrc \
     Icons.qrc \
     Languages.qrc \
     Images.qrc \

@@ -55,7 +55,78 @@ jobs:
           cp build/release/asmon.exe dist/ 2>/dev/null || cp build/asmon.exe dist/
           windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/asmon.exe
           ldd dist/asmon.exe | grep -i ucrt64 | awk '{print $3}' | xargs -r -I{} cp -n {} dist/
-          ls -la dist
+
+      - name: Fetch toolchains (WinLibs MinGW-w64, llvm-mingw)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dl | Out-Null
+          # WinLibs: GCC + binutils + GDB + NASM. The exact file name is read from the release.
+          $assets = (gh release view $env:WINLIBS_TAG -R brechtsanders/winlibs_mingw --json assets | ConvertFrom-Json).assets
+          $wl = $assets | Where-Object { $_.name -match '^winlibs-x86_64-posix-seh-gcc-[0-9.]+-mingw-w64ucrt-[0-9.]+-r[0-9]+\.zip$' } | Select-Object -First 1
+          if (-not $wl) { $wl = $assets | Where-Object { $_.name -match '^winlibs-x86_64-posix-seh-gcc-.*-mingw-w64ucrt-.*\.zip$' } | Select-Object -First 1 }
+          if (-not $wl) { throw "WinLibs x86_64 zip not found in $env:WINLIBS_TAG" }
+          Write-Host "WinLibs: $($wl.name) ($([math]::Round($wl.size/1MB)) MB)"
+          gh release download $env:WINLIBS_TAG -R brechtsanders/winlibs_mingw -p $wl.name -D dl
+          7z x "dl\$($wl.name)" -odl\winlibs -y | Out-Null
+          Move-Item dl\winlibs\mingw64 dist\MinGW64
+          # llvm-mingw: ld.lld (Linux ELF without WSL), llvm-objdump, lldb
+          $lm = "llvm-mingw-$env:LLVM_MINGW_TAG-ucrt-x86_64.zip"
+          gh release download $env:LLVM_MINGW_TAG -R mstorsjo/llvm-mingw -p $lm -D dl
+          7z x "dl\$lm" -odl\llvm -y | Out-Null
+          Move-Item (Get-ChildItem dl\llvm -Directory | Select-Object -First 1).FullName dist\LLVM
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WINLIBS_TAG: 16.2.0posix-23.1.3-14.0.0-ucrt-r3
+          LLVM_MINGW_TAG: "20261104"
+
+      - name: Assemble the Asmon layout
+        run: |
+          set -e
+          T=dist/MinGW64/bin
+          # extras WinLibs ships that an assembly IDE does not need
+          for x in cmake ctest cpack ccmake doxygen cppcheck cppcheck-htmlreport ninja premake5 ccache ctags readtags yasm vsyasm ytasm; do
+            rm -f "$T/$x.exe"
+          done
+          rm -rf dist/MinGW64/share/cmake-* dist/MinGW64/share/doc/doxygen dist/MinGW64/share/cppcheck
+          mkdir -p dist/NASM
+          cp "$T/nasm.exe" dist/NASM/
+          cp "$T/ndisasm.exe" dist/NASM/ 2>/dev/null || true
+          "$T/gcc.exe" -c -O2 -g Windows/NASM/macro_win.c -o dist/NASM/macro64.o
+          cp -r Windows/include Windows/Projects Windows/FASM dist/
+          cp Windows/keys.ini dist/
+          mkdir -p dist/licenses
+          cp COPYING dist/licenses/Asmon-GPL-3.0.txt
+          cp Windows/license.txt dist/licenses/SASM-license.txt
+          du -sh dist dist/* | sort -h | tail -15
+          dist/NASM/nasm.exe -v
+          "$T/gcc.exe" --version | head -1
+          "$T/gdb.exe" --version | head -1
+          dist/LLVM/bin/ld.lld.exe --version
+
+      - name: Smoke test (build and run the templates with the bundled tools)
+        run: |
+          set -e
+          mkdir -p smoke && cd smoke
+          N=../dist/NASM/nasm.exe; G=../dist/MinGW64/bin/gcc.exe
+          # 1) io64.inc + macro64.o, the way Asmon builds x64 programs
+          $N -I ../dist/include/ -f win64 ../templates/hello_win64.asm -l a.lst -o a.o
+          $G a.o ../dist/NASM/macro64.o -g -o a.exe -m64
+          ./a.exe | tee a.txt; grep -q "Hello, world!" a.txt
+          # 2) Windows API directly
+          $N -f win64 ../templates/hello_win64_api.asm -o b.o
+          $G b.o -g -o b.exe -m64
+          ./b.exe | tee b.txt; grep -q "Hello, world!" b.txt
+          # 3) Linux ELF without WSL (ld.lld), check the ELF magic
+          $N -f elf64 -g -F dwarf ../templates/hello_linux64.asm -o c.o
+          ../dist/LLVM/bin/ld.lld.exe -e main -o c.elf c.o
+          head -c 4 c.elf | od -c | head -1 | grep -q "E   L   F"
+          # 4) input via io64.inc (GET_DEC) from a redirected file
+          printf '%s\n' '%include "io64.inc"' 'section .text' 'global main' 'main:' '    mov rbp, rsp' '    GET_DEC 8, rax' '    add rax, 1' '    PRINT_DEC 8, rax' '    NEWLINE' '    xor rax, rax' '    ret' > d.asm
+          $N -I ../dist/include/ -f win64 d.asm -o d.o
+          $G d.o ../dist/NASM/macro64.o -g -o d.exe -m64
+          echo 41 | ./d.exe | tee d.txt; grep -q "42" d.txt
+          echo "SMOKE TEST PASSED"
+
       - uses: actions/upload-artifact@v4
         with:
           name: asmon-windows-x64

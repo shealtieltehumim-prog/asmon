@@ -74,7 +74,9 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     registersDock = 0;
     debugToolBar = 0;
     explorerDock = 0;
+    targetBox = 0;
     commandPalette = 0;
+    buildOutputDock = 0;
 
     //! Initialize assembler
     assembler = 0;
@@ -172,6 +174,7 @@ void MainWindow::initUi()
     compilerOutFont.setPointSize(settings.value("fontsize", 11).toInt());
     compilerOut->setFont(compilerOutFont);
     compilerOut->setText(tr("Build log:") + '\n');
+    compilerOut->viewport()->installEventFilter(this);
 
     //! Create gdb command widget
     debugAnyCommandWidget = new DebugAnyCommandWidget;
@@ -674,9 +677,76 @@ void MainWindow::createAsmonUi()
     darkThemeAction->setChecked(Theme::isDark());
     connect(darkThemeAction, SIGNAL(toggled(bool)), this, SLOT(switchTheme(bool)));
 
+    //! Build output: listing / disassembly / hex of what was built
+    buildOutputView = new BuildOutputView;
+    buildOutputDock = new QDockWidget(tr("Build output"), this);
+    buildOutputDock->setObjectName("buildOutputDock");
+    buildOutputDock->setWidget(buildOutputView);
+    buildOutputDock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::BottomDockWidgetArea, buildOutputDock);
+    buildOutputDock->hide();
+    QAction *buildOutputAction = buildOutputDock->toggleViewAction();
+    buildOutputAction->setText(tr("Build output (listing, disassembly, hex)"));
+    buildOutputAction->setProperty("en", "Build output listing disassembly hex objdump");
+    buildOutputAction->setShortcut(QKeySequence("Ctrl+Shift+B"));
+    connect(buildOutputDock, SIGNAL(visibilityChanged(bool)), this, SLOT(refreshBuildOutput()));
+
+    #ifdef Q_OS_WIN32
+    {
+        //! Target: Windows exe or Linux ELF (run in WSL)
+        targetBox = new QComboBox;
+        targetBox->addItem(tr("Windows x64"), "windows");
+        targetBox->addItem(tr("Linux ELF (WSL)"), "linux");
+        targetBox->setCurrentIndex(settings.value("target", QString("windows")).toString() == "linux" ? 1 : 0);
+        targetBox->setToolTip(tr("Build target"));
+        connect(targetBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int i) {
+            settings.setValue("target", targetBox->itemData(i).toString());
+            programIsBuilded = false;
+        });
+        fileToolBar->addSeparator();
+        fileToolBar->addWidget(targetBox);
+
+        QAction *installWslAction = new QAction(tr("Install WSL..."), this);
+        installWslAction->setProperty("en", "Install WSL Linux");
+        connect(installWslAction, &QAction::triggered, this, [this]() {
+            QString why;
+            if (LinuxTarget::wslAvailable(&why)) {
+                printLogWithTime(tr("WSL is already installed.") + '\n', Theme::color("successcolor"));
+                return;
+            }
+            if (LinuxTarget::startWslInstall())
+                printLogWithTime(tr("The WSL installer was started (it asks for administrator rights; "
+                                    "a restart of Windows may be needed).") + '\n', Theme::color("fontcolor"));
+            else
+                printLogWithTime(tr("Could not start the WSL installer.") + '\n', Theme::color("errorcolor"));
+        });
+        buildMenu->addSeparator();
+        buildMenu->addAction(installWslAction);
+    }
+    #endif
+
+    //! File > New from template
+    {
+        QMenu *templatesMenu = new QMenu(tr("New from template"), this);
+        struct T { const char *title; const char *file; };
+        const T list[] = {
+            { QT_TR_NOOP("Hello world — Windows x64 (io64.inc)"), ":/templates/hello_win64.asm" },
+            { QT_TR_NOOP("Hello world — Windows x64 (Windows API, no macros)"), ":/templates/hello_win64_api.asm" },
+            { QT_TR_NOOP("Hello world — Linux x64 (system calls)"), ":/templates/hello_linux64.asm" },
+        };
+        for (const T &t : list) {
+            QAction *a = templatesMenu->addAction(tr(t.title));
+            a->setProperty("en", QString("Template ") + t.title);
+            const QString file = t.file;
+            connect(a, &QAction::triggered, this, [this, file]() { newFromTemplate(file); });
+        }
+        fileMenu->insertMenu(openAction, templatesMenu);
+    }
+
     viewMenu->addAction(commandPaletteAction);
     viewMenu->addSeparator();
     viewMenu->addAction(toggleExplorerAction);
+    viewMenu->addAction(buildOutputAction);
     viewMenu->addAction(focusModeAction);
     viewMenu->addSeparator();
     viewMenu->addAction(darkThemeAction);
@@ -700,6 +770,114 @@ void MainWindow::restartApplication()
         return;
     QProcess::startDetached(QCoreApplication::applicationFilePath(), QStringList() << "--asmon-restart");
     qApp->quit();
+}
+
+void MainWindow::refreshBuildOutput()
+{
+    if (!buildOutputDock || !buildOutputDock->isVisible())
+        return;
+    QString objdump = "objdump";
+    #ifdef Q_OS_WIN32
+        objdump = Common::applicationDataPath()
+            + (settings.value("mode", QString("x64")).toString() == "x86" ? "/MinGW/bin/objdump.exe"
+                                                                           : "/MinGW64/bin/objdump.exe");
+        if (linuxTargetSelected()) // MinGW objdump only knows PE/COFF
+            objdump = Common::applicationDataPath() + "/LLVM/bin/llvm-objdump.exe";
+    #endif
+    buildOutputView->setPaths(Common::pathInTemp("program.lst"),
+                              Common::pathInTemp(settings.value("objectfilename", "program.o").toString()),
+                              Common::pathInTemp("AsmonProg.exe"), objdump);
+    buildOutputView->refresh();
+}
+
+QString MainWindow::prettifyBuildLog(const QString &text)
+{
+    //! Asmon: show the user's file name instead of the temporary copy, so
+    //! "/tmp/Asmon/program.asm:15: error: ..." becomes "hello.asm:15: error: ...".
+    QString name = tr("untitled.asm");
+    if (tabs && tabs->count() > 0) {
+        const QString path = ((Tab *) tabs->currentWidget())->getCurrentFilePath();
+        if (!path.isEmpty())
+            name = QFileInfo(path).fileName();
+    }
+    QString out = text;
+    const QString temp = Common::pathInTemp("program.asm");
+    out.replace(temp, name);
+    out.replace(QDir::fromNativeSeparators(temp), name);
+    const QString tempDir = Common::pathInTemp(QString());
+    out.replace(tempDir + QDir::separator(), QString());
+    out.replace(QDir::fromNativeSeparators(tempDir) + "/", QString());
+    return out;
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    //! Double click on "file.asm:15: error: ..." in the build log jumps to line 15.
+    if (compilerOut && watched == compilerOut->viewport() && event->type() == QEvent::MouseButtonDblClick) {
+        const QPoint pos = static_cast<QMouseEvent *>(event)->position().toPoint();
+        const QString line = compilerOut->cursorForPosition(pos).block().text();
+        static const QRegularExpression re(":(\\d+):\\s*(?:\\d+:\\s*)?(?:error|warning|fatal)",
+                                           QRegularExpression::CaseInsensitiveOption);
+        const QRegularExpressionMatch m = re.match(line);
+        if (m.hasMatch() && tabs && tabs->count() > 0) {
+            CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+            const QTextBlock block = code->document()->findBlockByNumber(m.captured(1).toInt() - 1);
+            if (block.isValid()) {
+                QTextCursor c(block);
+                code->setTextCursor(c);
+                code->centerCursor();
+                code->setFocus();
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::newFromTemplate(const QString &resource)
+{
+    QFile f(resource);
+    if (!f.open(QIODevice::ReadOnly))
+        return;
+    newFile();
+    Tab *tab = (Tab *) tabs->currentWidget();
+    tab->code->setPlainText(QString::fromUtf8(f.readAll()));
+}
+
+bool MainWindow::linuxTargetSelected() const
+{
+    #ifdef Q_OS_WIN32
+        return settings.value("target", QString("windows")).toString() == "linux";
+    #else
+        return false; // on Linux the native target already is Linux
+    #endif
+}
+
+void MainWindow::buildForLinuxTarget(Tab *currentTab)
+{
+    if (settings.value("mode", QString("x64")).toString() == "x86") {
+        printLogWithTime(tr("The Linux target supports x64 only. Switch to x64 mode in Settings.") + '\n',
+                         Theme::color("errorcolor"));
+        return;
+    }
+    const QString dataPath = Common::applicationDataPath();
+    QString sourceDir;
+    if (!currentTab->getCurrentFilePath().isEmpty())
+        sourceDir = QFileInfo(currentTab->getCurrentFilePath()).absolutePath();
+    LinuxTarget::BuildResult r = LinuxTarget::build(
+        dataPath + "/NASM/nasm.exe", dataPath + "/LLVM/bin/ld.lld.exe",
+        Common::pathInTemp("program.asm"), Common::pathInTemp("program.lst"),
+        Common::pathInTemp(settings.value("objectfilename", "program.o").toString()),
+        Common::pathInTemp("AsmonProg.exe"), dataPath + "/include", sourceDir);
+    if (!r.ok) {
+        printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
+        printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
+        return;
+    }
+    printLogWithTime(tr("Built successfully (Linux ELF x64).") + '\n', Theme::color("successcolor"));
+    printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
+    refreshBuildOutput();
+    programIsBuilded = true;
 }
 
 void MainWindow::showCommandPalette()
@@ -1093,6 +1271,16 @@ void MainWindow::buildProgram(bool debugMode)
         return;
     }
 
+    #ifdef Q_OS_WIN32
+    //! Asmon: the 32-bit toolchain is an optional component.
+    if (settings.value("mode", QString("x64")).toString() == "x86"
+            && !QFile::exists(applicationDataPath() + "/MinGW/bin/gcc.exe")) {
+        printLogWithTime(tr("The 32-bit toolchain is not installed. Switch to x64 mode in Settings, "
+                            "or reinstall Asmon with the 32-bit component.") + '\n', Theme::color("errorcolor"));
+        return;
+    }
+    #endif
+
     QString tempPath = Common::pathInTemp(QString());
     removeDirRecuresively(tempPath);
     QString path = Common::pathInTemp("program.asm");
@@ -1108,6 +1296,11 @@ void MainWindow::buildProgram(bool debugMode)
     }
 
     while (! QFile::exists(path)) {
+    }
+
+    if (linuxTargetSelected()) {
+        buildForLinuxTarget(currentTab);
+        return;
     }
 
     QString stdioMacros = Common::pathInTemp("macro.o");
@@ -1126,6 +1319,15 @@ void MainWindow::buildProgram(bool debugMode)
         Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
     assemblerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("AsmonProg.exe"));
     assemblerArguments.replaceInStrings("$MACRO.OBJ$", stdioMacros);
+    //! Asmon: multi-file programs. NASM runs in the include/ directory (for
+    //! io64.inc), so also search the source file's own directory: then
+    //! %include "other.asm" / "defs.inc" next to the file just works.
+    if (settings.value("assembler", QString("NASM")).toString() == "NASM"
+            && !currentTab->getCurrentFilePath().isEmpty()) {
+        QString sourceDir = QFileInfo(currentTab->getCurrentFilePath()).absolutePath();
+        assemblerArguments.prepend(QDir::toNativeSeparators(sourceDir + "/"));
+        assemblerArguments.prepend("-I");
+    }
     QProcess assemblerProcess;
     QString assemblerOutput = Common::pathInTemp("compilererror.txt");
     assemblerProcess.setStandardOutputFile(assemblerOutput);
@@ -1157,7 +1359,10 @@ void MainWindow::buildProgram(bool debugMode)
     //! macro.c compilation/copying
     QFile macro;
     #ifdef Q_OS_WIN32
-        QString linker = settings.value("linkerpath", applicationDataPath() + "/MinGW/bin/gcc.exe").toString();
+        //! Asmon: WinLibs gcc is not multilib: x64 links with MinGW64, x86 with MinGW.
+        QString linker = settings.value("linkerpath", applicationDataPath()
+            + (settings.value("mode", QString("x64")).toString() == "x86" ? "/MinGW/bin/gcc.exe"
+                                                                           : "/MinGW64/bin/gcc.exe")).toString();
         if (settings.value("mode", QString("x64")).toString() == "x86") {
             macro.setFileName(applicationDataPath() + "/NASM/macro.o");
         } else {
@@ -1185,7 +1390,11 @@ void MainWindow::buildProgram(bool debugMode)
     //! Final linking
     bool disableLinking = settings.value("disablelinking", false).toBool();
     QString linkerOutput;
-    if (!disableLinking) {
+    //! Asmon: if the assembler failed there is no object file; running the
+    //! linker anyway only adds noise ("cannot find program.o", "collect2").
+    const bool objectExists = QFile::exists(
+        Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
+    if (!disableLinking && objectExists) {
         QStringList linkerArguments = linkerOptions.split(QChar(' '));
         linkerArguments.replaceInStrings("$PROGRAM.OBJ$",
             Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
@@ -1231,28 +1440,29 @@ void MainWindow::buildProgram(bool debugMode)
         printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
 
         //! Print errors
-        printLog(logText, Theme::color("errorcolor"));
-        if (!disableLinking) {
+        printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
+        if (!disableLinking && !linkerOutput.isEmpty()) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
             QTextStream logLinker(&logFile);
             logText = logLinker.readAll();
             logFile.close();
-            printLog(logText, Theme::color("errorcolor"));
+            printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
         }
 
         //! QMessageBox::critical(0, tr("Warning!"), tr("Errors have occurred in the build!"));
     } else {
         printLogWithTime(tr("Built successfully.") + '\n', Theme::color("successcolor"));
+        refreshBuildOutput();
         //! print warnings
-        printLog(logText, Theme::color("errorcolor"));
-        if (!disableLinking) {
+        printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
+        if (!disableLinking && !linkerOutput.isEmpty()) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
             QTextStream logLinker(&logFile);
             logText = logLinker.readAll();
             logFile.close();
-            printLog(logText, Theme::color("errorcolor"));
+            printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
         }
         programIsBuilded = true;
     }
@@ -1286,6 +1496,22 @@ void MainWindow::runProgram()
     currentTab->saveInputToFile(input);
 
     QString program = Common::pathInTemp("AsmonProg.exe");
+    QStringList programArguments;
+    if (linuxTargetSelected()) {
+        //! Asmon: Linux ELF built on Windows runs inside WSL.
+        QString why;
+        if (!LinuxTarget::wslAvailable(&why)) {
+            printLogWithTime(why + ' ' + tr("Use Build > Install WSL, then try again.") + '\n',
+                             Theme::color("errorcolor"));
+            stopAction->setEnabled(false);
+            debugAction->setEnabled(true);
+            buildAction->setEnabled(true);
+            return;
+        }
+        QStringList cmd = LinuxTarget::wslRunCommand(program);
+        program = cmd.takeFirst();
+        programArguments = cmd;
+    }
     runProcess->setStandardInputFile(input);
 
     //! Run program in code directory if it exists
@@ -1299,7 +1525,7 @@ void MainWindow::runProgram()
     programStopped = false;
     connect(runProcess, SIGNAL(started()), this, SLOT(startCountProgramTime()));
     connect(runProcess, SIGNAL(finished(int)), this, SLOT(testStopOfProgram()));
-    runProcess->start(program, QStringList());
+    runProcess->start(program, programArguments);
 
     timer->start(100);
     //Previous - connect(timer, SIGNAL(timeout()), this, SLOT(testStopOfProgram()));
@@ -1404,6 +1630,11 @@ void MainWindow::printOutput(QString msg, int index)
 void MainWindow::debug()
 {
     //! Start debugger if true
+    if (!debugger && linuxTargetSelected()) {
+        printLogWithTime(tr("Debugging Linux programs from Windows is not supported yet. "
+                            "You can build and run them (F9).") + '\n', Theme::color("errorcolor"));
+        return;
+    }
     if (!debugger) {
         debuggerWasStarted = false;
         buildProgram(true);

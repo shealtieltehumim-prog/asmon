@@ -76,23 +76,16 @@ Debugger::Debugger(QTextEdit *tEdit,
     #ifdef Q_OS_WIN32
         QString gdb;
         QString objdump;
-        if (settings.value("mode", QString("x64")).toString() == "x86") {
-            gdb = QCoreApplication::applicationDirPath() + "/MinGW/bin/gdb.exe";
-            objdump = QCoreApplication::applicationDirPath() + "/MinGW/bin/objdump.exe";
-            if (! QFile::exists(gdb))
-                gdb = QCoreApplication::applicationDirPath() + "/Windows/MinGW/bin/gdb.exe";
-            if (! QFile::exists(objdump))
-                objdump = QCoreApplication::applicationDirPath() + "/Windows/MinGW/bin/objdump.exe";
+        //! Asmon: the toolchain (WinLibs MinGW-w64) lives next to asmon.exe:
+        //! MinGW64/ for x64, MinGW/ for x86 (optional component).
+        const QString bin = Common::applicationDataPath()
+            + (settings.value("mode", QString("x64")).toString() == "x86" ? "/MinGW/bin/" : "/MinGW64/bin/");
+        gdb = bin + "gdb.exe";
+        objdump = bin + "objdump.exe";
+        if (settings.value("mode", QString("x64")).toString() == "x86")
             exitMessage = "mingw_CRTStartup";
-        } else {
-            gdb = QCoreApplication::applicationDirPath() + "/MinGW64/bin/gdb.exe";
-            objdump = QCoreApplication::applicationDirPath() + "/MinGW/bin/objdump.exe";
-            if (! QFile::exists(gdb))
-                gdb = QCoreApplication::applicationDirPath() + "/Windows/MinGW64/bin/gdb.exe";
-            if (! QFile::exists(objdump))
-                objdump = QCoreApplication::applicationDirPath() + "/Windows/MinGW/bin/objdump.exe";
+        else
             exitMessage = "__fu0__set_invalid_parameter_handler";
-        }
     #else
         QString gdb = "gdb";
         QString objdump = "objdump";

@@ -54,9 +54,9 @@ QString GAS::getAssemblerPath()
 {
     #ifdef Q_OS_WIN32
         if (isx86())
-            return Common::applicationDataPath() + "/GAS/32/as.exe";
+            return Common::applicationDataPath() + "/MinGW/bin/as.exe";
         else
-            return Common::applicationDataPath() + "/GAS/64/as.exe";
+            return Common::applicationDataPath() + "/MinGW64/bin/as.exe";
     #elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
         return "/usr/bin/as";
     #else
