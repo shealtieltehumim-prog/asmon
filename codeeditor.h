@@ -85,6 +85,9 @@ public:
     //! in the gutter, the message as a tooltip). Cleared on the next edit.
     struct Diagnostic { QString message; bool error; };
     void setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics);
+    //! Ctrl+Space or typing: suggest instructions, registers, directives,
+    //! io macros and this file's labels
+    void showCompletion() { updateCompletion(true); }
     //! Hebrew display marks (see codeeditor.cpp): never saved or copied
     static QString stripBidiMarks(QString text);
     QString plainTextWithoutMarks() const;
@@ -131,6 +134,9 @@ private:
     QColor lineNumberPanelColor;
     QMap<int, Diagnostic> diagnostics;
     bool applyingBidiMarks = false;
+    class QCompleter *completer = nullptr;
+    void updateCompletion(bool force);
+    void insertCompletion(const QString &word);
     void appendDiagnosticSelections(QList<QTextEdit::ExtraSelection> &list);
 
 signals:

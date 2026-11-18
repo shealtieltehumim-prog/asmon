@@ -42,6 +42,11 @@
 #include "regexp.h"
 #include "codeeditor.h"
 #include <QTextLayout>
+#include <QCompleter>
+#include <QStringListModel>
+#include <QAbstractItemView>
+#include <QScrollBar>
+#include "symbols.h"
 #include <QTimer>
 #include <QMimeData>
 
@@ -112,7 +117,9 @@ int CodeEditor::lineNumberAreaWidth()
         ++digits;
     }
 
-    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits + debugAreaWidth;
+    //! room for at least 3 digits and a margin: the gutter does not jump
+    //! between 9 and 10 lines, and numbers do not touch the window edge
+    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 14 + debugAreaWidth;
 
     return space;
 }
@@ -400,6 +407,36 @@ void CodeEditor::deleteTab()
 
 void CodeEditor::keyPressEvent(QKeyEvent *e)
 {
+    //! auto-completion: while the list is open it takes Enter/Tab/Esc
+    if (completer && completer->popup()->isVisible()) {
+        switch (e->key()) {
+        case Qt::Key_Enter: case Qt::Key_Return: case Qt::Key_Tab:
+            if (completer->popup()->currentIndex().isValid()) {
+                insertCompletion(completer->popup()->currentIndex().data().toString());
+                completer->popup()->hide();
+                return;
+            }
+            completer->popup()->hide();
+            break;
+        case Qt::Key_Escape: case Qt::Key_Backtab:
+            completer->popup()->hide();
+            return;
+        default:
+            break;
+        }
+    }
+    if (e->key() == Qt::Key_Space && (e->modifiers() & Qt::ControlModifier)) {
+        updateCompletion(true);
+        return;
+    }
+    const bool typing = !e->text().isEmpty() && !(e->modifiers() & (Qt::ControlModifier | Qt::AltModifier));
+    struct CompletionAfter {
+        CodeEditor *ed; bool typing; int key;
+        ~CompletionAfter() {
+            if (typing || (key == Qt::Key_Backspace && ed->completer && ed->completer->popup()->isVisible()))
+                ed->updateCompletion(false);
+        }
+    } completionAfter{ this, typing, e->key() };
     //! Hebrew display marks are invisible: never stop on them, never make
     //! Backspace/Delete "do nothing" by deleting one.
     if (!textCursor().hasSelection()) {
@@ -778,4 +815,129 @@ void CodeEditor::mouseMoveEvent(QMouseEvent *e)
     //! a hand over words while Ctrl is held: they are links to definitions
     viewport()->setCursor((e->modifiers() & Qt::ControlModifier) ? Qt::PointingHandCursor : Qt::IBeamCursor);
     RuQPlainTextEdit::mouseMoveEvent(e);
+}
+
+// ---------------------------------------------------------------- completion
+
+static QStringList baseCompletionWords()
+{
+    static QStringList words;
+    if (!words.isEmpty())
+        return words;
+    const char *instructions =
+        "mov movzx movsx movsxd lea push pop xchg cmpxchg xadd add sub adc sbb inc dec neg mul imul div idiv "
+        "and or xor not test cmp shl shr sal sar rol ror rcl rcr shld shrd bt bts btr btc bsf bsr lzcnt tzcnt popcnt "
+        "jmp je jne jz jnz jg jge jl jle ja jae jb jbe jc jnc jo jno js jns jp jnp jcxz jecxz jrcxz loop loope loopne "
+        "call ret enter leave nop int syscall sysenter hlt cpuid rdtsc pause ud2 "
+        "cmove cmovne cmovz cmovnz cmovg cmovge cmovl cmovle cmova cmovae cmovb cmovbe cmovs cmovns "
+        "sete setne setz setnz setg setge setl setle seta setae setb setbe sets setns setc setnc "
+        "cbw cwde cdqe cwd cdq cqo clc stc cmc cld std cli sti pushf popf pushfq popfq lahf sahf "
+        "movsb movsw movsd movsq stosb stosw stosd stosq lodsb lodsw lodsd lodsq scasb scasw scasd scasq "
+        "cmpsb cmpsw cmpsd cmpsq rep repe repne repz repnz lock "
+        "movd movq movdqa movdqu movaps movups movapd movupd movss movsd addss addsd subss subsd mulss mulsd "
+        "divss divsd sqrtss sqrtsd comiss comisd ucomiss ucomisd cvtsi2ss cvtsi2sd cvttss2si cvttsd2si cvtss2sd "
+        "cvtsd2ss pxor por pand pandn paddb paddw paddd paddq psubb psubw psubd psubq pcmpeqb pcmpeqd pshufb "
+        "pshufd punpcklbw xorps xorpd andps andpd orps orpd maxss minss maxsd minsd "
+        "vmovaps vmovups vaddps vmulps vxorps vpxor vzeroupper "
+        "fld fst fstp fild fistp fadd fsub fmul fdiv fsqrt fcomi fcomip fxch finit fldz fld1";
+    const char *registers =
+        "rax rbx rcx rdx rsi rdi rbp rsp r8 r9 r10 r11 r12 r13 r14 r15 rip "
+        "eax ebx ecx edx esi edi ebp esp r8d r9d r10d r11d r12d r13d r14d r15d "
+        "ax bx cx dx si di bp sp r8w r9w r10w r11w r12w r13w r14w r15w "
+        "al bl cl dl sil dil bpl spl ah bh ch dh r8b r9b r10b r11b r12b r13b r14b r15b "
+        "xmm0 xmm1 xmm2 xmm3 xmm4 xmm5 xmm6 xmm7 xmm8 xmm9 xmm10 xmm11 xmm12 xmm13 xmm14 xmm15 "
+        "ymm0 ymm1 ymm2 ymm3 cs ds es fs gs ss";
+    const char *directives =
+        "section segment global extern default rel bits db dw dd dq dt resb resw resd resq times equ "
+        "byte word dword qword tword ptr align alignb incbin struc endstruc istruc iend at "
+        ".text .data .bss .rodata %include %define %undef %assign %macro %endmacro %if %elif %else %endif "
+        "%ifdef %ifndef %rep %endrep %local %push %pop "
+        "PRINT_STRING PRINT_DEC PRINT_UDEC PRINT_HEX PRINT_CHAR NEWLINE GET_DEC GET_UDEC GET_HEX GET_CHAR "
+        "GET_STRING CMAIN CEXTERN";
+    for (const char *list : { instructions, registers, directives })
+        words << QString::fromLatin1(list).split(' ', Qt::SkipEmptyParts);
+    return words;
+}
+
+void CodeEditor::updateCompletion(bool force)
+{
+    QTextCursor tc = textCursor();
+    const QString line = stripBidiMarks(tc.block().text());
+    const int col = tc.positionInBlock() - marksBefore(tc);
+    //! not in a comment or a string
+    if (Symbols::codePart(line).size() < col
+            || Symbols::codePart(line).mid(0, col) != line.mid(0, col)) {
+        if (completer)
+            completer->popup()->hide();
+        return;
+    }
+    int start = col;
+    while (start > 0 && (line.at(start - 1).isLetterOrNumber() || line.at(start - 1) == '_'
+                         || line.at(start - 1) == '.' || line.at(start - 1) == '%'))
+        --start;
+    const QString prefix = line.mid(start, col - start);
+    if ((!force && prefix.size() < 2) || (!prefix.isEmpty() && prefix.at(0).isDigit())) {
+        if (completer)
+            completer->popup()->hide();
+        return;
+    }
+    if (!completer) {
+        completer = new QCompleter(this);
+        completer->setWidget(this);
+        completer->setCompletionMode(QCompleter::PopupCompletion);
+        completer->setCaseSensitivity(Qt::CaseInsensitive);
+        completer->setFilterMode(Qt::MatchStartsWith);
+        completer->setMaxVisibleItems(9);
+        completer->popup()->setLayoutDirection(Qt::LeftToRight);
+        completer->popup()->setFont(font());
+        connect(completer, QOverload<const QString &>::of(&QCompleter::activated),
+                this, &CodeEditor::insertCompletion);
+    }
+    //! this file's labels, data and constants first, then the language
+    QStringList words;
+    QString parent;
+    for (const Symbols::Symbol &sym : Symbols::scan(plainTextWithoutMarks(), QString()))
+        if (!words.contains(sym.name))
+            words << sym.name;
+    for (const QString &w : baseCompletionWords())
+        if (!words.contains(w))
+            words << w;
+    words.removeAll(prefix); // the word as already typed
+    const bool upper = prefix.size() > 1 && prefix == prefix.toUpper() && prefix != prefix.toLower();
+    QStringList shown;
+    for (const QString &w : words) {
+        if (!w.startsWith(prefix, Qt::CaseInsensitive))
+            continue;
+        //! instructions/registers follow the case the user types
+        shown << ((upper && w == w.toLower()) ? w.toUpper() : w);
+    }
+    if (shown.isEmpty()) {
+        completer->popup()->hide();
+        return;
+    }
+    auto *model = qobject_cast<QStringListModel *>(completer->model());
+    if (!model) {
+        model = new QStringListModel(completer);
+        completer->setModel(model);
+    }
+    model->setStringList(shown);
+    completer->setCompletionPrefix(prefix);
+    completer->popup()->setCurrentIndex(completer->completionModel()->index(0, 0));
+    QRect r = cursorRect();
+    r.setWidth(qMax(220, completer->popup()->sizeHintForColumn(0)
+                             + completer->popup()->verticalScrollBar()->sizeHint().width() + 24));
+    completer->complete(r);
+}
+
+void CodeEditor::insertCompletion(const QString &word)
+{
+    QTextCursor tc = textCursor();
+    const QString line = tc.block().text();
+    int start = tc.positionInBlock();
+    while (start > 0 && (line.at(start - 1).isLetterOrNumber() || line.at(start - 1) == '_'
+                         || line.at(start - 1) == '.' || line.at(start - 1) == '%'))
+        --start;
+    tc.setPosition(tc.block().position() + start, QTextCursor::KeepAnchor);
+    tc.insertText(word);
+    setTextCursor(tc);
 }
