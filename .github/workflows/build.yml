@@ -114,6 +114,8 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-translations
             make
       - name: Build
+        env:
+          ASMON_BUILD: ${{ github.run_number }}
         run: |
           mkdir build && cd build
           qmake6 ../asmon.pro CONFIG+=release
@@ -557,6 +559,29 @@ jobs:
           Start-Sleep 5
           if (Test-Path C:\AsmonTest\asmon.exe) { throw "uninstall left asmon.exe behind" }
           Write-Host "install / run / uninstall OK"
+      - name: Self-update test (the update script replaces asmon.exe and restarts it)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item C:\UpdTest -ItemType Directory -Force | Out-Null
+          Copy-Item dist\* C:\UpdTest -Recurse -Force
+          Copy-Item dist\asmon.exe C:\newasmon.exe
+          [System.IO.File]::AppendAllText('C:\newasmon.exe', 'x')   # different bytes, still a valid program
+          $want = (Get-FileHash C:\newasmon.exe -Algorithm SHA256).Hash
+          $before = (Get-FileHash C:\UpdTest\asmon.exe -Algorithm SHA256).Hash
+          if ($want -eq $before) { throw "test file is not different" }
+          Start-Process C:\UpdTest\asmon.exe -ArgumentList '--apply-update','C:\newasmon.exe' -Wait
+          $ok = $false
+          for ($i = 0; $i -lt 40; $i++) {
+            Start-Sleep 1
+            if ((Get-FileHash C:\UpdTest\asmon.exe -Algorithm SHA256).Hash -eq $want) { $ok = $true; break }
+          }
+          Start-Sleep 5
+          Get-Process asmon -ErrorAction SilentlyContinue | Select-Object Id, Path
+          Get-ChildItem C:\ -Filter asmon-update.log -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName }
+          if (-not $ok) { throw "asmon.exe was not replaced" }
+          if (-not (Get-Process asmon -ErrorAction SilentlyContinue)) { throw "asmon did not restart after the update" }
+          Get-Process asmon | Stop-Process -Force
       - name: Installer pages (interactive run, screenshots, then cancelled)
         shell: pwsh
         run: |
@@ -601,6 +626,23 @@ jobs:
           name: asmon-re-tools-portable
           path: installer/output/Asmon-${{ env.ASMON_VERSION }}-RE-tools-portable.zip
           compression-level: 0
+      - name: Publish this build to the Asmon update server
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          UPDATE_TOKEN: ${{ secrets.ASMON_UPDATE_TOKEN }}
+          UPDATE_URL: https://updates-production-522a5b29.up.railway.app
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if (-not $env:UPDATE_TOKEN) { Write-Host "ASMON_UPDATE_TOKEN is not set; skipping"; exit 0 }
+          $notes = [uri]::EscapeDataString(($env:COMMIT_MESSAGE -split "`n")[0])
+          $code = & curl.exe -sS -o resp.txt -w "%{http_code}" -X POST "$env:UPDATE_URL/api/publish" `
+            -H "Authorization: Bearer $env:UPDATE_TOKEN" -H "X-Build: ${{ github.run_number }}" `
+            -H "X-Version: $env:ASMON_VERSION" -H "X-Notes: $notes" -H "X-File-Name: asmon.exe" `
+            --data-binary "@dist\asmon.exe"
+          Get-Content resp.txt
+          # 409 = a newer build is already there (re-run of an old job): not an error
+          if ($code -ne '200' -and $code -ne '409') { throw "publish failed: HTTP $code" }
       - name: Attach to the GitHub release (v* tags / published releases)
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh

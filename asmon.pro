@@ -10,6 +10,12 @@ lessThan(QT_MAJOR_VERSION, 6): error("Asmon requires Qt 6")
 QT += widgets svg
 CONFIG += c++17
 
+# build number given by CI (GitHub run number); 0 for builds made by hand
+ASMON_BUILD = $$(ASMON_BUILD)
+isEmpty(ASMON_BUILD): ASMON_BUILD = 0
+DEFINES += ASMON_BUILD=$$ASMON_BUILD
+win32: LIBS += -lshell32
+
 TARGET = asmon
 TEMPLATE = app
 
@@ -70,6 +76,7 @@ SOURCES += main.cpp\
     symbols.cpp \
     searchpanel.cpp \
     processpicker.cpp \
+    updater.cpp \
     framelesshelper.cpp \
     retools.cpp \
     debugpanels.cpp \
@@ -104,6 +111,7 @@ HEADERS  += mainwindow.h \
     symbols.h \
     searchpanel.h \
     processpicker.h \
+    updater.h \
     framelesshelper.h \
     retools.h \
     debugpanels.h \

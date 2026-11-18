@@ -240,6 +240,11 @@ private:
     QPointer<QWidget> settingsPage;
     int settingsReturnIndex;
     void closeSettingsPage();
+    class Updater *updater;
+    QPointer<class QProgressDialog> updateProgress;
+    bool updateManual, updateDownloading;
+    int updateOffered;
+    void checkForUpdates(bool manual);
     Ui::SettingsWindow settingsUi;
     QString startText;
     CodeEditor *settingsStartTextEditor;

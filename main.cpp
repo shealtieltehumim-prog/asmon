@@ -47,6 +47,7 @@
 #include <QFile>
 #include "theme.h"
 #include <QThread>
+#include "updater.h"
 
 /**
  * @file main.cpp
@@ -75,6 +76,16 @@ int main(int argc, char *argv[])
     if (a.arguments().contains("--asmon-restart")) {
         for (int i = 0; i < 50 && a.isRunning(); ++i)
             QThread::msleep(100);
+    }
+    //! "--apply-update <new asmon.exe>": replace this program with the given file and start it
+    //! (used by the updater and by the CI self-test; also works as a manual update).
+    {
+        const QStringList args = a.arguments();
+        const int i = args.indexOf("--apply-update");
+        if (i >= 0 && i + 1 < args.size()) {
+            QString err;
+            return Updater::installAndRestart(args.at(i + 1), &err) ? 0 : 1;
+        }
     }
     if (a.isRunning()) {
         //we already have one instance of our application

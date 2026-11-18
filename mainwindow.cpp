@@ -44,6 +44,8 @@
 #include <QInputDialog>
 #include "processpicker.h"
 #include "framelesshelper.h"
+#include "updater.h"
+#include <QProgressDialog>
 #include <QShortcut>
 #include <QFontDatabase>
 #include <QStyledItemDelegate>
@@ -70,6 +72,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     prevCodeEditor = 0;
     findDialog = 0;
     settingsWindow = 0;
+    updater = nullptr;
+    updateManual = false;
+    updateDownloading = false;
+    updateOffered = 0;
     settingsPage = nullptr;
     settingsReturnIndex = 0;
     closeFromCloseAll = false;
@@ -111,6 +117,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     createMenus();
     createToolBars();
     createAsmonUi();
+
+    //! quiet update check a few seconds after start (builds made by CI only; "autoupdate=false" in the ini turns it off)
+    if (Updater::currentBuild() > 0 && settings.value("autoupdate", true).toBool())
+        QTimer::singleShot(8000, this, [this]() { checkForUpdates(false); });
     applyShortcutOverrides();
     refreshEditMenu();
     setAcceptDrops(true);
@@ -352,6 +362,11 @@ void MainWindow::createMenus()
     helpMenu = menuBar()->addMenu(tr("Help"));
     helpMenu->addAction(helpAction);
     helpMenu->addAction(aboutAction);
+    helpMenu->addSeparator();
+    {
+        QAction *updateAction = helpMenu->addAction(tr("Check for updates..."));
+        connect(updateAction, &QAction::triggered, this, [this]() { checkForUpdates(true); });
+    }
 }
 
 void MainWindow::createActions()
@@ -733,6 +748,70 @@ void MainWindow::createToolBars()
     }
 
     restoreState(settings.value("windowstate").toByteArray());
+}
+
+void MainWindow::checkForUpdates(bool manual)
+{
+    if (!updater) {
+        updater = new Updater(this);
+        connect(updater, &Updater::upToDate, this, [this]() {
+            if (updateManual)
+                QMessageBox::information(this, tr("Updates"), tr("You have the newest version."));
+        });
+        connect(updater, &Updater::failed, this, [this](const QString &msg) {
+            if (updateProgress) {
+                updateProgress->close();
+                updateProgress->deleteLater();
+            }
+            if (updateManual || updateDownloading)
+                QMessageBox::warning(this, tr("Updates"), tr("Could not update:") + "\n" + msg);
+            updateDownloading = false;
+        });
+        connect(updater, &Updater::updateAvailable, this, [this](const Updater::Info &info) {
+            if (updateOffered == info.build && !updateManual)
+                return; // asked once per session
+            updateOffered = info.build;
+            QString text = tr("A new version of Asmon is available (build %1).").arg(info.build);
+            if (!info.notes.isEmpty())
+                text += "\n\n" + info.notes;
+            if (!Updater::canInstall()) {
+                QMessageBox::information(this, tr("Updates"), text);
+                return;
+            }
+            text += "\n\n" + tr("Asmon will close and open again after the update. Update now?");
+            QMessageBox box(QMessageBox::Question, tr("Updates"), text, QMessageBox::NoButton, this);
+            QPushButton *yes = box.addButton(tr("Update now"), QMessageBox::AcceptRole);
+            box.addButton(tr("Later"), QMessageBox::RejectRole);
+            box.exec();
+            if (box.clickedButton() != yes)
+                return;
+            updateDownloading = true;
+            updateProgress = new QProgressDialog(tr("Downloading the update..."), QString(), 0, 0, this);
+            updateProgress->setWindowModality(Qt::WindowModal);
+            updateProgress->setMinimumDuration(0);
+            updateProgress->setCancelButton(nullptr);
+            updateProgress->show();
+            updater->download(info);
+        });
+        connect(updater, &Updater::downloaded, this, [this](const QString &path, const Updater::Info &) {
+            updateDownloading = false;
+            if (updateProgress) {
+                updateProgress->close();
+                updateProgress->deleteLater();
+            }
+            //! unsaved files are asked about first; cancelling stops the update
+            if (!closeApp())
+                return;
+            QString err;
+            if (!Updater::installAndRestart(path, &err)) {
+                QMessageBox::warning(this, tr("Updates"), err);
+                return;
+            }
+            qApp->quit();
+        });
+    }
+    updateManual = manual;
+    updater->check();
 }
 
 void MainWindow::createAsmonUi()
