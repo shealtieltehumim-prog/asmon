@@ -126,6 +126,7 @@ FORMS += settings.ui
 RESOURCES += \
     Templates.qrc \
     Icons.qrc \
+    Fonts.qrc \
     Languages.qrc \
     Images.qrc \
     Help.qrc

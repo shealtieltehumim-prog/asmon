@@ -68,7 +68,7 @@ QPlainTextEdit *BuildOutputView::makeView()
     v->setReadOnly(true);
     v->setWordWrapMode(QTextOption::NoWrap);
     v->setLayoutDirection(Qt::LeftToRight);
-    QFont f(QSettings().value("fontfamily", Theme::defaultCodeFont()).toString());
+    QFont f = Theme::codeFont();
     f.setStyleHint(QFont::Monospace);
     f.setPointSize(QSettings().value("fontsize", 11).toInt());
     v->setFont(f);

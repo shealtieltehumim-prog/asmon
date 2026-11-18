@@ -39,6 +39,7 @@
 ****************************************************************************/
 
 #include "tab.h"
+#include "theme.h"
 
 /**
  * @file tab.cpp
@@ -78,17 +79,12 @@ void Tab::setFonts()
 {
     QSettings settings;
 
-    QFont codeFont;
-    codeFont.setPointSize(settings.value("fontsize", 11).toInt());
-    codeFont.setFamily(settings.value("fontfamily", QString("Courier")).value<QString>());
-    codeFont.setStyleHint(QFont::Monospace);
-    code->setFont(codeFont);
+    code->setFont(Theme::codeFont());
     code->repaintLineNumberArea();
 
-    QFont logFont;
-    logFont.setPointSize(settings.value("fontsize", 11).toInt());
-    input->setFont(logFont);
-    output->setFont(logFont);
+    //! program input/output in the code font: tables and hex dumps line up
+    input->setFont(Theme::codeFont());
+    output->setFont(Theme::codeFont());
 }
 
 

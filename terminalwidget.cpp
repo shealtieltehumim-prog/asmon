@@ -28,7 +28,7 @@ TerminalWidget::TerminalWidget(QWidget *parent) : QWidget(parent)
     view = new QPlainTextEdit;
     view->setReadOnly(true);
     view->setMaximumBlockCount(5000);
-    QFont f(QSettings().value("fontfamily", Theme::defaultCodeFont()).toString());
+    QFont f = Theme::codeFont();
     f.setStyleHint(QFont::Monospace);
     f.setPointSize(QSettings().value("fontsize", 11).toInt());
     view->setFont(f);

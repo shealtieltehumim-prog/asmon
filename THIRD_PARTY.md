@@ -28,3 +28,9 @@ MASM is not included (proprietary, Microsoft).
 **קוד מקור של רכיבי GPL.** את הקוד של אסמון עצמו אפשר להוריד מהריפו בכל גרסה (תג git לכל release). לכלים של צד שלישי שמופצים ב-GPL, הקוד המדויק של הגרסה שנארזה נמצא בדף ה-release שלה (הקישורים למעלה, לפי הגרסאות שב-`licenses/VERSIONS.txt`). אם קישור כזה מפסיק לעבוד, אפשר לפתוח issue בריפו ונספק את הקוד.
 
 Source for GPL components: Asmon's own source is in this repository (a git tag per release). For bundled third-party GPL programs the corresponding source is at the upstream release of the exact version listed in `licenses/VERSIONS.txt`; if a link stops working, open an issue and the source will be provided.
+
+## Fonts (bundled inside asmon.exe)
+| Font | Use | License | Source |
+|---|---|---|---|
+| Rubik 2 (Regular, Medium, Bold) | interface, Hebrew in code | SIL Open Font License 1.1 (`fonts/Rubik-OFL.txt`) | github.com/googlefonts/rubik (old/version-2) |
+| JetBrains Mono (Regular, Bold, Italic) | code | SIL Open Font License 1.1 (`fonts/JetBrainsMono-OFL.txt`) | github.com/JetBrains/JetBrainsMono |

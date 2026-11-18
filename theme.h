@@ -12,6 +12,7 @@
 #define ASMON_THEME_H
 
 #include <QColor>
+#include <QFont>
 #include <QHash>
 #include <QTextDocument>
 #include <QMap>
@@ -47,6 +48,14 @@ QIcon icon(const QString &name);
 
 //! Best available monospace font family for code.
 QString defaultCodeFont();
+
+//! Asmon bundles its fonts (OFL): Rubik for the interface (rounded, with
+//! Hebrew) and JetBrains Mono for code. Call once, before ensureInitialized.
+void loadBundledFonts();
+//! The interface font (Rubik, or the system font if loading failed).
+QFont uiFont();
+//! The code font from the settings; Hebrew falls back to Rubik.
+QFont codeFont(int pointSize = -1);
 
 //! Text already written in a log in the old theme's colours: map each old
 //! colour (font/error/success/keywords) to the new one, in place.

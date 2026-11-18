@@ -66,7 +66,9 @@ int main(int argc, char *argv[])
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                            QCoreApplication::applicationDirPath() + "/data");
     QSettings settings;
+    Theme::loadBundledFonts();
     Theme::ensureInitialized(settings);
+    a.setFont(Theme::uiFont());
     Theme::apply(a);
     //! Restart requested by the app itself (e.g. after a language switch):
     //! wait until the previous instance has exited before going on.

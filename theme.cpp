@@ -145,7 +145,7 @@ QIcon icon(const QString &name)
 QString defaultCodeFont()
 {
     const QStringList families = QFontDatabase::families();
-    for (const char *f : { "Cascadia Mono", "Consolas", "JetBrains Mono", "DejaVu Sans Mono",
+    for (const char *f : { "JetBrains Mono", "Cascadia Mono", "Consolas", "DejaVu Sans Mono",
                            "Liberation Mono", "Courier New" }) {
         if (families.contains(QString(f)))
             return QString(f);
@@ -153,8 +153,50 @@ QString defaultCodeFont()
     return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 }
 
+static bool rubikLoaded = false;
+
+void loadBundledFonts()
+{
+    for (const char *f : { ":/fonts/Rubik-Regular.ttf", ":/fonts/Rubik-Medium.ttf", ":/fonts/Rubik-Bold.ttf" })
+        rubikLoaded = (QFontDatabase::addApplicationFont(f) >= 0) || rubikLoaded;
+    for (const char *f : { ":/fonts/JetBrainsMono-Regular.ttf", ":/fonts/JetBrainsMono-Bold.ttf",
+                           ":/fonts/JetBrainsMono-Italic.ttf" })
+        QFontDatabase::addApplicationFont(f);
+}
+
+QFont uiFont()
+{
+    QFont f = QApplication::font();
+    if (rubikLoaded) {
+        f.setFamilies(QStringList() << "Rubik" << f.family());
+        f.setPointSizeF(10);
+    }
+    f.setHintingPreference(QFont::PreferVerticalHinting);
+    return f;
+}
+
+QFont codeFont(int pointSize)
+{
+    QSettings settings;
+    QFont f;
+    f.setFamilies(QStringList() << settings.value("fontfamily", defaultCodeFont()).toString()
+                                << "JetBrains Mono" << "Rubik");
+    f.setStyleHint(QFont::Monospace);
+    f.setPointSize(pointSize > 0 ? pointSize : settings.value("fontsize", 11).toInt());
+    f.setHintingPreference(QFont::PreferVerticalHinting);
+    return f;
+}
+
 void ensureInitialized(QSettings &settings)
 {
+    //! fonts v2: JetBrains Mono is bundled; move users off the old automatic choice
+    if (settings.value("fontversion", 1).toInt() < 2) {
+        const QString f = settings.value("fontfamily").toString();
+        if (f.isEmpty() || QStringList({ "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Liberation Mono",
+                                         "Courier New", "Courier" }).contains(f))
+            settings.setValue("fontfamily", "JetBrains Mono");
+        settings.setValue("fontversion", 2);
+    }
     if (settings.contains("theme"))
         return;
     setTheme(settings, true);

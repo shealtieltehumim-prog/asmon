@@ -191,9 +191,7 @@ void MainWindow::initUi()
     compilerOut = new RuQTextEdit;
     compilerOut->setReadOnly(true);
     compilerOut->setMinimumHeight(100);
-    QFont compilerOutFont;
-    compilerOutFont.setPointSize(settings.value("fontsize", 11).toInt());
-    compilerOut->setFont(compilerOutFont);
+    compilerOut->setFont(Theme::codeFont(settings.value("fontsize", 11).toInt() - 1));
     compilerOut->setText(tr("Build log:") + '\n');
     compilerOut->viewport()->installEventFilter(this);
 
@@ -3326,9 +3324,7 @@ void MainWindow::saveSettings()
         Tab *tab = (Tab *) tabs->widget(i);
         tab->setFonts();
     }
-    QFont compilerOutFont;
-    compilerOutFont.setPointSize(settings.value("fontsize", 11).toInt());
-    compilerOut->setFont(compilerOutFont);
+    compilerOut->setFont(Theme::codeFont(settings.value("fontsize", 11).toInt() - 1));
 
     settings.setValue("assemblyoptions", settingsUi.assemblyOptionsEdit->text());
     settings.setValue("linkingoptions", settingsUi.linkingOptionsEdit->text());
