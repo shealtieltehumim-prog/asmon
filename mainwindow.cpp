@@ -40,6 +40,8 @@
 
 #include "theme.h"
 #include "mainwindow.h"
+#include <QScreen>
+#include <QGuiApplication>
 
 /**
  * @file mainwindow.cpp
@@ -128,8 +130,24 @@ void MainWindow::initUi()
 {
     //! Resize
     settings.beginGroup("MainWindow");
-    resize(settings.value("size", QSize(1024, 650)).toSize()); //default 1024x650
-    move(settings.value("pos", QPoint(200, 200)).toPoint());
+    {
+        //! Asmon: fit the screen. First run: 85% of the screen, centred. A saved
+        //! position on a monitor that is no longer there (or a window larger
+        //! than this screen) is brought back inside.
+        QScreen *screen = QGuiApplication::screenAt(settings.value("pos", QPoint(0, 0)).toPoint());
+        if (!screen)
+            screen = QGuiApplication::primaryScreen();
+        const QRect avail = screen ? screen->availableGeometry() : QRect(0, 0, 1280, 800);
+        QSize size = settings.value("size", QSize(avail.width() * 85 / 100, avail.height() * 85 / 100)).toSize();
+        size = size.boundedTo(avail.size());
+        QPoint pos = settings.contains("pos") ? settings.value("pos").toPoint()
+                                              : avail.center() - QPoint(size.width() / 2, size.height() / 2);
+        if (!avail.contains(QRect(pos, size)))
+            pos = QPoint(qBound(avail.left(), pos.x(), avail.right() - size.width() + 1),
+                         qBound(avail.top(), pos.y(), avail.bottom() - size.height() + 1));
+        resize(size);
+        move(pos);
+    }
     //! Set maximized
     setWindowState(windowState() | (Qt::WindowState) settings.value("maximized", (int) Qt::WindowNoState).toInt());
     settings.endGroup();
