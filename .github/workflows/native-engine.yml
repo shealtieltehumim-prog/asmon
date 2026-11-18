@@ -62,3 +62,41 @@ jobs:
       - name: Debug engine on real programs
         run: |
           ./out/harness.exe "$(cygpath -w "$PWD/out")"
+
+  decomp:
+    # The Ghidra decompiler engine built with MSYS2 gcc, as in build.yml: a quick check without the Qt build.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the Ghidra decompiler sources (C++ part only, pinned commit)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = '0b91a7deef7a3c180141b4f806870e4672ef0b9f'
+          git clone --filter=blob:none --no-checkout --depth 1 https://github.com/NationalSecurityAgency/ghidra.git ghidra-src
+          git -C ghidra-src sparse-checkout set Ghidra/Features/Decompiler/src/decompile Ghidra/Processors/x86/data/languages
+          git -C ghidra-src fetch --depth 1 origin $sha
+          git -C ghidra-src checkout $sha
+          if ($LASTEXITCODE -ne 0) { throw "could not check out the Ghidra sources" }
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build the decompiler and the processor descriptions
+        shell: msys2 {0}
+        env:
+          LDX: -static
+        run: |
+          sh native/decomp/build.sh "$PWD/ghidra-src" "$PWD/decomp-out" "$(nproc)"
+          ls -la decomp-out/bin decomp-out/Ghidra/Processors/x86/data/languages
+      - name: Decompile a function that returns 7
+        shell: msys2 {0}
+        run: |
+          mkdir -p dtest && cd dtest
+          printf '\xb8\x07\x00\x00\x00\xc3' > f.bin
+          printf 'load file x86:LE:64:default:windows f.bin\nadjust vma 0x401000\nmap function 0x401000 f\nload function f\ndecompile\nprint C\nquit\n' \
+            | ../decomp-out/bin/asmon-decomp.exe -s "$(cygpath -w "$PWD/../decomp-out/Ghidra/Processors/x86/data/languages")" | tee out.txt
+          grep -q "return 7;" out.txt
