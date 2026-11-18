@@ -167,7 +167,9 @@ end;
 // The GPL text is English: in the Hebrew (right-to-left) wizard the license box
 // would align it to the right and flip its punctuation. Make that box LTR.
 const
+  GWL_STYLE = -16;
   GWL_EXSTYLE = -20;
+  ES_RIGHT = $2;
   WS_EX_RIGHT = $1000;
   WS_EX_RTLREADING = $2000;
   WS_EX_LEFTSCROLLBAR = $4000;
@@ -181,13 +183,21 @@ function SetWindowLong(Wnd: HWND; Index: Integer; NewLong: LongInt): LongInt;
 procedure InitializeWizard();
 var
   H: HWND;
-  Text: String;
+  S: String;
 begin
   H := WizardForm.LicenseMemo.Handle;
+  SetWindowLong(H, GWL_STYLE, GetWindowLong(H, GWL_STYLE) and not ES_RIGHT);
   SetWindowLong(H, GWL_EXSTYLE, GetWindowLong(H, GWL_EXSTYLE)
     and not (WS_EX_RIGHT or WS_EX_RTLREADING or WS_EX_LEFTSCROLLBAR or WS_EX_LAYOUTRTL));
-  Text := WizardForm.LicenseMemo.Text;
-  WizardForm.LicenseMemo.Text := Text;
+  // Reload the (plain ASCII) text as RTF whose paragraphs are explicitly
+  // left-to-right and left-aligned: the direction is stored per paragraph.
+  S := WizardForm.LicenseMemo.Text;
+  StringChangeEx(S, '\', '\\', True);
+  StringChangeEx(S, '{', '\{', True);
+  StringChangeEx(S, '}', '\}', True);
+  StringChangeEx(S, #13#10, '\par ', True);
+  StringChangeEx(S, #10, '\par ', True);
+  WizardForm.LicenseMemo.RTFText := '{\rtf1\ansi\ltrpar\ql ' + S + '}';
 end;
 
 // Used only by the automated screenshot test (/AUTOACCEPT=1).
