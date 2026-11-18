@@ -81,6 +81,8 @@
 #include "debugpanels.h"
 #include "retools.h"
 #include "terminalwidget.h"
+#include "searchpanel.h"
+#include "symbols.h"
 #include <QKeySequenceEdit>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -204,6 +206,7 @@ private:
     QStackedWidget *inputStack;
     RuQTextEdit *debugConsole;
     TerminalWidget *terminal;
+    SearchPanel *searchPanel = nullptr;
     QTableWidget *shortcutsTable = nullptr;
     QLabel *shortcutsConflict = nullptr;
     QHash<QString, QString> lastModulePaths; //!< file name -> path, last build
@@ -276,6 +279,14 @@ public slots:
     void openInReTool(const QString &id, bool pickFile);
     void showBottomPage(QWidget *page);
     void updateStatusBar();
+    QList<Symbols::Source> navigationSources(int *currentIndex = nullptr);
+    QString wordUnderCursor(int *lineIndex = nullptr);
+    void jumpToLocation(const QString &file, int line, int column);
+    void goToDefinition();
+    void findReferences();
+    void goToSymbol();
+    void goToLine();
+    void findInFiles();
     void addRecentFile(const QString &path);
     void refreshRecentFiles();
     void markBuildDiagnostics(const QString &prettyLog);

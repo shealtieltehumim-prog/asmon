@@ -54,6 +54,7 @@ static bool isBidiMark(QChar c)
 #include <QTextBlock>
 #include <QHelpEvent>
 #include <QToolTip>
+#include <QMouseEvent>
 
 /**
  * @file codeeditor.cpp
@@ -757,4 +758,24 @@ QMimeData *CodeEditor::createMimeDataFromSelection() const
     if (data && data->hasText())
         data->setText(stripBidiMarks(data->text()));
     return data;
+}
+
+// ---------------------------------------------------------------- Ctrl+click
+
+void CodeEditor::mousePressEvent(QMouseEvent *e)
+{
+    if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ControlModifier)) {
+        setTextCursor(cursorForPosition(e->position().toPoint()));
+        emit definitionRequested();
+        e->accept();
+        return;
+    }
+    RuQPlainTextEdit::mousePressEvent(e);
+}
+
+void CodeEditor::mouseMoveEvent(QMouseEvent *e)
+{
+    //! a hand over words while Ctrl is held: they are links to definitions
+    viewport()->setCursor((e->modifiers() & Qt::ControlModifier) ? Qt::PointingHandCursor : Qt::IBeamCursor);
+    RuQPlainTextEdit::mouseMoveEvent(e);
 }

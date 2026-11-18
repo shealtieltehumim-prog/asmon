@@ -41,6 +41,7 @@
 #include "theme.h"
 #include "mainwindow.h"
 #include <QScreen>
+#include <QInputDialog>
 #include <QStatusBar>
 #include <QGuiApplication>
 
@@ -218,6 +219,9 @@ void MainWindow::initUi()
     bottomPanel->addTab(outputStack, tr("Output"));
     bottomPanel->addTab(inputStack, tr("Input"));
     bottomPanel->addTab(compilerOut, tr("Build log"));
+    searchPanel = new SearchPanel;
+    bottomPanel->addTab(searchPanel, tr("Search"));
+    connect(searchPanel, &SearchPanel::openLocation, this, &MainWindow::jumpToLocation);
     bottomPanel->addTab(debugConsolePage, tr("Debug console"));
     bottomPanel->addTab(terminal, tr("Terminal"));
     bottomPanel->setCurrentIndex(0);
@@ -923,6 +927,33 @@ void MainWindow::createAsmonUi()
         fileMenu->insertAction(openAction, projectAction);
     }
 
+    //! Code navigation (Edit menu): go to definition / references / symbol, find in files
+    {
+        QAction *defAction = new QAction(tr("Go to definition"), this);
+        defAction->setProperty("en", "Go to definition label F12");
+        defAction->setShortcut(QKeySequence(Qt::Key_F12));
+        connect(defAction, &QAction::triggered, this, &MainWindow::goToDefinition);
+        QAction *refsAction = new QAction(tr("Find all uses"), this);
+        refsAction->setProperty("en", "Find references uses");
+        refsAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F12));
+        connect(refsAction, &QAction::triggered, this, &MainWindow::findReferences);
+        QAction *symAction = new QAction(tr("Go to label..."), this);
+        symAction->setProperty("en", "Go to symbol label outline");
+        symAction->setShortcut(QKeySequence("Ctrl+Shift+O"));
+        connect(symAction, &QAction::triggered, this, &MainWindow::goToSymbol);
+        QAction *lineAction = new QAction(tr("Go to line..."), this);
+        lineAction->setProperty("en", "Go to line number");
+        lineAction->setShortcut(QKeySequence("Ctrl+G"));
+        connect(lineAction, &QAction::triggered, this, &MainWindow::goToLine);
+        QAction *filesAction = new QAction(tr("Find in files..."), this);
+        filesAction->setProperty("en", "Find in files search project folder");
+        filesAction->setShortcut(QKeySequence("Ctrl+Shift+F"));
+        connect(filesAction, &QAction::triggered, this, &MainWindow::findInFiles);
+        editMenu->addSeparator();
+        for (QAction *a : { defAction, refsAction, symAction, lineAction, filesAction })
+            editMenu->addAction(a);
+    }
+
     connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(syncBottomPanelWithTab()));
     togglePanelAction = new QAction(tr("Bottom panel"), this);
     togglePanelAction->setProperty("en", "Toggle bottom panel output terminal");
@@ -1427,6 +1458,220 @@ void MainWindow::markBuildDiagnostics(const QString &prettyLog)
     tab->code->setDiagnostics(marks);
 }
 
+// ---------------------------------------------------------------- navigation
+
+QList<Symbols::Source> MainWindow::navigationSources(int *currentIndex)
+{
+    //! the current file, its project modules and the files it includes
+    //! (open editors win over the copy on disk)
+    QList<Symbols::Source> out;
+    if (currentIndex)
+        *currentIndex = -1;
+    if (!tabs || tabs->count() == 0)
+        return out;
+    QHash<QString, QString> open;
+    for (int i = 0; i < tabs->count(); ++i) {
+        Tab *t = (Tab *) tabs->widget(i);
+        if (!t->getCurrentFilePath().isEmpty())
+            open.insert(QFileInfo(t->getCurrentFilePath()).absoluteFilePath(), t->code->plainTextWithoutMarks());
+    }
+    Tab *cur = (Tab *) tabs->currentWidget();
+    const QString curPath = cur->getCurrentFilePath().isEmpty() ? QString()
+                                                                : QFileInfo(cur->getCurrentFilePath()).absoluteFilePath();
+    out << Symbols::Source{ curPath, cur->code->plainTextWithoutMarks() };
+    if (currentIndex)
+        *currentIndex = 0;
+    QSet<QString> seen;
+    seen.insert(curPath);
+    auto readFile = [&open](const QString &path) -> QString {
+        if (open.contains(path))
+            return open.value(path);
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly) || f.size() > 4 * 1024 * 1024)
+            return QString();
+        return QString::fromUtf8(f.readAll());
+    };
+    const QString dir = curPath.isEmpty() ? QString() : QFileInfo(curPath).absolutePath();
+    QStringList queue;
+    //! a project (asmon.project): its modules and the other sources of its folder
+    if (!dir.isEmpty() && QFile::exists(QDir(dir).filePath("asmon.project"))) {
+        QFile pf(QDir(dir).filePath("asmon.project"));
+        if (pf.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            for (QString l : QString::fromUtf8(pf.readAll()).split('\n')) {
+                l = l.trimmed();
+                if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';'))
+                    queue << QFileInfo(QDir(dir).filePath(l)).absoluteFilePath();
+            }
+        }
+        //! the folder's other sources (the main file, when this is a module)
+        for (const QString &n : QDir(dir).entryList(QStringList() << "*.asm" << "*.inc" << "*.s", QDir::Files))
+            queue << QDir(dir).absoluteFilePath(n);
+    }
+    //! includes, two levels deep
+    auto addIncludes = [&](const QString &text, const QString &baseDir) {
+        for (const QString &inc : Symbols::includes(text)) {
+            for (const QString &d : { baseDir, dir, Common::applicationDataPath() + "/include" }) {
+                if (d.isEmpty())
+                    continue;
+                const QString p = QFileInfo(QDir(d).filePath(inc)).absoluteFilePath();
+                if (QFileInfo::exists(p)) {
+                    queue.prepend(p);
+                    break;
+                }
+            }
+        }
+    };
+    addIncludes(out.first().text, dir);
+    for (int depth = 0; !queue.isEmpty() && out.size() < 200; ++depth) {
+        const QString p = queue.takeFirst();
+        if (seen.contains(p))
+            continue;
+        seen.insert(p);
+        const QString text = readFile(p);
+        out << Symbols::Source{ p, text };
+        if (depth < 50)
+            addIncludes(text, QFileInfo(p).absolutePath());
+    }
+    return out;
+}
+
+void MainWindow::jumpToLocation(const QString &file, int line, int column)
+{
+    if (!file.isEmpty()) {
+        Tab *cur = tabs->count() > 0 ? (Tab *) tabs->currentWidget() : nullptr;
+        if (!cur || QFileInfo(cur->getCurrentFilePath()).absoluteFilePath() != QFileInfo(file).absoluteFilePath())
+            openFile(file);
+    }
+    if (tabs->count() == 0)
+        return;
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    const QTextBlock block = code->document()->findBlockByNumber(line - 1);
+    if (!block.isValid())
+        return;
+    //! the column counts characters of the file; skip Hebrew display marks
+    int pos = 0, seen = 0;
+    const QString t = block.text();
+    while (pos < t.size() && seen < column) {
+        if (t.at(pos) != QChar(0x200E) && t.at(pos) != QChar(0x202B))
+            ++seen;
+        ++pos;
+    }
+    QTextCursor c(block);
+    c.setPosition(block.position() + pos);
+    code->setTextCursor(c);
+    code->centerCursor();
+    code->setFocus();
+}
+
+QString MainWindow::wordUnderCursor(int *lineIndex)
+{
+    if (!tabs || tabs->count() == 0)
+        return QString();
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    const QTextCursor c = code->textCursor();
+    if (lineIndex)
+        *lineIndex = c.blockNumber();
+    if (c.hasSelection())
+        return CodeEditor::stripBidiMarks(c.selectedText()).trimmed();
+    const QString line = CodeEditor::stripBidiMarks(c.block().text());
+    const int col = c.positionInBlock() - CodeEditor::marksBefore(c);
+    return Symbols::wordAt(line, col);
+}
+
+void MainWindow::goToDefinition()
+{
+    int line = 0;
+    const QString word = wordUnderCursor(&line);
+    if (word.isEmpty())
+        return;
+    int current = -1;
+    const QList<Symbols::Source> sources = navigationSources(&current);
+    Symbols::Symbol sym;
+    if (Symbols::findDefinition(sources, current, line, word, &sym)) {
+        jumpToLocation(sym.file, sym.line, 0);
+        statusBar()->showMessage(tr("%1: %2, line %3").arg(word, Symbols::kindName(sym.kind)).arg(sym.line), 4000);
+    } else {
+        statusBar()->showMessage(tr("No definition of \"%1\" was found.").arg(word), 4000);
+    }
+}
+
+void MainWindow::findReferences()
+{
+    const QString word = wordUnderCursor();
+    if (word.isEmpty())
+        return;
+    const QList<Symbols::Source> sources = navigationSources();
+    searchPanel->showReferences(word, Symbols::findReferences(sources, word));
+    showBottomPage(searchPanel);
+}
+
+void MainWindow::goToSymbol()
+{
+    if (!tabs || tabs->count() == 0)
+        return;
+    int current = -1;
+    const QList<Symbols::Source> sources = navigationSources(&current);
+    QList<CommandPalette::Item> items;
+    //! this file's symbols first, then the project's (not the includes' macros)
+    for (int i = 0; i < sources.size(); ++i) {
+        const Symbols::Source &src = sources.at(i);
+        const bool here = (i == current);
+        if (!here && src.file.startsWith(QDir(Common::applicationDataPath() + "/include").absolutePath()))
+            continue;
+        for (const Symbols::Symbol &sym : Symbols::scan(src.text, src.file)) {
+            const QString name = sym.kind == Symbols::LocalLabel ? sym.parent + sym.name : sym.name;
+            const QString where = here ? tr("line %1").arg(sym.line)
+                                       : QFileInfo(sym.file).fileName() + ":" + QString::number(sym.line);
+            const QString file = sym.file;
+            const int line = sym.line;
+            //! the (Latin) name first, as one left-to-right unit in the RTL list
+            const QString shown = QApplication::layoutDirection() == Qt::RightToLeft
+                                      ? QChar(0x202A) + name + QChar(0x202C) : name;
+            items << CommandPalette::Item{ shown, Symbols::kindName(sym.kind) + "  ·  " + where,
+                                           [this, file, line]() { jumpToLocation(file, line, 0); } };
+        }
+    }
+    commandPalette->popupItems(items, tr("Go to a label, data, constant or macro..."));
+}
+
+void MainWindow::goToLine()
+{
+    if (!tabs || tabs->count() == 0)
+        return;
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    bool ok = false;
+    const int n = QInputDialog::getInt(this, tr("Go to line"), tr("Line (1-%1):").arg(code->blockCount()),
+                                       code->textCursor().blockNumber() + 1, 1, code->blockCount(), 1, &ok);
+    if (ok)
+        jumpToLocation(QString(), n, 0);
+}
+
+void MainWindow::findInFiles()
+{
+    QString dir = saveOpenDirectory;
+    QHash<QString, QString> open;
+    if (tabs && tabs->count() > 0) {
+        const QString p = ((Tab *) tabs->currentWidget())->getCurrentFilePath();
+        if (!p.isEmpty())
+            dir = QFileInfo(p).absolutePath();
+        for (int i = 0; i < tabs->count(); ++i) {
+            Tab *t = (Tab *) tabs->widget(i);
+            if (!t->getCurrentFilePath().isEmpty())
+                open.insert(QFileInfo(t->getCurrentFilePath()).absoluteFilePath(), t->code->plainTextWithoutMarks());
+        }
+    }
+    searchPanel->setRoot(dir);
+    searchPanel->setOpenBuffers(open);
+    showBottomPage(searchPanel);
+    QString selected;
+    if (tabs && tabs->count() > 0) {
+        const QTextCursor c = ((Tab *) tabs->currentWidget())->code->textCursor();
+        if (c.hasSelection() && !c.selectedText().contains(QChar::ParagraphSeparator))
+            selected = CodeEditor::stripBidiMarks(c.selectedText());
+    }
+    searchPanel->focusSearch(selected);
+}
+
 void MainWindow::addRecentFile(const QString &path)
 {
     QStringList recent = settings.value("recentfiles").toStringList();
@@ -1677,6 +1922,7 @@ void MainWindow::newFile()
     connect(tab->code, SIGNAL(textChanged()), this, SLOT(findNextAfterTextChange()));
     connect(tab->code, SIGNAL(modificationChanged(bool)), this, SLOT(changeCurrentSavedState(bool)));
     connect(tab->code, SIGNAL(fileOpened(QString)), this, SLOT(openFile(QString)));
+    connect(tab->code, &CodeEditor::definitionRequested, this, &MainWindow::goToDefinition);
 }
 
 void MainWindow::changeCurrentSavedState(bool changed)

@@ -67,6 +67,8 @@ include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
     terminalwidget.cpp \
+    symbols.cpp \
+    searchpanel.cpp \
     retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
@@ -97,6 +99,8 @@ HEADERS  += mainwindow.h \
     regexp.h \
     theme.h \
     terminalwidget.h \
+    symbols.h \
+    searchpanel.h \
     retools.h \
     debugpanels.h \
     midebugger.h \

@@ -9,6 +9,7 @@
 #define ASMON_COMMANDPALETTE_H
 
 #include <QDialog>
+#include <functional>
 #include <QList>
 #include <QPointer>
 
@@ -24,6 +25,13 @@ public:
     explicit CommandPalette(QWidget *parent = nullptr);
     //! Collect actions from the menu bar and show the palette.
     void popup(QMenuBar *menuBar, const QList<QAction *> &extra = {});
+    //! Asmon: pick one of arbitrary items (e.g. go to symbol).
+    struct Item {
+        QString label;
+        QString detail;   //!< shown after the label, dimmed (kind, line...)
+        std::function<void()> run;
+    };
+    void popupItems(const QList<Item> &items, const QString &placeholder);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -37,6 +45,7 @@ private:
 
     struct Entry {
         QPointer<QAction> action;
+        std::function<void()> run; //!< items mode
         QString label;
         QString searchText; //!< label + English names, for matching
     };

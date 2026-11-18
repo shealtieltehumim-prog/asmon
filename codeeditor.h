@@ -104,6 +104,8 @@ protected:
     void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent *e);
     bool event(QEvent *e) override;
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
     QMimeData *createMimeDataFromSelection() const override;
 
     void dragEnterEvent(QDragEnterEvent *event);
@@ -134,6 +136,7 @@ private:
 signals:
     void breakpointsChanged(quint64 lineNumber, bool isAdded);
     void fileOpened(QString path);
+    void definitionRequested(); //!< Ctrl+click on a word
 };
 
 

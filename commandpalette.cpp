@@ -60,9 +60,34 @@ void CommandPalette::collect(const QList<QAction *> &actions, const QString &pre
     }
 }
 
+void CommandPalette::popupItems(const QList<Item> &items, const QString &placeholder)
+{
+    entries.clear();
+    for (const Item &it : items) {
+        Entry e;
+        e.run = it.run;
+        e.label = it.detail.isEmpty() ? it.label : it.label + "      " + it.detail;
+        e.searchText = it.label;
+        entries.append(e);
+    }
+    input->setPlaceholderText(placeholder);
+    QWidget *host = parentWidget() ? parentWidget()->window() : nullptr;
+    const int w = host ? qMin(640, host->width() - 80) : 600;
+    resize(w, 380);
+    if (host) {
+        const QPoint topCenter = host->mapToGlobal(QPoint(host->width() / 2, 0));
+        move(topCenter.x() - w / 2, topCenter.y() + 60);
+    }
+    input->clear();
+    refilter(QString());
+    show();
+    input->setFocus();
+}
+
 void CommandPalette::popup(QMenuBar *menuBar, const QList<QAction *> &extra)
 {
     entries.clear();
+    input->setPlaceholderText(tr("Type a command..."));
     collect(menuBar->actions(), QString());
     collect(extra, QString());
 
@@ -83,7 +108,19 @@ void CommandPalette::refilter(const QString &text)
 {
     list->clear();
     const QStringList words = text.split(' ', Qt::SkipEmptyParts);
-    for (const Entry &e : entries) {
+    for (int idx = 0; idx < entries.size(); ++idx) {
+        const Entry &e = entries.at(idx);
+        if (e.run) {
+            bool ok = true;
+            for (const QString &w : words)
+                if (!e.searchText.contains(w, Qt::CaseInsensitive)) { ok = false; break; }
+            if (ok) {
+                auto *item = new QListWidgetItem(e.label);
+                item->setData(Qt::UserRole + 1, idx);
+                list->addItem(item);
+            }
+            continue;
+        }
         if (!e.action || !e.action->isVisible())
             continue;
         bool ok = true;
@@ -112,6 +149,13 @@ void CommandPalette::runSelected()
     QListWidgetItem *item = list->currentItem();
     if (!item || !(item->flags() & Qt::ItemIsEnabled))
         return;
+    if (item->data(Qt::UserRole + 1).isValid()) {
+        const int idx = item->data(Qt::UserRole + 1).toInt();
+        hide();
+        if (idx >= 0 && idx < entries.size() && entries.at(idx).run)
+            entries.at(idx).run();
+        return;
+    }
     QAction *a = static_cast<QAction *>(item->data(Qt::UserRole).value<void *>());
     hide();
     if (a)
