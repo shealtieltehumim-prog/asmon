@@ -41,6 +41,7 @@
 #include "theme.h"
 #include "mainwindow.h"
 #include <QScreen>
+#include <QStatusBar>
 #include <QGuiApplication>
 
 /**
@@ -67,7 +68,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     settingsHighlighter = 0;
     help = 0;
     debugger = 0;
-    programStopped = true;
+    programStopped = true; updateStatusBar();
     highlighter = 0;
     tabs = 0;
     debugToolBar = 0;
@@ -78,7 +79,6 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     explorerDock = 0;
     targetBox = 0;
     commandPalette = 0;
-    buildOutputDock = 0;
 
     //! Initialize assembler
     assembler = 0;
@@ -107,7 +107,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     setAcceptDrops(true);
 
     //! Restore log splitter state
-    splitter->restoreState(settings.value("logsplitterstate").toByteArray());
+    splitter->restoreState(settings.value("panelsplitterstate").toByteArray());
 
     //! Open documents from command line
     for (int i = 1; i < args.size(); i++) {
@@ -156,6 +156,8 @@ void MainWindow::initUi()
     getStartedWidget = new GetStartedWidget;
     connect(getStartedWidget->newButton, SIGNAL(clicked()), this, SLOT(newFile()));
     connect(getStartedWidget->openButton, SIGNAL(clicked()), this, SLOT(openFile()));
+    connect(getStartedWidget, &GetStartedWidget::openRecent, this, [this](const QString &p) { openFile(p); });
+    QTimer::singleShot(0, this, &MainWindow::refreshRecentFiles);
     connect(getStartedWidget->prevSessionButton, SIGNAL(clicked()), this, SLOT(restorePrevSession()));
 
     //! Create form
@@ -198,7 +200,7 @@ void MainWindow::initUi()
     //! Create gdb command widget
     debugAnyCommandWidget = new DebugAnyCommandWidget;
 
-    //! Asmon: bottom panel: Build log | Debug console | Terminal. Ctrl+J shows/hides it.
+    //! Asmon: bottom panel: Output | Input | Build log | Build output | Debug console | Terminal. Ctrl+J shows/hides it.
     bottomPanel = new QTabWidget;
     bottomPanel->setObjectName("bottomPanel");
     bottomPanel->setDocumentMode(true);
@@ -213,10 +215,53 @@ void MainWindow::initUi()
     debugConsoleLayout->addWidget(debugConsole, 1);
     debugConsoleLayout->addWidget(debugAnyCommandWidget);
     terminal = new TerminalWidget;
+    outputStack = new QStackedWidget;
+    inputStack = new QStackedWidget;
+    bottomPanel->addTab(outputStack, tr("Output"));
+    bottomPanel->addTab(inputStack, tr("Input"));
     bottomPanel->addTab(compilerOut, tr("Build log"));
     bottomPanel->addTab(debugConsolePage, tr("Debug console"));
     bottomPanel->addTab(terminal, tr("Terminal"));
     bottomPanel->setCurrentIndex(0);
+    {
+        //! corner: clear the current page, hide the panel (Ctrl+J shows it again)
+        QWidget *corner = new QWidget;
+        QHBoxLayout *cl = new QHBoxLayout(corner);
+        cl->setContentsMargins(0, 0, 6, 0);
+        cl->setSpacing(2);
+        QToolButton *clearButton = new QToolButton;
+        clearButton->setIcon(Theme::icon("clear"));
+        clearButton->setProperty("asmonIcon", "clear");
+        clearButton->setToolTip(tr("Clear"));
+        clearButton->setAutoRaise(true);
+        QToolButton *hideButton = new QToolButton;
+        hideButton->setIcon(Theme::icon("chevron"));
+        hideButton->setProperty("asmonIcon", "chevron");
+        hideButton->setToolTip(tr("Hide the panel (Ctrl+J)"));
+        hideButton->setAutoRaise(true);
+        cl->addWidget(clearButton);
+        cl->addWidget(hideButton);
+        bottomPanel->setCornerWidget(corner, Qt::TopLeftCorner);
+        connect(clearButton, &QToolButton::clicked, this, [this]() {
+            QWidget *w = bottomPanel->currentWidget();
+            if (w == compilerOut)
+                compilerOut->clear();
+            else if (w == outputStack && tabs->count() > 0)
+                ((Tab *) tabs->currentWidget())->clearOutput();
+            else if (w == inputStack && tabs->count() > 0)
+                ((Tab *) tabs->currentWidget())->inputEdit()->clear();
+            else if (w == terminal)
+                terminal->clearView();
+            else if (w == debugConsole->parentWidget())
+                debugConsole->clear();
+        });
+        connect(hideButton, &QToolButton::clicked, this, [this]() {
+            if (togglePanelAction)
+                togglePanelAction->setChecked(false);
+            else
+                bottomPanel->hide();
+        });
+    }
     connect(bottomPanel, &QTabWidget::currentChanged, this, [this](int i) {
         if (bottomPanel->widget(i) == terminal) {
             syncBottomPanelWithTab();
@@ -228,10 +273,11 @@ void MainWindow::initUi()
     splitter->addWidget(tabs);
     splitter->addWidget(bottomPanel);
     splitter->setCollapsible(0, false);
-    int compilerOutSize = 220;
     debugAnyCommandWidget->close();
     debugAnyCommandWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
-    splitter->setSizes(QList<int>() << splitter->size().height() - compilerOutSize << compilerOutSize);
+    splitter->setStretchFactor(0, 3);  // code gets ~3/4 of the height by default
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes(QList<int>() << 3000 << 1000);
     //! Restore previous session if it in settings
     if (settings.value("startwindow", 0).toInt() == 1)
         restorePrevSession(true);
@@ -635,7 +681,8 @@ void MainWindow::createToolBars()
 {
     //! Asmon: one quiet toolbar. Step buttons live in a second toolbar that is
     //! visible only while debugging. Undo/cut/copy/paste stay in the Edit menu.
-    fileToolBar = addToolBar(tr("Main"));
+    //! The toolbars sit in the menu bar's free corner: one row instead of two.
+    fileToolBar = new QToolBar(tr("Main"), this);
     fileToolBar->setObjectName("MainToolBar");
     fileToolBar->setMovable(false);
     fileToolBar->setIconSize(QSize(18, 18));
@@ -648,19 +695,24 @@ void MainWindow::createToolBars()
     fileToolBar->addAction(debugAction);
     fileToolBar->addAction(stopAction);
 
-    debugToolBar = addToolBar(tr("Debug"));
-    debugToolBar->setObjectName("DebugToolBar");
-    debugToolBar->setMovable(false);
-    debugToolBar->setIconSize(QSize(18, 18));
-    debugToolBar->addAction(debugNextNiAction);
-    debugToolBar->addAction(debugNextAction);
-    debugToolBar->hide();
+    //! Step buttons are always there (greyed out until debugging starts),
+    //! so the toolbar never changes size.
+    fileToolBar->addSeparator();
+    fileToolBar->addAction(debugNextNiAction);
+    fileToolBar->addAction(debugNextAction);
+    debugToolBar = fileToolBar;
 
     editToolBar = 0;
     buildToolBar = 0;
 
+    QWidget *corner = new QWidget;
+    QHBoxLayout *cornerLayout = new QHBoxLayout(corner);
+    cornerLayout->setContentsMargins(0, 0, 4, 0);
+    cornerLayout->setSpacing(0);
+    cornerLayout->addWidget(fileToolBar);
+    menuBar()->setCornerWidget(corner, Qt::TopRightCorner);
+
     restoreState(settings.value("windowstate").toByteArray());
-    debugToolBar->hide();
 }
 
 void MainWindow::createAsmonUi()
@@ -726,9 +778,24 @@ void MainWindow::createAsmonUi()
     debugDock = new QDockWidget(tr("Debugger"), this);
     debugDock->setObjectName("debugDock");
     debugDock->setWidget(debugPanels);
-    debugDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+    //! Shown only while debugging, without a title bar: no extra chrome.
+    debugDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    debugDock->setTitleBarWidget(new QWidget(debugDock));
     addDockWidget(Qt::RightDockWidgetArea, debugDock);
     debugDock->hide();
+
+    //! Status bar (VS Code style): where the cursor is, what builds the code.
+    {
+        statusCursor = new QLabel;
+        statusMode = new QLabel;
+        statusState = new QLabel;
+        statusCursor->setLayoutDirection(Qt::LeftToRight);
+        statusBar()->addWidget(statusState, 1);
+        statusBar()->addPermanentWidget(statusMode);
+        statusBar()->addPermanentWidget(statusCursor);
+        statusBar()->setSizeGripEnabled(false);
+        updateStatusBar();
+    }
 
     debugStepOutAction = new QAction(Theme::icon("stepout"), tr("Step out"), this);
     debugStepOutAction->setProperty("asmonIcon", "stepout");
@@ -764,8 +831,7 @@ void MainWindow::createAsmonUi()
         QAction *headers = reMenu->addAction(tr("Headers and sections (objdump -x)"));
         headers->setProperty("en", "objdump headers sections binutils");
         connect(headers, &QAction::triggered, this, [this]() {
-            buildOutputDock->show();
-            buildOutputDock->raise();
+            showBottomPage(buildOutputView);
             buildOutputView->showHeaders();
             refreshBuildOutput();
         });
@@ -784,18 +850,20 @@ void MainWindow::createAsmonUi()
     }
 
     //! Build output: listing / disassembly / hex of what was built
+    //! (a tab of the bottom panel: one place for everything below the code)
     buildOutputView = new BuildOutputView;
-    buildOutputDock = new QDockWidget(tr("Build output"), this);
-    buildOutputDock->setObjectName("buildOutputDock");
-    buildOutputDock->setWidget(buildOutputView);
-    buildOutputDock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, buildOutputDock);
-    buildOutputDock->hide();
-    QAction *buildOutputAction = buildOutputDock->toggleViewAction();
-    buildOutputAction->setText(tr("Build output (listing, disassembly, hex)"));
+    bottomPanel->insertTab(bottomPanel->indexOf(compilerOut) + 1, buildOutputView, tr("Build output"));
+    QAction *buildOutputAction = new QAction(tr("Build output (listing, disassembly, hex)"), this);
     buildOutputAction->setProperty("en", "Build output listing disassembly hex objdump");
     buildOutputAction->setShortcut(QKeySequence("Ctrl+Shift+B"));
-    connect(buildOutputDock, SIGNAL(visibilityChanged(bool)), this, SLOT(refreshBuildOutput()));
+    connect(buildOutputAction, &QAction::triggered, this, [this]() {
+        showBottomPage(buildOutputView);
+        refreshBuildOutput();
+    });
+    connect(bottomPanel, &QTabWidget::currentChanged, this, [this](int i) {
+        if (bottomPanel->widget(i) == buildOutputView)
+            refreshBuildOutput();
+    });
 
     #ifdef Q_OS_WIN32
     {
@@ -808,6 +876,7 @@ void MainWindow::createAsmonUi()
         connect(targetBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int i) {
             settings.setValue("target", targetBox->itemData(i).toString());
             programIsBuilded = false;
+            updateStatusBar();
         });
         fileToolBar->addSeparator();
         fileToolBar->addWidget(targetBox);
@@ -854,7 +923,7 @@ void MainWindow::createAsmonUi()
     }
 
     connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(syncBottomPanelWithTab()));
-    QAction *togglePanelAction = new QAction(tr("Bottom panel"), this);
+    togglePanelAction = new QAction(tr("Bottom panel"), this);
     togglePanelAction->setProperty("en", "Toggle bottom panel output terminal");
     togglePanelAction->setShortcut(QKeySequence("Ctrl+J"));
     togglePanelAction->setCheckable(true);
@@ -863,7 +932,7 @@ void MainWindow::createAsmonUi()
     QAction *terminalAction = new QAction(tr("Terminal"), this);
     terminalAction->setProperty("en", "Terminal shell cmd bash");
     terminalAction->setShortcut(QKeySequence("Ctrl+`"));
-    connect(terminalAction, &QAction::triggered, this, [this, togglePanelAction]() {
+    connect(terminalAction, &QAction::triggered, this, [this]() {
         togglePanelAction->setChecked(true);
         syncBottomPanelWithTab();
         showBottomPage(terminal);
@@ -903,7 +972,8 @@ void MainWindow::restartApplication()
 
 void MainWindow::refreshBuildOutput()
 {
-    if (!buildOutputDock || !buildOutputDock->isVisible())
+    if (!buildOutputView || !bottomPanel || !bottomPanel->isVisible()
+            || bottomPanel->currentWidget() != buildOutputView)
         return;
     QString objdump = "objdump";
     #ifdef Q_OS_WIN32
@@ -1060,10 +1130,12 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
         printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
         showBottomPage(compilerOut);
         printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
+        markBuildDiagnostics(prettifyBuildLog(r.log));
         return;
     }
     printLogWithTime(tr("Built successfully (Linux ELF x64).") + '\n', Theme::color("successcolor"));
     printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
+    markBuildDiagnostics(prettifyBuildLog(r.log));
     refreshBuildOutput();
     programIsBuilded = true;
 }
@@ -1327,13 +1399,92 @@ void MainWindow::createProjectFile()
     openFile(projectPath);
 }
 
+void MainWindow::markBuildDiagnostics(const QString &prettyLog)
+{
+    //! "file.asm:8: error: ..." lines for the open file -> marks in the code
+    if (!tabs || tabs->count() == 0)
+        return;
+    Tab *tab = (Tab *) tabs->currentWidget();
+    const QString path = tab->getCurrentFilePath();
+    const QString name = path.isEmpty() ? tr("untitled.asm") : QFileInfo(path).fileName();
+    static const QRegularExpression re("^(.*?):(\\d+):(?:\\d+:)?\\s*(error|warning|fatal)[^:]*:\\s*(.*)$",
+                                       QRegularExpression::CaseInsensitiveOption);
+    QMap<int, CodeEditor::Diagnostic> marks;
+    for (const QString &line : prettyLog.split('\n')) {
+        const QRegularExpressionMatch m = re.match(line.trimmed());
+        if (!m.hasMatch() || QFileInfo(m.captured(1).trimmed()).fileName() != name)
+            continue;
+        const int n = m.captured(2).toInt();
+        const bool error = m.captured(3).compare("warning", Qt::CaseInsensitive) != 0;
+        if (marks.contains(n)) {
+            marks[n].message += "\n" + m.captured(4);
+            marks[n].error = marks[n].error || error;
+        } else {
+            marks.insert(n, CodeEditor::Diagnostic{ m.captured(4), error });
+        }
+    }
+    tab->code->setDiagnostics(marks);
+}
+
+void MainWindow::addRecentFile(const QString &path)
+{
+    QStringList recent = settings.value("recentfiles").toStringList();
+    const QString abs = QFileInfo(path).absoluteFilePath();
+    recent.removeAll(abs);
+    if (QFileInfo(abs).fileName() != "Asmon.ini")
+        recent.prepend(abs);
+    while (recent.size() > 10)
+        recent.removeLast();
+    settings.setValue("recentfiles", recent);
+    refreshRecentFiles();
+}
+
+void MainWindow::refreshRecentFiles()
+{
+    QStringList existing;
+    for (const QString &p : settings.value("recentfiles").toStringList())
+        if (QFileInfo::exists(p))
+            existing << p;
+    getStartedWidget->setRecentFiles(existing);
+}
+
+void MainWindow::updateStatusBar()
+{
+    if (!statusCursor)
+        return;
+    if (tabs && tabs->count() > 0 && mainWidget->currentIndex() == 1) {
+        const QTextCursor c = ((Tab *) tabs->currentWidget())->code->textCursor();
+        statusCursor->setText(tr("Ln %1, Col %2").arg(c.blockNumber() + 1).arg(c.positionInBlock() + 1));
+    } else {
+        statusCursor->clear();
+    }
+    QString mode = settings.value("assembler", QString("NASM")).toString() + "  ·  "
+                   + settings.value("mode", QString("x64")).toString();
+    #ifdef Q_OS_WIN32
+    mode += "  ·  " + (linuxTargetSelected() ? QString("Linux ELF") : QString("Windows"));
+    #else
+    mode += "  ·  Linux";
+    #endif
+    statusMode->setText(mode);
+    QString state;
+    if (debugger)
+        state = debugger->isStopped() ? tr("Debugging: paused") : tr("Debugging: running");
+    else if (!programStopped)
+        state = tr("Running...");
+    statusState->setText(state);
+}
+
 void MainWindow::showBottomPage(QWidget *page)
 {
     if (!bottomPanel || !page)
         return;
     bottomPanel->setCurrentWidget(page);
-    if (!bottomPanel->isVisible())
-        bottomPanel->show();
+    if (!bottomPanel->isVisible()) {
+        if (togglePanelAction)
+            togglePanelAction->setChecked(true);
+        else
+            bottomPanel->show();
+    }
 }
 
 void MainWindow::appendDebugConsole(const QString &text, const QColor &color)
@@ -1352,6 +1503,12 @@ void MainWindow::syncBottomPanelWithTab()
     if (!tabs || tabs->count() == 0)
         return;
     Tab *t = (Tab *) tabs->currentWidget();
+    disconnect(statusCursorConnection);
+    statusCursorConnection = connect(t->code, &QPlainTextEdit::cursorPositionChanged,
+                                     this, &MainWindow::updateStatusBar);
+    updateStatusBar();
+    outputStack->setCurrentWidget(t->outputEdit());
+    inputStack->setCurrentWidget(t->inputEdit());
     const QString path = t->getCurrentFilePath();
     terminal->setWorkingDirectory(path.isEmpty() ? saveOpenDirectory : QFileInfo(path).absolutePath());
 }
@@ -1366,7 +1523,7 @@ void MainWindow::toggleFocusMode(bool on)
     if (on) {
         hiddenByFocusMode.clear();
         QList<QWidget *> candidates;
-        candidates << menuBar() << fileToolBar << debugToolBar << bottomPanel;
+        candidates << menuBar() << bottomPanel;
         for (QDockWidget *d : findChildren<QDockWidget *>())
             candidates << d;
         for (QWidget *w : candidates) {
@@ -1438,6 +1595,11 @@ void MainWindow::switchTheme(bool dark)
         if (!name.isEmpty())
             a->setIcon(Theme::icon(name));
     }
+    for (QToolButton *b : findChildren<QToolButton *>()) {
+        const QString name = b->property("asmonIcon").toString();
+        if (!name.isEmpty())
+            b->setIcon(Theme::icon(name));
+    }
     //! Editors get their colours after the style sheet re-polish has run,
     //! otherwise the re-polish restores the old palette.
     QTimer::singleShot(0, this, [this]() {
@@ -1503,6 +1665,9 @@ void MainWindow::newFile()
     //! Tabs
     mainWidget->setCurrentIndex(1);
     Tab *tab = new Tab;
+    //! the tab's program output/input are shown in the bottom panel
+    outputStack->addWidget(tab->outputEdit());
+    inputStack->addWidget(tab->inputEdit());
     tab->code->setPlainText(startText);
     tabs->addTab(tab, tr("New"));
     tabs->setCurrentWidget(tab);
@@ -1555,6 +1720,7 @@ void MainWindow::openFile(QString path)
     Tab *curTab = (Tab *) tabs->currentWidget();
     curTab->loadCodeFromFile(path);
     setTabPath(path);
+    addRecentFile(path);
     //connect(curTab, SIGNAL(fileOpened(QString)), this, SLOT(openFile(QString)));
 }
 
@@ -1614,6 +1780,7 @@ bool MainWindow::saveAsFile(int index)
         tab = (Tab *) tabs->widget(index);
     tab->saveCodeToFile(fileName, assembler);
     setTabPath(fileName, index);
+    addRecentFile(fileName);
     return true;
 }
 
@@ -1690,6 +1857,7 @@ bool MainWindow::deleteTab(int index, bool saveFileName)
         if (tabs->count() == 1)
             //! Get started
             mainWidget->setCurrentIndex(0);
+        QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
         Tab *tabForDeleting = (Tab *) tabs->widget(index);
         if (!saveFileName || tabForDeleting->getCurrentFilePath().isEmpty()) {
             tabs->removeTab(index);
@@ -1992,6 +2160,7 @@ void MainWindow::buildProgram(bool debugMode)
 
         //! Print errors
         printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
+        markBuildDiagnostics(prettifyBuildLog(logText));
         if (!disableLinking && !linkerOutput.isEmpty()) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
@@ -2007,6 +2176,7 @@ void MainWindow::buildProgram(bool debugMode)
         refreshBuildOutput();
         //! print warnings
         printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
+        markBuildDiagnostics(prettifyBuildLog(logText));
         if (!disableLinking && !linkerOutput.isEmpty()) {
             logFile.setFileName(linkerOutput);
             logFile.open(QIODevice::ReadOnly);
@@ -2040,7 +2210,8 @@ void MainWindow::runProgram()
     ((Tab *) tabs->currentWidget())->clearOutput();
 
     printLogWithTime(tr("The program is executing...") + '\n', Theme::color("fontcolor"));
-    showBottomPage(compilerOut);
+    syncBottomPanelWithTab();
+    showBottomPage(outputStack);
     QCoreApplication::processEvents();
 
     QString input = Common::pathInTemp("input.txt");
@@ -2074,7 +2245,7 @@ void MainWindow::runProgram()
     }
 
     connect(runProcess, SIGNAL(readyReadStandardOutput()), this, SLOT(getOutput()));
-    programStopped = false;
+    programStopped = false; updateStatusBar();
     connect(runProcess, SIGNAL(started()), this, SLOT(startCountProgramTime()));
     connect(runProcess, SIGNAL(finished(int)), this, SLOT(testStopOfProgram()));
     runProcess->start(program, programArguments);
@@ -2111,7 +2282,7 @@ void MainWindow::testStopOfProgram()
                 printLogWithTime(tr("The program crashed! Execution time: %1 s").
                                  arg(programExecutionTime.elapsed() / 1000.0)
                                  + '\n', Theme::color("errorcolor"));
-            programStopped = true;
+            programStopped = true; updateStatusBar();
         }
         timer->stop();
     }
@@ -2133,7 +2304,7 @@ void MainWindow::runExeProgram()
 void MainWindow::stopProgram()
 {
     if (timer->isActive()) {
-        programStopped = true;
+        programStopped = true; updateStatusBar();
         timer->stop();
 
         stopAction->setEnabled(false);
@@ -2277,7 +2448,8 @@ void MainWindow::debug()
     enableDebugActions();
     showAnyCommandWidget();
     debugConsole->clear();
-    showBottomPage(debugConsole->parentWidget());
+    syncBottomPanelWithTab();
+    showBottomPage(outputStack);
     debugDock->show();
     debugDock->raise();
     //! Asmon: on a small screen the debugger panel must not squeeze the code
@@ -2295,6 +2467,7 @@ void MainWindow::debug()
 
 void MainWindow::onDebugStopped(quint64 pc, int line)
 {
+    QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
     if (!debugger)
         return;
     changeDebugActionToStart();
@@ -2330,6 +2503,7 @@ void MainWindow::onDebugFinished(int exitCode)
 
 void MainWindow::onDebugRunning()
 {
+    QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
     debugAction->setText(tr("Pause"));
     debugAction->setIcon(Theme::icon("pause"));
     debugAction->setProperty("asmonIcon", "pause");
@@ -2366,7 +2540,6 @@ void MainWindow::enableDebugActions()
     buildAction->setEnabled(false);
     runAction->setEnabled(false);
 
-    debugToolBar->show();
 }
 
 void MainWindow::disableDebugActions(bool start)
@@ -2382,8 +2555,6 @@ void MainWindow::disableDebugActions(bool start)
         debugStepOutAction->setEnabled(false);
         debugStepInsnAction->setEnabled(false);
     }
-    if (debugToolBar)
-        debugToolBar->hide();
     debugShowRegistersAction->setEnabled(false);
     debugShowMemoryAction->setEnabled(false);
     stopAction->setEnabled(false);
@@ -2462,6 +2633,7 @@ void MainWindow::setShowRegistersToUnchecked()
 
 void MainWindow::debugExit()
 {
+    QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
     if (!debugger)
         return;
     MiDebugger *d = debugger;
@@ -2662,7 +2834,7 @@ void MainWindow::writeSettings()
     settings.setValue("saveopendirectory", saveOpenDirectory);
 
     //! Splitters state
-    settings.setValue("logsplitterstate", splitter->saveState());
+    settings.setValue("panelsplitterstate", splitter->saveState());
 }
 
 void MainWindow::openSettings()
@@ -3136,6 +3308,7 @@ void MainWindow::recreateHighlighter()
 void MainWindow::saveSettings()
 {
     saveShortcuts();
+    QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
     settings.setValue("startwindow", settingsUi.startWindow->currentIndex());
     settings.setValue("language", settingsUi.language->currentIndex());
     startText = settingsStartTextEditor->toPlainText();

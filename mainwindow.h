@@ -195,13 +195,19 @@ private:
     CommandPalette *commandPalette;
     QDockWidget *explorerDock;
     QTabWidget *bottomPanel;
+    QStackedWidget *outputStack;
+    QLabel *statusCursor = nullptr;
+    QAction *togglePanelAction = nullptr;
+    QLabel *statusMode = nullptr;
+    QLabel *statusState = nullptr;
+    QMetaObject::Connection statusCursorConnection;
+    QStackedWidget *inputStack;
     RuQTextEdit *debugConsole;
     TerminalWidget *terminal;
     QTableWidget *shortcutsTable = nullptr;
     QLabel *shortcutsConflict = nullptr;
     QHash<QString, QString> lastModulePaths; //!< file name -> path, last build
     QComboBox *targetBox;
-    QDockWidget *buildOutputDock;
     BuildOutputView *buildOutputView;
     QTreeView *explorerView;
     QFileSystemModel *explorerModel;
@@ -269,6 +275,10 @@ public slots:
     void debugStepOut();
     void openInReTool(const QString &id, bool pickFile);
     void showBottomPage(QWidget *page);
+    void updateStatusBar();
+    void addRecentFile(const QString &path);
+    void refreshRecentFiles();
+    void markBuildDiagnostics(const QString &prettyLog);
     QStringList projectModules(Tab *tab);
     QList<QAction *> shortcutActions() const;
     static QString shortcutId(QAction *a);

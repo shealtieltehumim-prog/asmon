@@ -41,6 +41,10 @@
 #include "theme.h"
 #include "regexp.h"
 #include "codeeditor.h"
+#include <QPainter>
+#include <QTextBlock>
+#include <QHelpEvent>
+#include <QToolTip>
 
 /**
  * @file codeeditor.cpp
@@ -152,6 +156,17 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
                 painter.drawPixmap(lineNumberArea->width() - debugAreaWidth + 3,
                                    top + fontMetrics().height() / 2 - debugImage.height() / 2,
                                    debugImage.width(), debugImage.height(), debugImage);
+            if (diagnostics.contains(blockNumber + 1) && blockNumber + 1 != currentDebugLine
+                    && !breakpoints.contains(blockNumber + 1)) {
+                //! a small round mark for a build error (red) or warning (amber)
+                const int d = qMax(6, fontMetrics().height() / 3);
+                painter.setRenderHint(QPainter::Antialiasing);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(diagnostics[blockNumber + 1].error ? QColor("#f14c4c") : QColor("#cca700"));
+                painter.drawEllipse(lineNumberArea->width() - debugAreaWidth + 6,
+                                    top + fontMetrics().height() / 2 - d / 2, d, d);
+                painter.setBrush(Qt::NoBrush);
+            }
             if (breakpoints.contains(blockNumber + 1) && hasBreakpoints)
                 painter.drawPixmap(lineNumberArea->width() - debugAreaWidth + 3,
                                    top + fontMetrics().height() / 2 - breakpointImage.height() / 2,
@@ -254,10 +269,11 @@ void CodeEditor::highlightCurrentLine()
                 selection.cursor.clearSelection();
                 extraSelections.append(selection);
             }
-
+            appendDiagnosticSelections(extraSelections);
             setExtraSelections(extraSelections);
         } else {
             QList<QTextEdit::ExtraSelection> extraSelections; //empty
+            appendDiagnosticSelections(extraSelections);
             setExtraSelections(extraSelections);
         }
     }
@@ -491,4 +507,67 @@ void CodeEditor::applyThemeColors()
     RuQPlainTextEdit::applyThemeColors();
     lineNumberPanelColor = Theme::color("linenumberpanelcolor");
     repaintLineNumberArea();
+}
+
+// ---------------------------------------------------------------- diagnostics
+
+void CodeEditor::setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics)
+{
+    diagnostics = lineDiagnostics;
+    if (!diagnostics.isEmpty()) {
+        //! the first edit makes the marks stale: clear them then
+        connect(document(), &QTextDocument::contentsChange, this, [this](int, int removed, int added) {
+            if (removed == 0 && added == 0)
+                return;
+            disconnect(document(), &QTextDocument::contentsChange, this, nullptr);
+            diagnostics.clear();
+            highlightCurrentLine();
+            repaintLineNumberArea();
+        }, Qt::UniqueConnection);
+    }
+    highlightCurrentLine();
+    repaintLineNumberArea();
+}
+
+void CodeEditor::appendDiagnosticSelections(QList<QTextEdit::ExtraSelection> &list)
+{
+    for (auto it = diagnostics.constBegin(); it != diagnostics.constEnd(); ++it) {
+        const QTextBlock block = document()->findBlockByNumber(it.key() - 1);
+        if (!block.isValid())
+            continue;
+        const QString text = block.text();
+        int start = 0;
+        while (start < text.size() && text.at(start).isSpace())
+            ++start;
+        int end = text.indexOf(';');
+        if (end < 0)
+            end = text.size();
+        while (end > start && text.at(end - 1).isSpace())
+            --end;
+        if (end <= start)
+            continue;
+        QTextEdit::ExtraSelection sel;
+        sel.cursor = QTextCursor(block);
+        sel.cursor.setPosition(block.position() + start);
+        sel.cursor.setPosition(block.position() + end, QTextCursor::KeepAnchor);
+        sel.format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+        sel.format.setUnderlineColor(it.value().error ? QColor("#f14c4c") : QColor("#cca700"));
+        list.append(sel);
+    }
+}
+
+bool CodeEditor::event(QEvent *e)
+{
+    if (e->type() == QEvent::ToolTip && !diagnostics.isEmpty()) {
+        auto *he = static_cast<QHelpEvent *>(e);
+        const int line = cursorForPosition(viewport()->mapFromGlobal(he->globalPos())).blockNumber() + 1;
+        if (diagnostics.contains(line)) {
+            QToolTip::showText(he->globalPos(), diagnostics[line].message, this);
+            return true;
+        }
+        QToolTip::hideText();
+        e->ignore();
+        return true;
+    }
+    return RuQPlainTextEdit::event(e);
 }

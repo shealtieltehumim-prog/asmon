@@ -43,6 +43,8 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QVBoxLayout>
+#include <QDir>
+#include <QFileInfo>
 /**
 
  * @file getstartedwidget.cpp
@@ -87,6 +89,16 @@ GetStartedWidget::GetStartedWidget(QWidget *parent) :
     column->addWidget(newButton);
     column->addWidget(openButton);
     column->addWidget(prevSessionButton);
+    column->addSpacing(16);
+
+    recentTitle = new QLabel(tr("Recent"));
+    recentTitle->setForegroundRole(QPalette::PlaceholderText);
+    recentTitle->setContentsMargins(12, 0, 12, 2);
+    column->addWidget(recentTitle);
+    recentLayout = new QVBoxLayout;
+    recentLayout->setSpacing(0);
+    column->addLayout(recentLayout);
+    recentTitle->hide();
     column->addSpacing(20);
 
     auto *hint = new QLabel(tr("All commands: Ctrl+Shift+P"));
@@ -111,4 +123,21 @@ QPushButton *GetStartedWidget::makeLink(const QString &iconName, const QString &
     if (layoutDirection() == Qt::RightToLeft)
         b->setStyleSheet(b->styleSheet().replace("text-align: left", "text-align: right"));
     return b;
+}
+
+void GetStartedWidget::setRecentFiles(const QStringList &paths)
+{
+    qDeleteAll(recentButtons);
+    recentButtons.clear();
+    for (const QString &p : paths.mid(0, 6)) {
+        const QFileInfo fi(p);
+        QPushButton *b = makeLink("open", fi.fileName(), QDir::toNativeSeparators(fi.absolutePath()));
+        b->setIcon(QIcon());
+        b->setToolTip(QDir::toNativeSeparators(p));
+        b->setStyleSheet(b->styleSheet() + "QPushButton { padding: 5px 12px; }");
+        connect(b, &QPushButton::clicked, this, [this, p]() { emit openRecent(p); });
+        recentLayout->addWidget(b);
+        recentButtons << b;
+    }
+    recentTitle->setVisible(!recentButtons.isEmpty());
 }

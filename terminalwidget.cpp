@@ -132,6 +132,11 @@ void TerminalWidget::restartShell()
     startShell();
 }
 
+void TerminalWidget::clearView()
+{
+    view->clear();
+}
+
 void TerminalWidget::focusInput()
 {
     if (!shell)

@@ -1,6 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>icons/app.svg</file>
+        <file>icons/close.svg</file>
+        <file>icons/clear.svg</file>
+        <file>icons/chevron.svg</file>
         <file>icons/build.svg</file>
         <file>icons/continue.svg</file>
         <file>icons/debug.svg</file>

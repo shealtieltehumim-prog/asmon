@@ -81,14 +81,13 @@ public:
     CodeEditor *code;
 
 
-private: 
-    //! Text fields
-    QVBoxLayout *inputLayout;
-    QVBoxLayout *outputLayout;
+    //! Asmon: shown in the main window's bottom panel.
+    RuQTextEdit *inputEdit() const { return input; }
+    RuQTextEdit *outputEdit() const { return output; }
+
+private:
     RuQTextEdit *input;
     RuQTextEdit *output;
-    QWidget *inputWidget;
-    QWidget *outputWidget;
 
     QString currentFilePath;
 };

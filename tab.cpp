@@ -60,38 +60,14 @@ Tab::Tab(QWidget *parent) :
     input->setLayoutDirection(Qt::LeftToRight);
     output->setLayoutDirection(Qt::LeftToRight);
     output->setReadOnly(true);
-    inputLayout = new QVBoxLayout;
-    outputLayout = new QVBoxLayout;
-    inputLayout->addWidget(input);
-    outputLayout->addWidget(output);
-
-    setDockOptions(QMainWindow::AllowNestedDocks | QMainWindow::AnimatedDocks);
-
-    QDockWidget *inputDock = new QDockWidget(tr("Input"), this);
-    inputDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    inputWidget = new QWidget(inputDock);
-    inputWidget->setLayout(inputLayout);
-    inputDock->setWidget(inputWidget);
-    inputDock->setFeatures(QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::RightDockWidgetArea, inputDock);
-    inputDock->setObjectName("inputDock");
-
-    QDockWidget *outputDock = new QDockWidget(tr("Output"), this);
-    outputDock->setAllowedAreas(Qt::AllDockWidgetAreas);
-    outputWidget = new QWidget(outputDock);
-    outputWidget->setLayout(outputLayout);
-    outputDock->setWidget(outputWidget);
-    outputDock->setFeatures(QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::RightDockWidgetArea, outputDock);
-    outputDock->setObjectName("outputDock");
+    //! Asmon: input/output are tabs of the main window's bottom panel
+    //! ("Output" / "Input", VS Code style), not docks beside the code.
+    input->setPlaceholderText(tr("Input for the program (stdin): type it here before running"));
+    output->setPlaceholderText(tr("The program's output appears here"));
 
     //! Setting io and code fonts
     setFonts();
 
-    //! Restore state
-    QSettings settings;
-    restoreGeometry(settings.value("tabgeometry").toByteArray());
-    restoreState(settings.value("tabwindowstate").toByteArray());
 }
 
 /*! \brief
@@ -234,14 +210,9 @@ void Tab::clearOutput()
 */
 Tab::~Tab()
 {
+    //! input/output live in the bottom panel's stacks: deleting them also
+    //! removes them from there.
     delete input;
     delete output;
-
-    delete inputLayout;
-    delete outputLayout;
-
     delete code;
-
-    delete inputWidget;
-    delete outputWidget;
 }

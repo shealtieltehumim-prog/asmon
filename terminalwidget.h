@@ -29,6 +29,7 @@ public:
 
     void setWorkingDirectory(const QString &dir); //!< used when the shell (re)starts
     void focusInput();
+    void clearView();
     //! PATH entries put in front of the system PATH (bundled tools).
     static QStringList toolPaths();
 

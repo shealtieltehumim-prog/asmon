@@ -60,8 +60,16 @@ public:
     QPushButton *newButton;
     QPushButton *openButton;
     QPushButton *prevSessionButton;
+    //! Asmon: recently opened files (most recent first)
+    void setRecentFiles(const QStringList &paths);
+
+signals:
+    void openRecent(const QString &path);
 
 private:
+    class QVBoxLayout *recentLayout = nullptr;
+    QLabel *recentTitle = nullptr;
+    QList<QPushButton *> recentButtons;
     QPushButton *makeLink(const QString &iconName, const QString &text, const QString &hint);
 };
 

@@ -6,6 +6,8 @@
 
 #include <QApplication>
 #include <QFile>
+#include <QDir>
+#include <QStandardPaths>
 #include <QFontDatabase>
 #include <QIcon>
 #include <QPainter>
@@ -98,6 +100,18 @@ void setTheme(QSettings &settings, bool dark)
     for (auto it = d.constBegin(); it != d.constEnd(); ++it)
         settings.setValue(it.key(), it.value().name()); // "#rrggbb": readable INI
     settings.setValue("currentlinemode", true);
+}
+
+//! QSS can only load images from files: the tinted close icon is written
+//! next to the settings (one file per theme).
+static QString closeIconPath()
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir().mkpath(dir);
+    const QString path = dir + QString("/close-%1.png").arg(isDark() ? "dark" : "light");
+    if (!QFile::exists(path))
+        icon("close").pixmap(32, 32).save(path, "PNG");
+    return QDir::fromNativeSeparators(path);
 }
 
 QIcon icon(const QString &name)
@@ -223,6 +237,18 @@ QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QSplitter::handle { background: %4; }
 QStatusBar { background: %1; color: %6; border-top: 1px solid %4; }
+QStatusBar::item { border: none; }
+QStatusBar QLabel { color: %6; padding: 0 8px; }
+QTabBar { qproperty-drawBase: 0; }
+QTabBar::close-button { image: url(%12); subcontrol-position: right; border-radius: 3px; margin: 2px; }
+QTabBar::close-button:hover { background: %8; }
+QTabWidget#bottomPanel::pane { border: none; border-top: 1px solid %4; }
+QTabWidget#bottomPanel QTabBar::tab { padding: 5px 12px; font-size: 9pt; }
+QDockWidget > QWidget { border: none; }
+QTreeView { outline: 0; }
+QTreeView::item { padding: 3px 2px; border-radius: 4px; }
+QTreeView::item:hover { background: %8; }
+QTreeView::item:selected { background: %9; color: %5; }
 QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
 QToolTip { background: %3; color: %5; border: 1px solid %4; padding: 4px; }
 QCheckBox, QRadioButton, QLabel, QGroupBox { color: %5; }
@@ -230,7 +256,7 @@ QGroupBox { border: 1px solid %4; border-radius: 6px; margin-top: 10px; padding-
 QGroupBox::title { subcontrol-origin: margin; left: 10px; right: 10px; padding: 0 4px; }
 )")
         .arg(c.window, c.editor, c.panel, c.border, c.text, c.muted, c.accent, c.hover, c.selection)
-        .arg(c.input, dark ? QString("#424242") : QString("#c4c4c4"));
+        .arg(c.input, dark ? QString("#424242") : QString("#c4c4c4"), closeIconPath());
     app.setStyleSheet(qss);
 }
 

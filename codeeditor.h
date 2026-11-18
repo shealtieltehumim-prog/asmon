@@ -81,6 +81,10 @@ public:
     bool isMacroOnCurrentDebugLine();
     int currentDebugLine;
     bool debugMode;
+    //! Asmon: build errors/warnings shown in the code (wavy underline, a mark
+    //! in the gutter, the message as a tooltip). Cleared on the next edit.
+    struct Diagnostic { QString message; bool error; };
+    void setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics);
 
 public slots:
     void updateDebugLine(int number);
@@ -95,6 +99,7 @@ public slots:
 protected:
     void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent *e);
+    bool event(QEvent *e) override;
 
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
@@ -116,6 +121,8 @@ private:
     int prevBlockCount;
     QSettings settings;
     QColor lineNumberPanelColor;
+    QMap<int, Diagnostic> diagnostics;
+    void appendDiagnosticSelections(QList<QTextEdit::ExtraSelection> &list);
 
 signals:
     void breakpointsChanged(quint64 lineNumber, bool isAdded);
