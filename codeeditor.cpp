@@ -41,6 +41,15 @@
 #include "theme.h"
 #include "regexp.h"
 #include "codeeditor.h"
+#include <QTextLayout>
+#include <QTimer>
+#include <QMimeData>
+
+//! Hebrew display marks managed by the editor (see "Hebrew (bidi)" below)
+static bool isBidiMark(QChar c)
+{
+    return c == QChar(0x200E) || c == QChar(0x202B);
+}
 #include <QPainter>
 #include <QTextBlock>
 #include <QHelpEvent>
@@ -84,6 +93,8 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberAreaWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
+    //! Asmon: Hebrew in strings and comments (see updateBidiHint)
+    connect(document(), &QTextDocument::contentsChange, this, &CodeEditor::updateBidiHints);
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(shiftBreakpoints(int)));
 
     updateLineNumberAreaWidth(0);
@@ -388,6 +399,33 @@ void CodeEditor::deleteTab()
 
 void CodeEditor::keyPressEvent(QKeyEvent *e)
 {
+    //! Hebrew display marks are invisible: never stop on them, never make
+    //! Backspace/Delete "do nothing" by deleting one.
+    if (!textCursor().hasSelection()) {
+        const int pos = textCursor().position();
+        if (e->key() == Qt::Key_Backspace && pos > 0 && isBidiMark(document()->characterAt(pos - 1))) {
+            QTextCursor c = textCursor();
+            c.setPosition(pos - 1);
+            setTextCursor(c);
+        } else if (e->key() == Qt::Key_Delete && isBidiMark(document()->characterAt(pos))) {
+            QTextCursor c = textCursor();
+            c.setPosition(pos + 1);
+            setTextCursor(c);
+        }
+    }
+    if (e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) {
+        const int before = textCursor().position();
+        QPlainTextEdit::keyPressEvent(e);
+        const int after = textCursor().position();
+        if (after != before) {
+            bool onlyMarks = true;
+            for (int i = qMin(before, after); i < qMax(before, after); ++i)
+                if (!isBidiMark(document()->characterAt(i))) { onlyMarks = false; break; }
+            if (onlyMarks)
+                QPlainTextEdit::keyPressEvent(e);
+        }
+        return;
+    }
     QString curString = textCursor().block().text();
     int indentWidth = -1;
     switch (e->key()) {
@@ -570,4 +608,153 @@ bool CodeEditor::event(QEvent *e)
         return true;
     }
     return RuQPlainTextEdit::event(e);
+}
+
+// ---------------------------------------------------------------- Hebrew (bidi)
+
+//! The editor is left-to-right. Hebrew in a string and in the comment after
+//! it would form one right-to-left run under the Unicode bidi algorithm, so
+//! the line is shown scrambled (e.g. db 'שלום', 0 ; הודעה). One invisible
+//! direction mark per line fixes the common cases:
+//!   - an LRM right after a Hebrew string that has code after it;
+//!   - an RLE after "; " of a comment written in Hebrew (its first strong
+//!     letter is Hebrew): the comment reads as one right-to-left sentence.
+//! The marks are real characters in the editor, managed here only: they are
+//! removed when saving/building (plainTextWithoutMarks) and copying, the
+//! cursor keys step over them, and the status bar does not count them.
+
+QString CodeEditor::stripBidiMarks(QString text)
+{
+    text.remove(QChar(0x200E));
+    text.remove(QChar(0x202B));
+    return text;
+}
+
+QString CodeEditor::plainTextWithoutMarks() const
+{
+    return stripBidiMarks(toPlainText());
+}
+
+int CodeEditor::marksBefore(const QTextCursor &c)
+{
+    const QString t = c.block().text().left(c.positionInBlock());
+    return t.count(QChar(0x200E)) + t.count(QChar(0x202B));
+}
+
+//! where the mark goes in a line (clean text, no marks): -1 = none
+static int bidiMarkPosition(const QString &t, QChar *mark)
+{
+    auto isRtl = [](QChar c) {
+        const QChar::Direction d = c.direction();
+        return d == QChar::DirR || d == QChar::DirAL;
+    };
+    bool anyRtl = false;
+    for (QChar c : t)
+        if (isRtl(c)) { anyRtl = true; break; }
+    if (!anyRtl)
+        return -1;
+    int commentStart = -1;
+    int lastRtlStringEnd = -1;
+    QChar quote;
+    int stringStart = -1;
+    for (int i = 0; i < t.size(); ++i) {
+        const QChar c = t.at(i);
+        if (!quote.isNull()) {
+            if (c == quote) {
+                for (int k = stringStart; k < i; ++k)
+                    if (isRtl(t.at(k))) { lastRtlStringEnd = i + 1; break; }
+                quote = QChar();
+            }
+        } else if (c == '\'' || c == '"' || c == '`') {
+            quote = c;
+            stringStart = i + 1;
+        } else if (c == ';') {
+            commentStart = i;
+            break;
+        }
+    }
+    if (lastRtlStringEnd > 0 && !t.mid(lastRtlStringEnd).trimmed().isEmpty()) {
+        *mark = QChar(0x200E); // LRM
+        return lastRtlStringEnd;
+    }
+    if (commentStart >= 0) {
+        bool commentRtl = false;
+        for (int i = commentStart + 1; i < t.size(); ++i) {
+            if (isRtl(t.at(i))) { commentRtl = true; break; }
+            if (t.at(i).direction() == QChar::DirL) break;
+        }
+        if (commentRtl) {
+            int p = commentStart + 1;
+            while (p < t.size() && t.at(p).isSpace())
+                ++p;
+            *mark = QChar(0x202B); // RLE
+            return p;
+        }
+    }
+    return -1;
+}
+
+void CodeEditor::updateBidiHints(int position, int charsRemoved, int charsAdded)
+{
+    Q_UNUSED(charsRemoved);
+    if (applyingBidiMarks)
+        return;
+    //! edit the document after the user's edit has finished (not inside the
+    //! signal), merged into the same undo step
+    const int from = position, to = position + charsAdded;
+    QTimer::singleShot(0, this, [this, from, to]() {
+        QTextBlock b = document()->findBlock(from);
+        const QTextBlock last = document()->findBlock(qMin(to, document()->characterCount() - 1));
+        applyingBidiMarks = true;
+        const bool wasModified = document()->isModified();
+        QTextCursor c(document());
+        bool editing = false;
+        while (b.isValid()) {
+            const QString text = b.text();
+            const QString clean = stripBidiMarks(text);
+            QChar mark;
+            const int pos = bidiMarkPosition(clean, &mark);
+            QString wanted = clean;
+            if (pos >= 0)
+                wanted.insert(pos, mark);
+            if (wanted != text) {
+                if (!editing) {
+                    c.joinPreviousEditBlock();
+                    editing = true;
+                }
+                //! remove the old marks (from the end), then insert the new one
+                for (int i = text.size() - 1; i >= 0; --i) {
+                    if (isBidiMark(text.at(i))) {
+                        c.setPosition(b.position() + i);
+                        c.deleteChar();
+                    }
+                }
+                if (pos >= 0) {
+                    c.setPosition(b.position() + pos);
+                    c.insertText(QString(mark));
+                }
+            }
+            if (b == last)
+                break;
+            b = b.next();
+        }
+        if (editing) {
+            c.endEditBlock();
+            if (!wasModified) {
+                //! just loaded: the marks are not a change of the file
+                //! (clear the history first: clearing it marks the document modified again)
+                document()->clearUndoRedoStacks();
+                document()->setModified(false);
+            }
+        }
+        applyingBidiMarks = false;
+    });
+}
+
+QMimeData *CodeEditor::createMimeDataFromSelection() const
+{
+    QMimeData *data = RuQPlainTextEdit::createMimeDataFromSelection();
+    if (data && data->hasText())
+        data->setText(stripBidiMarks(data->text()));
+    return data;
 }

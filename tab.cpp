@@ -126,7 +126,7 @@ void Tab::saveCodeToFile(const QString &filePath, Assembler *assembler, bool cha
     if (debugMode) {
         assembler->putDebugString(code);
     }
-    out << code->toPlainText();
+    out << code->plainTextWithoutMarks(); // Hebrew display marks never reach the file
     if (changeCodeModifiedFlag) {
         currentFilePath = filePath;
         code->document()->setModified(false);

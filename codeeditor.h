@@ -85,6 +85,10 @@ public:
     //! in the gutter, the message as a tooltip). Cleared on the next edit.
     struct Diagnostic { QString message; bool error; };
     void setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics);
+    //! Hebrew display marks (see codeeditor.cpp): never saved or copied
+    static QString stripBidiMarks(QString text);
+    QString plainTextWithoutMarks() const;
+    static int marksBefore(const QTextCursor &c);
 
 public slots:
     void updateDebugLine(int number);
@@ -100,11 +104,13 @@ protected:
     void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent *e);
     bool event(QEvent *e) override;
+    QMimeData *createMimeDataFromSelection() const override;
 
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
     
 private slots:
+    void updateBidiHints(int position, int charsRemoved, int charsAdded);
     void updateLineNumberAreaWidth(int newBlockCount);
     void updateLineNumberArea(const QRect &, int);
     void shiftBreakpoints(int blockCount);
@@ -122,6 +128,7 @@ private:
     QSettings settings;
     QColor lineNumberPanelColor;
     QMap<int, Diagnostic> diagnostics;
+    bool applyingBidiMarks = false;
     void appendDiagnosticSelections(QList<QTextEdit::ExtraSelection> &list);
 
 signals:

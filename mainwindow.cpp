@@ -1454,7 +1454,8 @@ void MainWindow::updateStatusBar()
         return;
     if (tabs && tabs->count() > 0 && mainWidget->currentIndex() == 1) {
         const QTextCursor c = ((Tab *) tabs->currentWidget())->code->textCursor();
-        statusCursor->setText(tr("Ln %1, Col %2").arg(c.blockNumber() + 1).arg(c.positionInBlock() + 1));
+        statusCursor->setText(tr("Ln %1, Col %2").arg(c.blockNumber() + 1)
+                                  .arg(c.positionInBlock() - CodeEditor::marksBefore(c) + 1));
     } else {
         statusCursor->clear();
     }
