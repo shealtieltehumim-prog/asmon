@@ -403,17 +403,73 @@ jobs:
         run: |
           $setup = Get-ChildItem installer\output\Asmon-*-Setup.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/TYPE=full','/DIR=C:\AsmonTest' -Wait
-          foreach ($f in 'asmon.exe','NASM\nasm.exe','MinGW64\bin\gcc.exe','MinGW64\bin\gdb.exe','LLVM\bin\ld.lld.exe','tools\ghidra\ghidraRun.bat','tools\jdk\bin\java.exe') {
+          foreach ($f in 'asmon.exe','NASM\nasm.exe','NASM\macro.o','MinGW64\bin\gcc.exe','MinGW64\bin\gdb.exe','MinGW\bin\gcc.exe','MinGW\bin\gdb.exe','LLVM\bin\ld.lld.exe','tools\ghidra\ghidraRun.bat','tools\jdk\bin\java.exe') {
             if (-not (Test-Path "C:\AsmonTest\$f")) { throw "missing after install: $f" }
             Write-Host "ok  $f"
           }
-          $p = Start-Process C:\AsmonTest\asmon.exe -PassThru; Start-Sleep 12
+          # RE menu: open the built program in each tool from Asmon (command palette), check the
+          # tool's process starts, take screenshots
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          Copy-Item templates\hello_win64.asm "$env:RUNNER_TEMP\hello.asm"
+          $p = Start-Process C:\AsmonTest\asmon.exe -ArgumentList "$env:RUNNER_TEMP\hello.asm" -PassThru; Start-Sleep 15
           if ($p.HasExited) { throw "installed asmon.exe exited with code $($p.ExitCode)" }
+          $ws = New-Object -ComObject WScript.Shell
+          $results = @()
+          foreach ($t in @(@('x64dbg','x64dbg'), @('Cutter','cutter'), @('ImHex','imhex*'), @('Ghidra','java*'))) {
+            $null = $ws.AppActivate($p.Id); Start-Sleep 2
+            $ws.SendKeys("^+p"); Start-Sleep 2
+            $ws.SendKeys("open program in $($t[0])"); Start-Sleep 2
+            $ws.SendKeys("{ENTER}"); Start-Sleep 40
+            Shot "re-$($t[0])"
+            $proc = Get-Process -Name $t[1] -ErrorAction SilentlyContinue
+            $results += "$($t[0]): " + $(if ($proc) { "started ($($proc[0].ProcessName))" } else { "NOT started" })
+            $proc | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep 3
+          }
+          $results | ForEach-Object { Write-Host $_ }
+          if ($p.HasExited) { throw "asmon.exe exited during the RE test" }
           Stop-Process -Id $p.Id -Force
+          if ($results -match 'NOT started') { Write-Host "::warning::some RE tools did not start: $($results -join '; ')" }
           Start-Process C:\AsmonTest\unins000.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait
           Start-Sleep 5
           if (Test-Path C:\AsmonTest\asmon.exe) { throw "uninstall left asmon.exe behind" }
           Write-Host "install / run / uninstall OK"
+      - name: Installer pages (interactive run, screenshots, then cancelled)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          $setup = Get-ChildItem installer\output\Asmon-*-Setup.exe | Select-Object -First 1
+          $p = Start-Process $setup.FullName -ArgumentList '/LANG=he','/CURRENTUSER' -PassThru
+          Start-Sleep 15
+          $ws = New-Object -ComObject WScript.Shell
+          for ($i = 1; $i -le 5; $i++) {
+            Get-Process | Where-Object { $_.MainWindowTitle -match 'Asmon|אסמון' } | ForEach-Object { $null = $ws.AppActivate($_.Id) }
+            Start-Sleep 2
+            Shot "installer-page-$i"
+            if ($i -lt 5) { $ws.SendKeys("{ENTER}"); Start-Sleep 4 }
+          }
+          Get-Process | Where-Object { $_.ProcessName -match '^Asmon.*Setup|^Setup|\.tmp$|^is-' } | Stop-Process -Force -ErrorAction SilentlyContinue
+          $p | Stop-Process -Force -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: installer-screenshots
+          path: shots
       - uses: actions/upload-artifact@v4
         with:
           name: asmon-installer-and-portable
