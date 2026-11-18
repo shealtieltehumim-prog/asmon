@@ -13,6 +13,8 @@
 #include <QSvgRenderer>
 #include <QPalette>
 #include <QRegularExpression>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QSettings>
 #include <QStyleFactory>
 
@@ -230,6 +232,28 @@ QGroupBox::title { subcontrol-origin: margin; left: 10px; right: 10px; padding: 
         .arg(c.window, c.editor, c.panel, c.border, c.text, c.muted, c.accent, c.hover, c.selection)
         .arg(c.input, dark ? QString("#424242") : QString("#c4c4c4"));
     app.setStyleSheet(qss);
+}
+
+void recolorDocument(QTextDocument *doc, const QHash<QRgb, QColor> &map)
+{
+    if (!doc || map.isEmpty())
+        return;
+    for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.isValid() || !f.charFormat().hasProperty(QTextFormat::ForegroundBrush))
+                continue;
+            const QRgb old = f.charFormat().foreground().color().rgb();
+            if (!map.contains(old))
+                continue;
+            QTextCursor c(doc);
+            c.setPosition(f.position());
+            c.setPosition(f.position() + f.length(), QTextCursor::KeepAnchor);
+            QTextCharFormat fmt;
+            fmt.setForeground(map.value(old));
+            c.mergeCharFormat(fmt);
+        }
+    }
 }
 
 } // namespace Theme

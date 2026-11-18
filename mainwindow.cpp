@@ -1399,7 +1399,21 @@ void MainWindow::openFromExplorer(const QModelIndex &index)
 
 void MainWindow::switchTheme(bool dark)
 {
+    //! remember the old theme's log colours to recolour text already written
+    const QStringList logKeys = { "fontcolor", "errorcolor", "successcolor", "keywordscolor" };
+    QList<QColor> oldColors;
+    for (const QString &k : logKeys)
+        oldColors << Theme::color(k);
     Theme::setTheme(settings, dark);
+    QHash<QRgb, QColor> recolor;
+    for (int i = 0; i < logKeys.size(); ++i)
+        if (oldColors[i] != Theme::color(logKeys[i]))
+            recolor.insert(oldColors[i].rgb(), Theme::color(logKeys[i]));
+    for (QTextEdit *e : findChildren<QTextEdit *>())
+        Theme::recolorDocument(e->document(), recolor);
+    for (QPlainTextEdit *e : findChildren<QPlainTextEdit *>())
+        if (!qobject_cast<CodeEditor *>(e))
+            Theme::recolorDocument(e->document(), recolor);
     Theme::apply(*qApp);
     for (QAction *a : findChildren<QAction *>()) {
         const QString name = a->property("asmonIcon").toString();

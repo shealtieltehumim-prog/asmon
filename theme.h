@@ -12,6 +12,8 @@
 #define ASMON_THEME_H
 
 #include <QColor>
+#include <QHash>
+#include <QTextDocument>
 #include <QMap>
 #include <QString>
 
@@ -45,6 +47,10 @@ QIcon icon(const QString &name);
 
 //! Best available monospace font family for code.
 QString defaultCodeFont();
+
+//! Text already written in a log in the old theme's colours: map each old
+//! colour (font/error/success/keywords) to the new one, in place.
+void recolorDocument(QTextDocument *doc, const QHash<QRgb, QColor> &map);
 
 } // namespace Theme
 
