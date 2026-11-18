@@ -62,14 +62,14 @@ void MiDebugger::start(const QList<int> &breakpointLines)
     //! WinLibs' gdb embeds Python; without PYTHONHOME it prints "Could not find
     //! platform independent libraries" into the program's output.
     const QDir gdbPrefix(QFileInfo(cfg.gdb).absolutePath() + "/..");
-    const bool bundledPython = QFileInfo(cfg.gdb).isAbsolute()
+    const bool bundledPython = cfg.gdbPrefixArgs.isEmpty() && QFileInfo(cfg.gdb).isAbsolute()
         && !QDir(gdbPrefix.absolutePath() + "/lib").entryList({ "python3*" }, QDir::Dirs).isEmpty();
     if (bundledPython) {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("PYTHONHOME", QDir::toNativeSeparators(gdbPrefix.absolutePath()));
         gdb->setProcessEnvironment(env);
     }
-    gdb->start(cfg.gdb, QStringList() << "--interpreter=mi3" << "-nx" << "-q" << cfg.executable);
+    gdb->start(cfg.gdb, QStringList(cfg.gdbPrefixArgs) << "--interpreter=mi3" << "-nx" << "-q" << cfg.executable);
     if (!gdb->waitForStarted(10000)) {
         emit log(tr("Could not start gdb (%1).").arg(cfg.gdb), true);
         state = Ended;
@@ -596,7 +596,8 @@ void MiDebugger::pause()
     pauseRequested = true;
 #ifdef Q_OS_WIN32
     //! Native Windows gdb: break into the process from outside (like SASM).
-    if (inferiorPid > 0) {
+    //! (Not for a Linux program under WSL: its pid is not a Windows pid.)
+    if (cfg.windows && inferiorPid > 0) {
         HANDLE h = OpenProcess(PROCESS_ALL_ACCESS, FALSE, DWORD(inferiorPid));
         if (h) {
             DebugBreakProcess(h);

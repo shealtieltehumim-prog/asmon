@@ -100,6 +100,20 @@ bool wslAvailable(QString *details)
     return true;
 }
 
+bool wslHasGdb()
+{
+    QProcess p;
+    p.start("wsl.exe", QStringList() << "--exec" << "sh" << "-c" << "command -v gdb");
+    if (!p.waitForFinished(20000))
+        return false;
+    return p.exitCode() == 0 && !p.readAllStandardOutput().trimmed().isEmpty();
+}
+
+QString wslInstallGdbCommand()
+{
+    return "wsl.exe -u root -- sh -c \"apt-get update && apt-get install -y gdb\"";
+}
+
 QStringList wslRunCommand(const QString &executable)
 {
     const QFileInfo fi(executable);

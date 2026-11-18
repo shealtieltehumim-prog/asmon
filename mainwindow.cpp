@@ -2142,10 +2142,28 @@ void MainWindow::printOutput(QString msg, int index)
 void MainWindow::debug()
 {
     //! Asmon: gdb/MI debugger (MiDebugger) with the RE panels (DebugPanels).
-    if (!debugger && linuxTargetSelected()) {
-        printLogWithTime(tr("Debugging Linux programs from Windows is not supported yet. "
-                            "You can build and run them (F9).") + '\n', Theme::color("errorcolor"));
-        return;
+    //! Asmon: a Linux program on Windows is debugged by gdb inside WSL.
+    const bool viaWsl = !debugger && linuxTargetSelected();
+    if (viaWsl) {
+        QString why;
+        if (!LinuxTarget::wslAvailable(&why)) {
+            printLogWithTime(tr("Debugging a Linux program needs WSL: %1").arg(why) + '\n',
+                             Theme::color("errorcolor"));
+            return;
+        }
+        if (!LinuxTarget::wslHasGdb()) {
+            printLogWithTime(tr("gdb is not installed in WSL.") + '\n', Theme::color("errorcolor"));
+            if (QMessageBox::question(this, tr("Install gdb in WSL"),
+                    tr("Debugging Linux programs uses gdb inside WSL, and it is not installed.\n"
+                       "Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal below.")) ==
+                    QMessageBox::Yes) {
+                showBottomPage(terminal);
+                terminal->runCommand(LinuxTarget::wslInstallGdbCommand());
+                printLogWithTime(tr("When the installation finishes, press Debug again.") + '\n',
+                                 Theme::color("fontcolor"));
+            }
+            return;
+        }
     }
     if (debugger) {
         //! Continue or pause
@@ -2182,6 +2200,16 @@ void MainWindow::debug()
     cfg.workingDir.replace("\\", "/");
     currentTab->saveInputToFile(Common::pathInTemp("input.txt"));
     cfg.inputFile = Common::pathInTemp("input.txt");
+    if (viaWsl) {
+        //! gdb runs inside WSL in the temp folder: Linux-relative paths only.
+        cfg.gdb = "wsl.exe";
+        cfg.gdbPrefixArgs = QStringList() << "--cd" << QDir::toNativeSeparators(Common::pathInTemp(""))
+                                          << "--exec" << "gdb";
+        cfg.windows = false;
+        cfg.executable = "./AsmonProg.exe";
+        cfg.workingDir = ".";
+        cfg.inputFile = "input.txt";
+    }
     cfg.listing = Common::pathInTemp("program.lst");
     cfg.assembler = assembler;
 

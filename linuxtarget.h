@@ -38,6 +38,12 @@ BuildResult build(const QString &nasm, const QString &lld, const QString &source
 //! details receives a short human-readable reason when false.
 bool wslAvailable(QString *details = nullptr);
 
+//! True when gdb is installed inside the default WSL distribution.
+bool wslHasGdb();
+
+//! Command that installs gdb inside WSL (Debian/Ubuntu: apt-get, as root).
+QString wslInstallGdbCommand();
+
 //! Program + arguments that run an ELF file (by Windows path) inside WSL.
 QStringList wslRunCommand(const QString &executable);
 

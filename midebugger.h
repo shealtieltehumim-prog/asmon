@@ -37,6 +37,7 @@ public:
         QString inputFile;    //!< stdin for the program
         QString listing;      //!< assembler listing (.lst)
         bool windows = false; //!< target is a Windows program
+        QStringList gdbPrefixArgs; //!< e.g. WSL: gdb = "wsl.exe", prefix = --cd dir --exec gdb
         Assembler *assembler = nullptr;
     };
     using Callback = std::function<void(const MiRecord &)>;

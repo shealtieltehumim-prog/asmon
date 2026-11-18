@@ -244,6 +244,74 @@ jobs:
           name: asmon-windows-x64
           path: dist
 
+  wsl:
+    # Linux programs on Windows: build an ELF with the bundled NASM + ld.lld, run and
+    # debug it in a real WSL distribution (installed by setup-wsl), from Asmon's GUI.
+    needs: windows
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: asmon-windows-x64
+          path: dist
+      - uses: Vampire/setup-wsl@v6
+        with:
+          additional-packages: gdb
+      - name: WSL basics (what Asmon checks and runs)
+        shell: pwsh
+        run: |
+          wsl.exe --list --verbose
+          wsl.exe --exec sh -c "command -v gdb && gdb --version | head -1"
+          New-Item -ItemType Directory -Force w | Out-Null
+          dist\NASM\nasm.exe -f elf64 -g -F dwarf templates\hello_linux64.asm -l w\program.lst -o w\program.o
+          dist\LLVM\bin\ld.lld.exe -e main -o w\AsmonProg.exe w\program.o
+          $out = wsl.exe --cd "$PWD\w" --exec ./AsmonProg.exe
+          Write-Host "program output: $out"
+          if ("$out" -notmatch "Hello, world!") { throw "the ELF did not run in WSL" }
+          # gdb inside WSL, the way Asmon starts it (MI on stdin/stdout)
+          wsl.exe --cd "$PWD\w" --exec gdb --batch -nx -ex "break *main" -ex run -ex "info registers rip" -ex "stepi" -ex "info registers rip" ./AsmonProg.exe
+      - name: GUI test (Linux target, run and debug through WSL)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots, dist\data\Asmon | Out-Null
+          Set-Content dist\portable ""
+          Set-Content dist\data\Asmon\Asmon.ini "[General]`r`ntarget=linux`r`n"
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          Copy-Item templates\hello_linux64.asm "$env:RUNNER_TEMP\hello_linux.asm"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\hello_linux.asm" -PassThru
+          Start-Sleep 15
+          if ($p.HasExited) { throw "asmon.exe exited at startup" }
+          $ws = New-Object -ComObject WScript.Shell
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          $ws.SendKeys("{F9}"); Start-Sleep 20
+          Shot "wsl-1-run"
+          $ws.SendKeys("{F5}"); Start-Sleep 30
+          Shot "wsl-2-debug-start"
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          $ws.SendKeys("{F10}"); Start-Sleep 5
+          Shot "wsl-3-after-syscall"
+          $ws.SendKeys("{F5}"); Start-Sleep 10
+          Shot "wsl-4-finished"
+          if ($p.HasExited) { throw "asmon.exe crashed during the test" }
+          Stop-Process -Id $p.Id -Force
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wsl-screenshots
+          path: shots
+
   re-tools:
     # External RE tools for the "RE" menu, packed as optional installer components.
     runs-on: windows-latest
