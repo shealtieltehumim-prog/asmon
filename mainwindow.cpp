@@ -880,6 +880,7 @@ void MainWindow::createAsmonUi()
         });
         //! in the status bar (VS Code style), so the menu row keeps room for all menus
         targetBox->setObjectName("statusTarget");
+        targetBox->setLayoutDirection(Qt::LeftToRight); // "Linux ELF (WSL)" reads left to right
         targetBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
         statusBar()->insertPermanentWidget(0, targetBox);
 
