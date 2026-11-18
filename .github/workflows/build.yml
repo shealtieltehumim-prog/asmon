@@ -303,7 +303,7 @@ jobs:
           & "$PWD\dist\NASM\nasm.exe" -w-implicit-abs-deprecated -I "$PWD\dist\include\" -f win64 "$PWD\templates\hello_win64.asm" -o "$w\a.o"
           if ($LASTEXITCODE -ne 0) { $bad += "nasm build exit $LASTEXITCODE" }
           # same link flags as Asmon's default (gccbasedassembler.cpp)
-          & "$PWD\dist\MinGW64\bin\gcc.exe" "$w\a.o" "$PWD\dist\NASM\macro64.o" -o "$w\a.exe" -m64 -Wl,--image-base,0x400000 -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va
+          & "$PWD\dist\MinGW64\bin\gcc.exe" "$w\a.o" "$PWD\dist\NASM\macro64.o" -o "$w\a.exe" -m64 '-Wl,--image-base,0x400000' '-Wl,--disable-dynamicbase' '-Wl,--disable-high-entropy-va'
           if ($LASTEXITCODE -ne 0) { $bad += "gcc link exit $LASTEXITCODE" }
           $out = & "$w\a.exe" 2>&1 | Out-String
           if ($out -notmatch 'Hello, world!') { $bad += "hello output: $out" }
