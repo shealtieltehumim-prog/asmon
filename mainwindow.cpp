@@ -42,6 +42,7 @@
 #include "mainwindow.h"
 #include <QScreen>
 #include <QInputDialog>
+#include "processpicker.h"
 #include <QStatusBar>
 #include <QGuiApplication>
 
@@ -577,6 +578,7 @@ void MainWindow::createActions()
     stopAction->setProperty("en", "Stop");
 
     stopAction->setProperty("asmonIcon", "stop");
+    stopAction->setShortcut(QKeySequence("Shift+F5"));
     connect(stopAction, SIGNAL(triggered()), this, SLOT(stopProgram()));
     //! Enable in runProgram(), disable in stop
     stopAction->setEnabled(false);
@@ -777,16 +779,36 @@ void MainWindow::createAsmonUi()
 
     //! Debug / RE panels: only visible while debugging
     debugPanels = new DebugPanels;
-    connect(debugPanels, &DebugPanels::goToLine, this, [this](int line) { jumpToLocation(QString(), line, 0); });
+    connect(debugPanels, &DebugPanels::goToLine, this, [this](int id) {
+        const int index = id / MiDebugger::kModuleLineBase;
+        if (index == 0 && debugMainTab)
+            tabs->setCurrentWidget(debugMainTab);
+        jumpToLocation(index > 0 ? debugModulePaths.value(index - 1) : QString(),
+                       id % MiDebugger::kModuleLineBase, 0);
+    });
     connect(debugPanels, &DebugPanels::message, this, [this](const QString &t) {
         printLogWithTime(t + '\n', Theme::color("fontcolor"));
         statusBar()->showMessage(t, 5000);
     });
-    debugPanels->labelForLine = [this](int line) -> QString {
-        if (!tabs || tabs->count() == 0)
-            return QString();
-        const QStringList lines = ((Tab *) tabs->currentWidget())->code->plainTextWithoutMarks().split('\n');
-        return Symbols::parentLabel(lines, line - 1);
+    debugPanels->lineName = [this](int id) -> QString {
+        const int index = id / MiDebugger::kModuleLineBase;
+        const int line = id % MiDebugger::kModuleLineBase;
+        if (index == 0)
+            return QString::number(line);
+        return QString("%1:%2").arg(QFileInfo(debugModulePaths.value(index - 1)).fileName()).arg(line);
+    };
+    debugPanels->labelForLine = [this](int id) -> QString {
+        const int index = id / MiDebugger::kModuleLineBase;
+        QString text;
+        if (index == 0) {
+            if (debugMainTab)
+                text = debugMainTab->code->plainTextWithoutMarks();
+        } else {
+            QFile f(debugModulePaths.value(index - 1));
+            if (f.open(QIODevice::ReadOnly))
+                text = QString::fromUtf8(f.readAll());
+        }
+        return Symbols::parentLabel(text.split('\n'), id % MiDebugger::kModuleLineBase - 1);
     };
     debugDock = new QDockWidget(tr("Debugger"), this);
     debugDock->setObjectName("debugDock");
@@ -822,6 +844,12 @@ void MainWindow::createAsmonUi()
     debugStepInsnAction->setEnabled(false);
     connect(debugStepInsnAction, SIGNAL(triggered()), this, SLOT(debugStepInstruction()));
     debugMenu->insertAction(debugToggleBreakpointAction, debugStepOutAction);
+    {
+        QAction *attachAction = new QAction(tr("Attach to process..."), this);
+        attachAction->setProperty("en", "Attach to process running pid gdb");
+        connect(attachAction, &QAction::triggered, this, &MainWindow::attachToProcess);
+        debugMenu->insertAction(debugMenu->actions().value(1), attachAction);
+    }
     {
         QAction *condAction = new QAction(tr("Breakpoint condition..."), this);
         condAction->setProperty("en", "Conditional breakpoint condition");
@@ -1732,8 +1760,9 @@ void MainWindow::editBreakpointCondition()
     if (!ok)
         return;
     code->setBreakpointCondition(line, cond.trimmed());
-    if (debugger)
-        debugger->setBreakpointCondition(line, cond.trimmed());
+    const int index = debugFileIndex((Tab *) tabs->currentWidget());
+    if (debugger && index >= 0)
+        debugger->setBreakpointCondition(index * MiDebugger::kModuleLineBase + line, cond.trimmed());
 }
 
 void MainWindow::addRecentFile(const QString &path)
@@ -2212,6 +2241,10 @@ bool MainWindow::okToContinue(int index)
 
 void MainWindow::changeCurrentTab(int index)
 {
+    if (debugger && index >= 0) {
+        for (int bp : connectDebugTab((Tab *) tabs->widget(index)))
+            debugger->setBreakpoint(bp, true);
+    }
     //! Set highlighter
     if (tabs->count() == 0)
         return;
@@ -2740,7 +2773,100 @@ void MainWindow::debug()
     }
     cfg.listing = Common::pathInTemp("program.lst");
     cfg.assembler = assembler;
+    addProjectModules(cfg, currentTab);
+    Q_UNUSED(code)
+    launchDebugger(cfg, currentTab);
+}
 
+//! Asmon: the project's other files are debugged too (module N = module_N.lst).
+void MainWindow::addProjectModules(MiDebugger::Config &cfg, Tab *tab)
+{
+    debugModulePaths = projectModules(tab);
+    if (!debugModulePaths.isEmpty() && debugModulePaths.first().isEmpty())
+        debugModulePaths.clear();
+    for (int i = 0; i < debugModulePaths.size(); ++i)
+        cfg.modules << MiDebugger::Config::Module{ debugModulePaths.at(i),
+                                                   Common::pathInTemp(QString("module_%1.lst").arg(i + 1)) };
+}
+
+int MainWindow::debugFileIndex(Tab *tab) const
+{
+    if (!tab)
+        return -1;
+    if (tab == debugMainTab)
+        return 0;
+    const QString path = tab->getCurrentFilePath();
+    if (path.isEmpty())
+        return -1;
+    const int i = debugModulePaths.indexOf(QFileInfo(path).absoluteFilePath());
+    return i < 0 ? -1 : i + 1;
+}
+
+//! Breakpoints, conditions and "add watch" of a tab that belongs to the
+//! debugged program (the main file or a module). Returns its breakpoint ids.
+QList<int> MainWindow::connectDebugTab(Tab *tab)
+{
+    QList<int> ids;
+    const int index = debugFileIndex(tab);
+    if (!debugger || index < 0 || tab->property("asmonDebugFile").isValid())
+        return ids;
+    tab->setProperty("asmonDebugFile", index);
+    const int base = index * MiDebugger::kModuleLineBase;
+    CodeEditor *code = tab->code;
+    connect(code, &CodeEditor::breakpointsChanged, debugger, [this, base](quint64 line, bool on) {
+        if (debugger)
+            debugger->setBreakpoint(base + int(line), on);
+    });
+    connect(code, &RuQPlainTextEdit::addWatchSignal, debugPanels, &DebugPanels::addWatch);
+    code->setDebugEnabled();
+    for (auto it = code->breakpointConditions().constBegin(); it != code->breakpointConditions().constEnd(); ++it)
+        debugger->setBreakpointCondition(base + it.key(), it.value());
+    for (quint64 l : *(code->getBreakpoints()))
+        ids << base + int(l);
+    return ids;
+}
+
+//! Shows a line id of the debugger (main file or module) and marks it.
+void MainWindow::showDebugLine(int id)
+{
+    const int index = id / MiDebugger::kModuleLineBase;
+    const int line = id % MiDebugger::kModuleLineBase;
+    Tab *target = nullptr;
+    if (index == 0) {
+        target = debugMainTab;
+        if (target)
+            tabs->setCurrentWidget(target);
+    } else if (index - 1 < debugModulePaths.size()) {
+        openFile(debugModulePaths.at(index - 1));
+        target = (Tab *) tabs->currentWidget();
+        if (debugger) {
+            for (int bp : connectDebugTab(target))
+                debugger->setBreakpoint(bp, true);
+        }
+    }
+    if (!target)
+        return;
+    if (debugLineTab && debugLineTab != target)
+        debugLineTab->code->updateDebugLine(0);
+    debugLineTab = target;
+    target->code->updateDebugLine(line);
+}
+
+QString MainWindow::debugLineName(int id) const
+{
+    const int index = id / MiDebugger::kModuleLineBase;
+    const int line = id % MiDebugger::kModuleLineBase;
+    if (index == 0)
+        return tr("line %1").arg(line);
+    return tr("%1, line %2").arg(QFileInfo(debugModulePaths.value(index - 1)).fileName()).arg(line);
+}
+
+//! Shared by Debug (F5) and Attach to process: panels, signals, breakpoints.
+void MainWindow::launchDebugger(const MiDebugger::Config &cfg, Tab *tab)
+{
+    CodeEditor *code = tab->code;
+    debugMainTab = tab;
+    debugLineTab = tab;
     debugger = new MiDebugger(cfg, this);
     connect(debugger, &MiDebugger::stopped, this, &MainWindow::onDebugStopped);
     connect(debugger, &MiDebugger::crashed, this, &MainWindow::onDebugCrashed);
@@ -2754,14 +2880,8 @@ void MainWindow::debug()
         printLog(t, Theme::color(error ? "errorcolor" : "fontcolor"));
     });
     connect(debugger, &MiDebugger::ended, this, &MainWindow::debugExit, Qt::QueuedConnection);
-    connect(code, &CodeEditor::breakpointsChanged, debugger, [this](quint64 line, bool on) {
-        if (debugger)
-            debugger->setBreakpoint(int(line), on);
-    });
-    connect(code, &RuQPlainTextEdit::addWatchSignal, debugPanels, &DebugPanels::addWatch);
     debugPanels->attach(debugger);
 
-    code->setDebugEnabled();
     enableDebugActions();
     showAnyCommandWidget();
     debugConsole->clear();
@@ -2776,12 +2896,64 @@ void MainWindow::debug()
             resizeDocks({ debugDock }, { width() * 40 / 100 }, Qt::Horizontal);
     });
 
-    for (auto it = code->breakpointConditions().constBegin(); it != code->breakpointConditions().constEnd(); ++it)
-        debugger->setBreakpointCondition(it.key(), it.value());
+    //! the main file and every open module of the project
     QList<int> lines;
-    for (quint64 l : *(code->getBreakpoints()))
-        lines << int(l);
+    for (int i = 0; i < tabs->count(); ++i)
+        lines << connectDebugTab((Tab *) tabs->widget(i));
+    Q_UNUSED(code)
     debugger->start(lines);
+}
+
+void MainWindow::attachToProcess()
+{
+    if (debugger) {
+        printLogWithTime(tr("A debugging session is already running.") + '\n', Theme::color("errorcolor"));
+        return;
+    }
+    const QString built = QFileInfo(Common::pathInTemp("AsmonProg.exe")).absoluteFilePath();
+    ProcessPicker picker(built, this);
+    if (picker.exec() != QDialog::Accepted || picker.selectedPid() <= 0)
+        return;
+    if (!tabs || tabs->count() == 0)
+        newFile();
+    //! a module of a project: the program was built from the main file
+    const QString mainPath = projectMainFile((Tab *) tabs->currentWidget());
+    if (!mainPath.isEmpty())
+        openFile(mainPath);
+    Tab *tab = (Tab *) tabs->currentWidget();
+
+    MiDebugger::Config cfg;
+    #ifdef Q_OS_WIN32
+        cfg.gdb = Common::applicationDataPath()
+            + (settings.value("mode", QString("x64")).toString() == "x86" ? "/MinGW/bin/gdb.exe"
+                                                                           : "/MinGW64/bin/gdb.exe");
+        cfg.windows = true;
+    #else
+        cfg.gdb = "gdb";
+        cfg.windows = false;
+    #endif
+    cfg.attachPid = picker.selectedPid();
+    cfg.executable = picker.selectedPath();
+    cfg.workingDir = picker.selectedPath().isEmpty() ? QDir::homePath()
+                                                     : QFileInfo(picker.selectedPath()).absolutePath();
+    //! the program built from this tab: lines, breakpoints and steps work too
+    const bool ours = programIsBuilded
+        && QFileInfo(picker.selectedPath()).absoluteFilePath() == built;
+    debugModulePaths.clear();
+    if (ours) {
+        cfg.listing = Common::pathInTemp("program.lst");
+        cfg.assembler = assembler;
+        addProjectModules(cfg, tab);
+    }
+    printLogWithTime(tr("Attaching to process %1 (%2)...").arg(picker.selectedPid())
+                         .arg(QDir::toNativeSeparators(picker.selectedPath())) + '\n',
+                     Theme::color("successcolor"));
+    if (!ours)
+        printLog(tr("This is not the program built from the open file: debugging by instructions "
+                    "(Disassembly, registers, memory), without source lines.") + '\n',
+                 Theme::color("fontcolor"));
+    tab->clearOutput();
+    launchDebugger(cfg, tab);
 }
 
 void MainWindow::onDebugStopped(quint64 pc, int line)
@@ -2790,11 +2962,11 @@ void MainWindow::onDebugStopped(quint64 pc, int line)
     if (!debugger)
         return;
     changeDebugActionToStart();
-    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
     if (line > 0) {
-        code->updateDebugLine(line);
+        showDebugLine(line);
     } else {
-        code->updateDebugLine(-2);
+        if (debugLineTab)
+            debugLineTab->code->updateDebugLine(-2);
         printLogWithTime(tr("Stopped outside your code at 0x%1 (see Disassembly).").arg(pc, 0, 16) + '\n',
                          Theme::color("fontcolor"));
         debugPanels->showTab(DebugPanels::DisassemblyTab);
@@ -2804,10 +2976,9 @@ void MainWindow::onDebugStopped(quint64 pc, int line)
 void MainWindow::onDebugCrashed(const QString &signal, const QString &meaning, quint64 pc, int line)
 {
     changeDebugActionToStart();
-    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
     if (line > 0)
-        code->updateDebugLine(line);
-    const QString where = line > 0 ? tr("line %1").arg(line) : QString("0x%1").arg(pc, 0, 16);
+        showDebugLine(line);
+    const QString where = line > 0 ? debugLineName(line) : QString("0x%1").arg(pc, 0, 16);
     printLogWithTime(tr("The program crashed: %1 (%2) at %3. Registers and memory show the state at the crash; "
                         "Stop ends the session.").arg(signal, meaning, where) + '\n',
                      Theme::color("errorcolor"));
@@ -2827,8 +2998,8 @@ void MainWindow::onDebugRunning()
     debugAction->setIcon(Theme::icon("pause"));
     debugAction->setProperty("asmonIcon", "pause");
     //! F5 stays active while running: it pauses the program.
-    if (tabs && tabs->count() > 0)
-        ((Tab *) tabs->currentWidget())->code->updateDebugLine(-2);
+    if (debugLineTab)
+        debugLineTab->code->updateDebugLine(-2);
 }
 
 void MainWindow::changeDebugActionToStart()
@@ -2961,15 +3132,24 @@ void MainWindow::debugExit()
     d->stop();
     d->deleteLater();
     debugPanels->attach(nullptr);
-    if (tabs && tabs->count() > 0) {
-        CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
-        code->disconnect(debugPanels);
-        code->setDebugDisabled();
+    for (int i = 0; tabs && i < tabs->count(); ++i) {
+        Tab *t = (Tab *) tabs->widget(i);
+        if (!t->property("asmonDebugFile").isValid() && t != debugLineTab)
+            continue;
+        t->setProperty("asmonDebugFile", QVariant());
+        t->code->disconnect(debugPanels);
+        t->code->updateDebugLine(-1);
+        t->code->setDebugDisabled();
     }
+    debugMainTab = nullptr;
+    debugLineTab = nullptr;
     closeAnyCommandWidget();
     debugDock->hide();
     printLogWithTime(tr("Debugging finished.") + '\n', Theme::color("successcolor"));
     disableDebugActions();
+    //! attached to a program started with Run: it keeps running, so Stop stays usable
+    if (timer->isActive())
+        stopAction->setEnabled(true);
 }
 
 void MainWindow::showAnyCommandWidget()

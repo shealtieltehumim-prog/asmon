@@ -299,6 +299,54 @@ jobs:
           if ($p.HasExited) { throw "asmon.exe crashed during the test" }
           Stop-Process -Id $p.Id -Force
           Get-ChildItem shots
+      - name: GUI test (attach to a running program; debugging a two-file project)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          $ws = New-Object -ComObject WScript.Shell
+          # 1) run a program that never ends, attach to it, step, detach (Stop)
+          Copy-Item tests\attach\spin.asm "$env:RUNNER_TEMP\spin.asm"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\spin.asm" -PassThru
+          Start-Sleep 15
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          $ws.SendKeys("{F9}"); Start-Sleep 15
+          $ws.SendKeys("^+p"); Start-Sleep 2
+          $ws.SendKeys("Attach"); Start-Sleep 1
+          $ws.SendKeys("{ENTER}"); Start-Sleep 4
+          Shot "5-attach-picker"
+          $ws.SendKeys("{ENTER}"); Start-Sleep 20
+          Shot "6-attached"
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          Shot "7-attached-step"
+          $ws.SendKeys("+{F5}"); Start-Sleep 8
+          $prog = Get-Process AsmonProg -ErrorAction SilentlyContinue
+          if (-not $prog) { throw "the program did not keep running after detaching" }
+          Shot "8-detached"
+          if ($p.HasExited) { throw "asmon.exe crashed during the attach test" }
+          Stop-Process -Id $p.Id -Force
+          $prog | Stop-Process -Force
+          # 2) a project of two files: F11 on "call square" opens util.asm
+          Copy-Item -Recurse tests\project "$env:RUNNER_TEMP\project"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "$env:RUNNER_TEMP\project\main.asm" -PassThru
+          Start-Sleep 15
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          $ws.SendKeys("{F5}"); Start-Sleep 20
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          $ws.SendKeys("{F10}"); Start-Sleep 4
+          $ws.SendKeys("{F11}"); Start-Sleep 6
+          Shot "9-module-step-into"
+          $ws.SendKeys("+{F11}"); Start-Sleep 6
+          Shot "10-module-step-out"
+          if ($p.HasExited) { throw "asmon.exe crashed during the project test" }
+          Stop-Process -Id $p.Id -Force
+          Get-ChildItem shots
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -49,6 +49,8 @@ public:
     static QString decodeFlags(quint64 eflags);
     //! name of the function a code line belongs to (for the call stack)
     std::function<QString(int line)> labelForLine;
+    //! how a line id is shown (a module's lines include its file name)
+    std::function<QString(int line)> lineName;
 
 signals:
     void goToLine(int line);

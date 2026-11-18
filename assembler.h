@@ -128,6 +128,18 @@ public:
                               quint64 offset) = 0;
 
     /*!
+     * \brief Asmon: like parseLstFile(), for another module of a project:
+     * lines are matched against \a sourcePath instead of program.asm.
+     * Returns false when the assembler does not support it.
+     */
+    virtual bool parseModuleLstFile(QFile &lst, QVector<Assembler::LineNum> &lines,
+                                    quint64 offset, const QString &sourcePath)
+    {
+        Q_UNUSED(lst) Q_UNUSED(lines) Q_UNUSED(offset) Q_UNUSED(sourcePath)
+        return false;
+    }
+
+    /*!
      * \brief Sets highlighting for assembly listing
      * \param highlightingRules highlighting rules to fill
      * \param formats formats for different types of highlighted expressions

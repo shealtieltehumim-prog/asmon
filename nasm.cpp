@@ -96,6 +96,12 @@ quint64 NASM::getMainOffset(QFile &lst, QString entryLabel)
 
 void NASM::parseLstFile(QFile &lst, QVector<Assembler::LineNum> &lines, quint64 offset)
 {
+    parseModuleLstFile(lst, lines, offset, Common::pathInTemp("program.asm"));
+}
+
+bool NASM::parseModuleLstFile(QFile &lst, QVector<Assembler::LineNum> &lines,
+                              quint64 offset, const QString &sourcePath)
+{
     bool inTextSection = false;
     //! Use word boundaries \\b to prevent matching substrings of labels
     //! (e.g. "segmention" contains "segment" which would falsely trigger section detection)
@@ -134,8 +140,9 @@ void NASM::parseLstFile(QFile &lst, QVector<Assembler::LineNum> &lines, quint64 
         }
     }
 
-    QFile programFile(Common::pathInTemp("program.asm"));
-    programFile.open(QFile::ReadOnly);
+    QFile programFile(sourcePath);
+    if (!programFile.open(QFile::ReadOnly))
+        return false;
     QTextStream programStream(&programFile);
     //! Offset in list
     int i = 0;
@@ -156,6 +163,7 @@ void NASM::parseLstFile(QFile &lst, QVector<Assembler::LineNum> &lines, quint64 
         }
     }
     programFile.close();
+    return true;
 }
 
 QString NASM::getStartText()

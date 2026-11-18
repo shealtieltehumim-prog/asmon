@@ -69,7 +69,10 @@ void MiDebugger::start(const QList<int> &breakpointLines)
         env.insert("PYTHONHOME", QDir::toNativeSeparators(gdbPrefix.absolutePath()));
         gdb->setProcessEnvironment(env);
     }
-    gdb->start(cfg.gdb, QStringList(cfg.gdbPrefixArgs) << "--interpreter=mi3" << "-nx" << "-q" << cfg.executable);
+    QStringList gdbArgs = QStringList(cfg.gdbPrefixArgs) << "--interpreter=mi3" << "-nx" << "-q";
+    if (!cfg.executable.isEmpty())
+        gdbArgs << cfg.executable;
+    gdb->start(cfg.gdb, gdbArgs);
     if (!gdb->waitForStarted(10000)) {
 #ifdef Q_OS_WIN32
         emit log(tr("Could not start gdb (%1).").arg(cfg.gdb) + '\n', true);
@@ -90,6 +93,22 @@ void MiDebugger::start(const QList<int> &breakpointLines)
     command("-gdb-set disassembly-flavor intel", ignore);
     command("-gdb-set mi-async on", ignore); // lets -exec-interrupt work while running
     command("-environment-cd " + GdbMi::quote(cfg.workingDir), ignore);
+    if (cfg.attachPid > 0) {
+        //! a running process: gdb stops it where it is
+        command(QString("-target-attach %1").arg(cfg.attachPid), [this](const MiRecord &r) {
+            if (r.cls == "error") {
+                QString msg = r.results.get("msg");
+#ifndef Q_OS_WIN32
+                if (msg.contains("ptrace", Qt::CaseInsensitive) || msg.contains("not permitted", Qt::CaseInsensitive))
+                    msg += "\n" + tr("Linux allows attaching only to child processes by default. To allow it until "
+                                     "the next reboot: sudo sysctl kernel.yama.ptrace_scope=0");
+#endif
+                emit log(tr("Could not attach: %1").arg(msg) + '\n', true);
+                stop();
+            }
+        });
+        return;
+    }
     if (cfg.windows) {
         command("-gdb-set new-console off", ignore);
     } else if (!cfg.inputFile.isEmpty()) {
@@ -114,6 +133,23 @@ void MiDebugger::stop()
 {
     if (!gdb || gdb->state() == QProcess::NotRunning) {
         endSession();
+        return;
+    }
+    if (cfg.attachPid > 0 && state != Ended && state != Off) {
+        //! attached: leave the process running (detach), do not kill it
+        const bool wasRunning = state == Running;
+        if (wasRunning)
+            pause();
+        QTimer::singleShot(wasRunning ? 600 : 0, this, [this]() {
+            if (gdb && gdb->state() == QProcess::Running) {
+                gdb->write("-target-detach\n");
+                gdb->write("-gdb-exit\n");
+            }
+        });
+        QTimer::singleShot(3000, this, [this]() {
+            if (gdb && gdb->state() != QProcess::NotRunning)
+                gdb->kill();
+        });
         return;
     }
     if (state == Running)
@@ -272,6 +308,26 @@ void MiDebugger::handleStopped(const MiValue &res)
         return;
     }
 
+    if (firstStop && cfg.attachPid > 0) {
+        //! attached: map the listing from where main is (if the program has it)
+        firstStop = false;
+        if (cfg.windows) {
+            //! Windows stops an attached process in a thread it injects for
+            //! that (DebugActiveProcess): show the program's main thread.
+            command("-thread-select 1", [this](const MiRecord &r) {
+                if (r.cls == "done") {
+                    const quint64 a = parseAddress(r.results["frame"].get("addr"));
+                    if (a)
+                        pc = a;
+                }
+            });
+        }
+        command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)&main"), [this](const MiRecord &r) {
+            const quint64 mainAddress = r.cls == "done" ? r.results.get("value").toULongLong() : 0;
+            setupAfterFirstStop(mainAddress);
+        });
+        return;
+    }
     const QString signal = res.get("signal-name");
     if (stepPhase == PhaseRunToLine && (reason == "signal-received" || pauseRequested))
         command("-break-disable " + lineBreakpoints.join(' '));
@@ -344,6 +400,102 @@ void MiDebugger::setupAfterFirstStop(quint64 mainAddress)
             }
         }
     }
+    mapModule(0, mainAddress);
+}
+
+//! Asmon: the project's other files. Each module's listing starts at 0, so
+//! its offset comes from a label in it: listing address vs. gdb's &label.
+void MiDebugger::mapModule(int index, quint64 mainAddress)
+{
+    if (index >= cfg.modules.size() || !cfg.assembler) {
+        finishSetup(mainAddress);
+        return;
+    }
+    const Config::Module m = cfg.modules.at(index);
+    const QString name = QFileInfo(m.source).fileName();
+    QVector<Assembler::LineNum> lines;
+    QFile lst(m.listing);
+    if (!lst.open(QIODevice::ReadOnly)
+            || !cfg.assembler->parseModuleLstFile(lst, lines, 0, m.source) || lines.isEmpty()) {
+        emit log(tr("%1: no line information (debugging it by instructions only).").arg(name) + '\n', true);
+        mapModule(index + 1, mainAddress);
+        return;
+    }
+    QFile src(m.source);
+    QStringList text;
+    if (src.open(QIODevice::ReadOnly))
+        text = QString::fromUtf8(src.readAll()).split('\n');
+    //! labels in code followed by a mapped line (no section switch between):
+    //! global ones first, they are unique in the program
+    static const QRegularExpression labelRe("^\\s*([A-Za-z_?$][\\w$?@#~]*)\\s*:");
+    static const QRegularExpression globalRe("^\\s*global\\s+(.+)$", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression sectionRe("^\\s*\\[?\\s*(section|segment)\\b", QRegularExpression::CaseInsensitiveOption);
+    QSet<QString> globals;
+    for (const QString &l : text) {
+        const QRegularExpressionMatch g = globalRe.match(l.section(';', 0, 0));
+        if (g.hasMatch())
+            for (QString n : g.captured(1).split(','))
+                globals.insert(n.trimmed().section(':', 0, 0).trimmed());
+    }
+    QVector<QPair<QString, quint64>> globalCandidates, otherCandidates;
+    for (int i = 0; i < text.size(); ++i) {
+        const QRegularExpressionMatch lm = labelRe.match(text.at(i));
+        if (!lm.hasMatch())
+            continue;
+        const int sourceLine = i + 1;
+        const Assembler::LineNum *first = nullptr;
+        for (const Assembler::LineNum &ln : lines)
+            if (int(ln.numInCode) >= sourceLine) { first = &ln; break; }
+        if (!first)
+            continue;
+        bool sectionBetween = false;
+        for (int k = sourceLine; k < int(first->numInCode) - 1 && k < text.size(); ++k)
+            if (sectionRe.match(text.at(k)).hasMatch()) { sectionBetween = true; break; }
+        if (sectionBetween)
+            continue;
+        const QString label = lm.captured(1);
+        (globals.contains(label) ? globalCandidates : otherCandidates) << qMakePair(label, first->numInMem);
+    }
+    QVector<QPair<QString, quint64>> candidates = globalCandidates + otherCandidates;
+    if (candidates.size() > 6)
+        candidates.resize(6);
+    tryModuleLabel(index, candidates, 0, lines, mainAddress);
+}
+
+void MiDebugger::tryModuleLabel(int index, QVector<QPair<QString, quint64>> candidates, int at,
+                                QVector<Assembler::LineNum> lines, quint64 mainAddress)
+{
+    if (at >= candidates.size()) {
+        emit log(tr("%1: could not find its code in the program (debugging it by instructions only).")
+                     .arg(QFileInfo(cfg.modules.at(index).source).fileName()) + '\n', true);
+        mapModule(index + 1, mainAddress);
+        return;
+    }
+    const QString label = candidates.at(at).first;
+    const quint64 inListing = candidates.at(at).second;
+    command("-data-evaluate-expression " + GdbMi::quote(QString("(unsigned long long)&%1").arg(label)),
+            [=](const MiRecord &r) {
+        const quint64 runtime = r.cls == "done" ? r.results.get("value").section(' ', 0, 0).toULongLong(nullptr, 0) : 0;
+        if (!runtime) {
+            tryModuleLabel(index, candidates, at + 1, lines, mainAddress);
+            return;
+        }
+        const quint64 offset = runtime - inListing;
+        const int base = (index + 1) * kModuleLineBase;
+        for (const Assembler::LineNum &l : lines) {
+            const quint64 a = l.numInMem + offset;
+            const int line = base + int(l.numInCode);
+            if (!lineOfAddress.contains(a))
+                lineOfAddress.insert(a, line);
+            if (!addressOfLine.contains(line))
+                addressOfLine.insert(line, a);
+        }
+        mapModule(index + 1, mainAddress);
+    });
+}
+
+void MiDebugger::finishSetup(quint64 mainAddress)
+{
     if (lineOfAddress.isEmpty()) {
         emit log(tr("Could not match the listing to the program: stepping by line is not available, "
                     "single instructions still work.") + '\n', true);

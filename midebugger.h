@@ -38,8 +38,14 @@ public:
         QString listing;      //!< assembler listing (.lst)
         bool windows = false; //!< target is a Windows program
         QStringList gdbPrefixArgs; //!< e.g. WSL: gdb = "wsl.exe", prefix = --cd dir --exec gdb
+        qint64 attachPid = 0;      //!< attach to this running process instead of starting one
         Assembler *assembler = nullptr;
+        //! the project's other files: module N (from 1) has line ids N * kModuleLineBase + line
+        struct Module { QString source; QString listing; };
+        QList<Module> modules;
     };
+    //! Line ids: the main file's lines are 1.., module N's are N * kModuleLineBase + line.
+    static constexpr int kModuleLineBase = 10000000;
     using Callback = std::function<void(const MiRecord &)>;
 
     explicit MiDebugger(const Config &config, QObject *parent = nullptr);
@@ -48,6 +54,7 @@ public:
     void start(const QList<int> &breakpointLines);
     bool isActive() const { return state != Off && state != Ended; }
     bool isStopped() const { return state == Stopped; }
+    bool isAttached() const { return cfg.attachPid > 0; }
 
     // execution control
     void continueRun();
@@ -106,6 +113,10 @@ private:
     void handleRecord(const MiRecord &r);
     void handleStopped(const MiValue &res);
     void setupAfterFirstStop(quint64 mainAddress);
+    void mapModule(int index, quint64 mainAddress);
+    void tryModuleLabel(int index, QVector<QPair<QString, quint64>> candidates, int at,
+                        QVector<Assembler::LineNum> lines, quint64 mainAddress);
+    void finishSetup(quint64 mainAddress);
     void beginStep(StepMode mode);
     void instructionAt(quint64 address, std::function<void(const QString &, quint64)> cb);
     void runToNextLine();

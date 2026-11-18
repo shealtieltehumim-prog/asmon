@@ -60,6 +60,8 @@ public:
     QString getAssemblerPath();
     quint64 getMainOffset(QFile &lst, QString entryLabel);
     void parseLstFile(QFile &lst, QVector<Assembler::LineNum> &lines, quint64 offset);
+    bool parseModuleLstFile(QFile &lst, QVector<Assembler::LineNum> &lines,
+                            quint64 offset, const QString &sourcePath);
     void fillHighligherRules(QVector<Assembler::HighlightingRule> &highlightingRules,
                              QList<QTextCharFormat *> &formats,
                              bool &multiLineComments,

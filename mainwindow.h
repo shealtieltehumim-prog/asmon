@@ -183,6 +183,9 @@ private:
     QTimer *timer;
     QElapsedTimer programExecutionTime;
     MiDebugger *debugger;
+    QPointer<Tab> debugMainTab;   //!< the file the program was built from
+    QPointer<Tab> debugLineTab;   //!< where the current-line arrow is
+    QStringList debugModulePaths; //!< project modules: line ids index - 1
     DebugPanels *debugPanels;
     QDockWidget *debugDock;
     QAction *debugStepOutAction;
@@ -287,6 +290,13 @@ public slots:
     void goToSymbol();
     void goToLine();
     void editBreakpointCondition();
+    void attachToProcess();
+    void launchDebugger(const MiDebugger::Config &cfg, Tab *tab);
+    void addProjectModules(MiDebugger::Config &cfg, Tab *tab);
+    int debugFileIndex(Tab *tab) const;
+    QList<int> connectDebugTab(Tab *tab);
+    void showDebugLine(int id);
+    QString debugLineName(int id) const;
     void findInFiles();
     void addRecentFile(const QString &path);
     void refreshRecentFiles();

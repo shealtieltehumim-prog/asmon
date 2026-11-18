@@ -62,7 +62,9 @@ BuildResult build(const QString &nasm, const QString &lld, const QString &source
         QFile::remove(obj);
         QStringList args;
         args << "-I" << QDir::toNativeSeparators(QFileInfo(modules[i]).absolutePath() + "/")
-             << "-f" << "elf64" << "-g" << "-F" << "dwarf" << modules[i] << "-o" << obj;
+             << "-f" << "elf64" << "-g" << "-F" << "dwarf" << modules[i]
+             << "-l" << QFileInfo(object).absolutePath() + QString("/module_%1.lst").arg(i + 1)
+             << "-o" << obj;
         r.log += runTool(nasm, args, includeDir, &started);
         if (!QFileInfo::exists(obj))
             return r;

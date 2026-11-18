@@ -1,5 +1,22 @@
 #include <stdio.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#ifndef PR_SET_PTRACER
+#define PR_SET_PTRACER 0x59616d61
+#endif
+#ifndef PR_SET_PTRACER_ANY
+#define PR_SET_PTRACER_ANY ((unsigned long)-1)
+#endif
+// Asmon: "Debug > Attach to process" can attach to this program also where
+// Yama's ptrace_scope is 1 (Ubuntu's default: only a parent may debug).
+// Only programs built in Asmon get this.
+__attribute__((constructor)) static void asmon_allow_attach(void)
+{
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
+}
+#endif
+
 FILE *get_stdin(void) { return stdin; }
 FILE *get_stdout(void) { return stdout; }
 

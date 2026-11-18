@@ -587,7 +587,8 @@ void DebugPanels::refreshCalls()
             callsTable->setItem(i, 0, readOnlyItem(QString::number(i)));
             callsTable->setItem(i, 1, readOnlyItem(name.isEmpty()
                 ? QString("0x%1").arg(f.address, 0, 16) : name));
-            auto *lineItem = readOnlyItem(f.line > 0 ? QString::number(f.line) : tr("outside your code"));
+            auto *lineItem = readOnlyItem(f.line > 0 ? (lineName ? lineName(f.line) : QString::number(f.line))
+                                                      : tr("outside your code"));
             lineItem->setData(Qt::UserRole, f.line);
             callsTable->setItem(i, 2, lineItem);
         }

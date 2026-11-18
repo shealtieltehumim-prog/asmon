@@ -69,6 +69,7 @@ SOURCES += main.cpp\
     terminalwidget.cpp \
     symbols.cpp \
     searchpanel.cpp \
+    processpicker.cpp \
     retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
@@ -101,6 +102,7 @@ HEADERS  += mainwindow.h \
     terminalwidget.h \
     symbols.h \
     searchpanel.h \
+    processpicker.h \
     retools.h \
     debugpanels.h \
     midebugger.h \
