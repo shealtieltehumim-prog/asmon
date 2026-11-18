@@ -291,7 +291,8 @@ jobs:
             )) {
             $exe = Join-Path $PWD $t[0]
             if (-not (Test-Path $exe)) { $bad += "$($t[0]): missing"; continue }
-            try { $o = & $exe $t[1] 2>&1 | Select-Object -First 1; $code = $LASTEXITCODE } catch { $o = "$_"; $code = -1 }
+            $a = @(); if ($t[1]) { $a += $t[1] }; if ($t[0] -like '*gdb.exe') { $a = @('-nx') + $a }   # Asmon starts gdb with -nx
+            try { $o = (& $exe @a 2>&1 | Out-String).Trim().Split("`n")[0]; $code = $LASTEXITCODE } catch { $o = "$_"; $code = -1 }
             # fasm without arguments prints its usage and exits with 1: that still proves it started
             $ok = ($code -eq 0) -or ($t[0] -like '*fasm.exe' -and $o -match 'flat assembler')
             Write-Host ("{0,-40} exit {1,-12} {2}" -f $t[0], $code, $o)
@@ -299,9 +300,10 @@ jobs:
           }
           # a full build and run, outside the MSYS2 shell
           $w = Join-Path $env:RUNNER_TEMP 'cleanbuild'; New-Item -ItemType Directory -Force $w | Out-Null
-          & "$PWD\dist\NASM\nasm.exe" -I "$PWD\dist\include\" -f win64 "$PWD\templates\hello_win64.asm" -o "$w\a.o"
+          & "$PWD\dist\NASM\nasm.exe" -w-implicit-abs-deprecated -I "$PWD\dist\include\" -f win64 "$PWD\templates\hello_win64.asm" -o "$w\a.o"
           if ($LASTEXITCODE -ne 0) { $bad += "nasm build exit $LASTEXITCODE" }
-          & "$PWD\dist\MinGW64\bin\gcc.exe" "$w\a.o" "$PWD\dist\NASM\macro64.o" -o "$w\a.exe" -m64
+          # same link flags as Asmon's default (gccbasedassembler.cpp)
+          & "$PWD\dist\MinGW64\bin\gcc.exe" "$w\a.o" "$PWD\dist\NASM\macro64.o" -o "$w\a.exe" -m64 -Wl,--image-base,0x400000 -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va
           if ($LASTEXITCODE -ne 0) { $bad += "gcc link exit $LASTEXITCODE" }
           $out = & "$w\a.exe" 2>&1 | Out-String
           if ($out -notmatch 'Hello, world!') { $bad += "hello output: $out" }
