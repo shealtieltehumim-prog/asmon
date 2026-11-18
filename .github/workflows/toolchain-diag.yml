@@ -20,6 +20,9 @@ jobs:
       - name: Run each tool with a clean PATH
         shell: pwsh
         run: |
+          Write-Host "=== where is nasm?"
+          Get-ChildItem C:\MinGW64 -Recurse -Include nasm*,ndisasm* -ErrorAction SilentlyContinue | ForEach-Object { "$($_.FullName)  $($_.Length)" }
+          Get-ChildItem C:\MinGW64\bin -Filter "*.exe" | Where-Object Name -match '^n' | ForEach-Object Name
           $objdump = "C:\MinGW64\bin\objdump.exe"
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           foreach ($t in 'nasm','gcc','as','ld','gdb','objdump') {
