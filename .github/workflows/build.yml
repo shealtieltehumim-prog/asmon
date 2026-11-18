@@ -443,7 +443,17 @@ jobs:
           function Get-Asset($repo, $pattern) {
             $rel = gh release view -R $repo --json tagName,assets | ConvertFrom-Json
             $a = $rel.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
-            if (-not $a) { throw "No asset matching $pattern in $repo $($rel.tagName)" }
+            if (-not $a) {
+              # the newest release can ship without this file (Temurin's jdk-21.0.13.1+2 had no Windows zip):
+              # take the newest stable release that does have it
+              Write-Host "$repo $($rel.tagName) has no asset matching $pattern; looking at earlier releases"
+              foreach ($r in (gh api "repos/$repo/releases?per_page=15" | ConvertFrom-Json)) {
+                if ($r.draft -or $r.prerelease) { continue }
+                $a = $r.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
+                if ($a) { $rel = [pscustomobject]@{ tagName = $r.tag_name }; break }
+              }
+            }
+            if (-not $a) { throw "No asset matching $pattern in $repo $($rel.tagName) or in its 15 latest releases" }
             Write-Host "$repo $($rel.tagName): $($a.name) ($([math]::Round($a.size/1MB)) MB)"
             "$repo $($rel.tagName): $($a.name)" | Out-File -Append -Encoding utf8 tools\VERSIONS-re.txt
             gh release download $rel.tagName -R $repo -p $a.name -D dl --clobber
