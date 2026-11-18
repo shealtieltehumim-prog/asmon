@@ -264,6 +264,8 @@ void apply(QApplication &app)
     p.setColor(QPalette::Highlight, QColor(c.selection));
     p.setColor(QPalette::HighlightedText, QColor(c.selectionText));
     p.setColor(QPalette::Mid, QColor(c.border));
+    p.setColor(QPalette::Light, QColor(c.border));    // Fusion draws tab-bar bases and frames with Light (white by default)
+    p.setColor(QPalette::Midlight, QColor(c.border));
     p.setColor(QPalette::Dark, QColor(c.border));
     p.setColor(QPalette::Disabled, QPalette::Text, QColor(c.muted));
     p.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(c.muted));
@@ -286,8 +288,8 @@ QToolBar::separator { width: 1px; background: %4; margin: 6px 4px; }
 QToolButton { background: %13; border: 1px solid %4; border-radius: 8px; padding: 4px; margin: 2px 1px; }
 QToolButton:hover { background: %8; border: 1px solid %7; }
 QToolButton:pressed, QToolButton:checked { background: %4; }
-QTabWidget::pane { border: none; border-top: 1px solid %4; background: %2; }
-QTabBar { background: %2; }
+QTabWidget::pane { border: none; border-top: 1px solid %4; background: transparent; }
+QTabBar { background: transparent; }
 QTabBar::tab { background: %13; color: %6; padding: 6px 14px; margin: 4px 2px; border: 1px solid %4;
                border-radius: 8px; min-height: 18px; }
 QTabBar::tab:selected { background: %9; color: #ffffff; border: 1px solid %7; }

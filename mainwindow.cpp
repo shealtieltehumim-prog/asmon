@@ -3503,9 +3503,9 @@ void MainWindow::openSettings()
         }
         settingsPage = new QWidget;
         QHBoxLayout *pageLayout = new QHBoxLayout(settingsPage);
-        pageLayout->setContentsMargins(24, 16, 24, 16);
+        pageLayout->setContentsMargins(16, 8, 16, 12);
         pageLayout->addStretch(1);
-        pageLayout->addWidget(settingsWindow, 100);
+        pageLayout->addWidget(new CardFrame(settingsWindow), 100); // the whole page is one rounded card
         pageLayout->addStretch(1);
         mainWidget->addWidget(settingsPage);
         auto *escape = new QShortcut(QKeySequence(Qt::Key_Escape), settingsPage);
