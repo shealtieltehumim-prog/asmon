@@ -78,6 +78,7 @@
 #include "buildoutputview.h"
 #include "linuxtarget.h"
 #include "midebugger.h"
+#include "nativedebugger.h"
 #include "debugpanels.h"
 #include "retools.h"
 #include "modebar.h"

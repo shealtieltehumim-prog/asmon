@@ -3047,7 +3047,18 @@ void MainWindow::launchDebugger(const DebugBackend::Config &cfg, Tab *tab)
     CodeEditor *code = tab->code;
     debugMainTab = tab;
     debugLineTab = tab;
-    debugger = new MiDebugger(cfg, this);
+    //! Native Windows programs (64-bit) are debugged by Asmon's own engine; gdb stays for everything
+    //! else, and can be chosen for everything with the setting "debugengine" = gdb (or the
+    //! environment variable ASMON_DEBUG_ENGINE).
+    debugger = nullptr;
+#ifdef Q_OS_WIN
+    const QString engine = qEnvironmentVariable("ASMON_DEBUG_ENGINE", settings.value("debugengine", "native").toString());
+    if (engine != "gdb" && NativeDebugger::canDebug(cfg))
+        debugger = new NativeDebugger(cfg, this);
+#endif
+    if (!debugger)
+        debugger = new MiDebugger(cfg, this);
+    printLog(tr("Debugger: %1").arg(debugger->engineName()) + '\n', Theme::color("fontcolor"));
     connect(debugger, &DebugBackend::stopped, this, &MainWindow::onDebugStopped);
     connect(debugger, &DebugBackend::crashed, this, &MainWindow::onDebugCrashed);
     connect(debugger, &DebugBackend::finished, this, &MainWindow::onDebugFinished);
@@ -3063,7 +3074,10 @@ void MainWindow::launchDebugger(const DebugBackend::Config &cfg, Tab *tab)
     debugPanels->attach(debugger);
 
     enableDebugActions();
-    showAnyCommandWidget();
+    if (debugger->hasConsole())
+        showAnyCommandWidget();
+    else
+        closeAnyCommandWidget();
     debugConsole->clear();
     syncBottomPanelWithTab();
     showBottomPage(outputStack);

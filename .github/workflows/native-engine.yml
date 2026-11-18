@@ -1,0 +1,58 @@
+name: native-engine
+
+# Quick check (a few minutes) of the native Windows debug engine on real programs:
+# stepping, lines, breakpoints, conditions, memory write stops, crash, pause, kill, attach.
+# The full build.yml also builds the program; this one runs after a change in native/.
+on:
+  push:
+    paths:
+      - 'native/**'
+      - 'third_party/zydis/**'
+      - '.github/workflows/native-engine.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+      - 'third_party/zydis/**'
+  workflow_dispatch:
+
+jobs:
+  harness:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-nasm
+      - name: Build Zydis, the engine, the harness and the test programs
+        run: |
+          set -e
+          mkdir -p out/z
+          Z=third_party/zydis
+          FLAGS="-DZYDIS_STATIC_BUILD -DZYCORE_STATIC_BUILD -DZYDIS_DISABLE_ENCODER -I$Z/include -I$Z/zycore/include -I$Z/src"
+          for f in $Z/src/*.c $Z/zycore/src/*.c; do
+            case $f in *zycore*) p=zycore_;; *) p=zydis_;; esac
+            gcc -O2 $FLAGS -c "$f" -o "out/z/$p$(basename "$f" .c).o"
+          done
+          g++ -std=c++17 -O1 -Wall -Wextra $FLAGS -Inative native/tests/debuggee_harness.cpp \
+            native/engine.cpp native/debuggee.cpp native/pe.cpp native/disasm.cpp native/regs.cpp native/expr.cpp \
+            out/z/*.o -o out/harness.exe
+          g++ -std=c++17 -O1 $FLAGS -Inative native/tests/disasm_test.cpp native/disasm.cpp out/z/*.o -o out/disasm_test.exe
+          g++ -std=c++17 -O1 native/tests/expr_test.cpp native/expr.cpp native/regs.cpp -o out/expr_test.exe
+          for n in engine_test crash_test loop_test; do
+            nasm -f win64 -l out/$n.lst -o out/$n.o native/tests/programs/$n.asm
+            gcc -o out/$n.exe out/$n.o
+          done
+      - name: Unit tests (disassembler, expressions)
+        run: |
+          ./out/disasm_test.exe
+          ./out/expr_test.exe
+      - name: Debug engine on real programs
+        run: |
+          ./out/harness.exe "$(cygpath -w "$PWD/out")"

@@ -82,6 +82,14 @@ SOURCES += main.cpp\
     retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
+    linemap.cpp \
+    nativedebugger.cpp \
+    native/pe.cpp \
+    native/disasm.cpp \
+    native/regs.cpp \
+    native/expr.cpp \
+    native/engine.cpp \
+    native/debuggee.cpp \
     gdbmi.cpp \
     linuxtarget.cpp \
     buildoutputview.cpp \
@@ -118,6 +126,8 @@ HEADERS  += mainwindow.h \
     retools.h \
     debugpanels.h \
     debugbackend.h \
+    linemap.h \
+    nativedebugger.h \
     midebugger.h \
     gdbmi.h \
     linuxtarget.h \
@@ -166,3 +176,33 @@ TRANSLATIONS    += language_ru.ts \
                    language_fr.ts \
                    language_pt_BR.ts \
                    language_ja.ts
+
+# Zydis (MIT, third_party/zydis): the disassembler of the native debugger and the reverse-engineering view
+CONFIG += object_parallel_to_source
+DEFINES += ZYDIS_STATIC_BUILD ZYCORE_STATIC_BUILD ZYDIS_DISABLE_ENCODER
+INCLUDEPATH += $$PWD/third_party/zydis/include $$PWD/third_party/zydis/zycore/include $$PWD/third_party/zydis/src
+SOURCES += \
+    third_party/zydis/src/Decoder.c \
+    third_party/zydis/src/DecoderData.c \
+    third_party/zydis/src/Disassembler.c \
+    third_party/zydis/src/Formatter.c \
+    third_party/zydis/src/FormatterATT.c \
+    third_party/zydis/src/FormatterBase.c \
+    third_party/zydis/src/FormatterBuffer.c \
+    third_party/zydis/src/FormatterIntel.c \
+    third_party/zydis/src/MetaInfo.c \
+    third_party/zydis/src/Mnemonic.c \
+    third_party/zydis/src/Register.c \
+    third_party/zydis/src/Segment.c \
+    third_party/zydis/src/SharedData.c \
+    third_party/zydis/src/String.c \
+    third_party/zydis/src/Utils.c \
+    third_party/zydis/src/Zydis.c \
+    third_party/zydis/zycore/src/Allocator.c \
+    third_party/zydis/zycore/src/ArgParse.c \
+    third_party/zydis/zycore/src/Bitset.c \
+    third_party/zydis/zycore/src/Format.c \
+    third_party/zydis/zycore/src/List.c \
+    third_party/zydis/zycore/src/String.c \
+    third_party/zydis/zycore/src/Vector.c \
+    third_party/zydis/zycore/src/Zycore.c
