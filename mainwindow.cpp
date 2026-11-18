@@ -1360,6 +1360,30 @@ void MainWindow::saveShortcuts()
     settings.endGroup();
 }
 
+//! asmon.project settings lines: "assembler-flags: -DDEBUG", "linker-flags: -lm"
+static bool isProjectSettingLine(const QString &line)
+{
+    static const QRegularExpression re("^(assembler-flags|linker-flags)\\s*:", QRegularExpression::CaseInsensitiveOption);
+    return re.match(line.trimmed()).hasMatch();
+}
+
+QStringList MainWindow::projectFlags(Tab *tab, const QString &key)
+{
+    const QString filePath = tab ? tab->getCurrentFilePath() : QString();
+    if (filePath.isEmpty())
+        return QStringList();
+    QFile f(QFileInfo(filePath).absoluteDir().filePath("asmon.project"));
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QStringList();
+    QStringList out;
+    for (QString l : QString::fromUtf8(f.readAll()).split('\n')) {
+        l = l.trimmed();
+        if (l.startsWith(key + ":", Qt::CaseInsensitive))
+            out << QProcess::splitCommand(l.mid(key.size() + 1).trimmed());
+    }
+    return out;
+}
+
 QStringList MainWindow::projectModules(Tab *tab)
 {
     //! Returns the absolute paths of the other modules listed in
@@ -1377,7 +1401,7 @@ QStringList MainWindow::projectModules(Tab *tab)
     const QStringList lines = QString::fromUtf8(f.readAll()).split('\n');
     for (QString l : lines) {
         l = l.trimmed();
-        if (l.isEmpty() || l.startsWith('#') || l.startsWith(';'))
+        if (l.isEmpty() || l.startsWith('#') || l.startsWith(';') || isProjectSettingLine(l))
             continue;
         const QString abs = QFileInfo(dir.filePath(l)).absoluteFilePath();
         if (abs == self)
@@ -1408,7 +1432,7 @@ QString MainWindow::projectMainFile(Tab *tab)
     QSet<QString> listed;
     for (QString l : QString::fromUtf8(f.readAll()).split('\n')) {
         l = l.trimmed();
-        if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';'))
+        if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';') && !isProjectSettingLine(l))
             listed.insert(QFileInfo(dir.filePath(l)).absoluteFilePath());
     }
     if (!listed.contains(QFileInfo(filePath).absoluteFilePath()))
@@ -1438,7 +1462,10 @@ void MainWindow::createProjectFile()
     if (!QFile::exists(projectPath)) {
         QString text = tr("# Asmon project: these files are assembled and linked together\n"
                           "# with the file you build (the one with main).\n"
-                          "# One file per line, relative to this folder. Lines starting with # are ignored.\n");
+                          "# One file per line, relative to this folder. Lines starting with # are ignored.\n"
+                          "# Extra flags (optional):\n"
+                          "#   assembler-flags: -DDEBUG\n"
+                          "#   linker-flags: -lm\n");
         const QStringList others = fi.absoluteDir().entryList(QStringList() << "*.asm" << "*.s" << "*.S",
                                                                QDir::Files, QDir::Name);
         for (const QString &o : others)
@@ -1519,7 +1546,7 @@ QList<Symbols::Source> MainWindow::navigationSources(int *currentIndex)
         if (pf.open(QIODevice::ReadOnly | QIODevice::Text)) {
             for (QString l : QString::fromUtf8(pf.readAll()).split('\n')) {
                 l = l.trimmed();
-                if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';'))
+                if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';') && !isProjectSettingLine(l))
                     queue << QFileInfo(QDir(dir).filePath(l)).absoluteFilePath();
             }
         }
@@ -2294,6 +2321,9 @@ void MainWindow::buildProgram(bool debugMode)
         assemblerArguments.prepend(QDir::toNativeSeparators(sourceDir + "/"));
         assemblerArguments.prepend("-I");
     }
+    //! Asmon: extra flags from asmon.project ("assembler-flags: ...")
+    const QStringList extraAsmFlags = projectFlags(currentTab, "assembler-flags");
+    assemblerArguments << extraAsmFlags;
     QProcess assemblerProcess;
     QString assemblerOutput = Common::pathInTemp("compilererror.txt");
     assemblerProcess.setStandardOutputFile(assemblerOutput);
@@ -2336,6 +2366,7 @@ void MainWindow::buildProgram(bool debugMode)
         args.replaceInStrings("$MACRO.OBJ$", stdioMacros);
         if (settings.value("assembler", QString("NASM")).toString() == "NASM")
             args << "-I" << QDir::toNativeSeparators(QFileInfo(modules[i]).absolutePath() + "/");
+        args << extraAsmFlags;
         QProcess p;
         p.setProcessChannelMode(QProcess::MergedChannels);
         p.setWorkingDirectory(applicationDataPath() + "/include");
@@ -2400,6 +2431,7 @@ void MainWindow::buildProgram(bool debugMode)
         linkerArguments.replaceInStrings("$PROGRAM$", Common::pathInTemp("AsmonProg.exe"));
         linkerArguments.replaceInStrings("$SOURCE$", Common::pathInTemp("program.asm"));
         linkerArguments.replaceInStrings("$LSTOUTPUT$", Common::pathInTemp("program.lst"));
+        linkerArguments << projectFlags(currentTab, "linker-flags"); // asmon.project
         QProcess linkerProcess;
         linkerOutput = Common::pathInTemp("linkererror.txt");
         linkerProcess.setStandardOutputFile(linkerOutput);

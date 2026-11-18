@@ -292,6 +292,7 @@ public slots:
     void refreshRecentFiles();
     void markBuildDiagnostics(const QString &prettyLog);
     QStringList projectModules(Tab *tab);
+    QStringList projectFlags(Tab *tab, const QString &key);
     QList<QAction *> shortcutActions() const;
     static QString shortcutId(QAction *a);
     void applyShortcutOverrides();
