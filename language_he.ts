@@ -363,646 +363,717 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="mainwindow.cpp" line="176"/>
+        <location filename="mainwindow.cpp" line="177"/>
         <source>Build log:</source>
         <translation>יומן בנייה:</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="189"/>
+        <location filename="mainwindow.cpp" line="190"/>
         <source>gdb commands and their output (while debugging)</source>
         <translation>פקודות gdb והפלט שלהן (בזמן דיבוג)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="197"/>
+        <location filename="mainwindow.cpp" line="198"/>
         <source>Build log</source>
         <translation>יומן בנייה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="198"/>
+        <location filename="mainwindow.cpp" line="199"/>
         <source>Debug console</source>
         <translation>קונסולת דיבוג</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="199"/>
-        <location filename="mainwindow.cpp" line="840"/>
+        <location filename="mainwindow.cpp" line="200"/>
+        <location filename="mainwindow.cpp" line="845"/>
         <source>Terminal</source>
         <translation>טרמינל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="223"/>
+        <location filename="mainwindow.cpp" line="224"/>
         <source>File</source>
         <translation>קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="234"/>
+        <location filename="mainwindow.cpp" line="235"/>
         <source>Edit</source>
         <translation>עריכה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="255"/>
+        <location filename="mainwindow.cpp" line="256"/>
         <source>Build</source>
         <translation>בנייה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="264"/>
-        <location filename="mainwindow.cpp" line="517"/>
-        <location filename="mainwindow.cpp" line="632"/>
-        <location filename="mainwindow.cpp" line="1959"/>
+        <location filename="mainwindow.cpp" line="265"/>
+        <location filename="mainwindow.cpp" line="518"/>
+        <location filename="mainwindow.cpp" line="633"/>
+        <location filename="mainwindow.cpp" line="2300"/>
         <source>Debug</source>
         <translation>דיבוג</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="275"/>
-        <location filename="mainwindow.cpp" line="589"/>
+        <location filename="mainwindow.cpp" line="276"/>
+        <location filename="mainwindow.cpp" line="590"/>
         <source>Settings</source>
         <translation>הגדרות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="277"/>
-        <location filename="mainwindow.cpp" line="599"/>
-        <location filename="mainwindow.cpp" line="2895"/>
+        <location filename="mainwindow.cpp" line="278"/>
+        <location filename="mainwindow.cpp" line="600"/>
+        <location filename="mainwindow.cpp" line="3256"/>
         <source>Help</source>
         <translation>עזרה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="286"/>
-        <location filename="mainwindow.cpp" line="1201"/>
+        <location filename="mainwindow.cpp" line="287"/>
+        <location filename="mainwindow.cpp" line="1475"/>
         <source>New</source>
         <translation>חדש</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="298"/>
+        <location filename="mainwindow.cpp" line="299"/>
         <source>Open</source>
         <translation>פתח</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="310"/>
+        <location filename="mainwindow.cpp" line="311"/>
         <source>Close file</source>
         <translation>סגור קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="321"/>
+        <location filename="mainwindow.cpp" line="322"/>
         <source>Save</source>
         <translation>שמור</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="335"/>
+        <location filename="mainwindow.cpp" line="336"/>
         <source>Save as</source>
         <translation>שמור בשם</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="345"/>
+        <location filename="mainwindow.cpp" line="346"/>
         <source>Save .exe</source>
         <translation>שמור קובץ הרצה (.exe)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="354"/>
+        <location filename="mainwindow.cpp" line="355"/>
         <source>Exit</source>
         <translation>יציאה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="364"/>
+        <location filename="mainwindow.cpp" line="365"/>
         <source>Find and replace</source>
         <translation>מצא והחלף</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="375"/>
+        <location filename="mainwindow.cpp" line="376"/>
         <source>Undo</source>
         <translation>בטל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="385"/>
+        <location filename="mainwindow.cpp" line="386"/>
         <source>Redo</source>
         <translation>בצע שוב</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="394"/>
+        <location filename="mainwindow.cpp" line="395"/>
         <source>Cut</source>
         <translation>גזור</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="403"/>
+        <location filename="mainwindow.cpp" line="404"/>
         <source>Copy</source>
         <translation>העתק</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="412"/>
+        <location filename="mainwindow.cpp" line="413"/>
         <source>Paste</source>
         <translation>הדבק</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="421"/>
+        <location filename="mainwindow.cpp" line="422"/>
         <source>Delete</source>
         <translation>מחק</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="430"/>
+        <location filename="mainwindow.cpp" line="431"/>
         <source>Select all</source>
         <translation>בחר הכל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="439"/>
+        <location filename="mainwindow.cpp" line="440"/>
         <source>Comment</source>
         <translation>הפוך להערה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="448"/>
+        <location filename="mainwindow.cpp" line="449"/>
         <source>Remove comment</source>
         <translation>בטל הערה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="457"/>
+        <location filename="mainwindow.cpp" line="458"/>
         <source>Indent</source>
         <translation>הגדל הזחה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="466"/>
+        <location filename="mainwindow.cpp" line="467"/>
         <source>Remove indent</source>
         <translation>הקטן הזחה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="477"/>
+        <location filename="mainwindow.cpp" line="478"/>
         <source>Build this</source>
         <translation>בנה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="491"/>
+        <location filename="mainwindow.cpp" line="492"/>
         <source>Build and run</source>
         <translation>בנה והרץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="503"/>
+        <location filename="mainwindow.cpp" line="504"/>
         <source>Run in new window</source>
         <translation>הרץ בחלון חדש</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="508"/>
+        <location filename="mainwindow.cpp" line="509"/>
         <source>Stop</source>
         <translation>עצור</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="530"/>
+        <location filename="mainwindow.cpp" line="531"/>
         <source>Step over</source>
         <translation>צעד מעל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="542"/>
+        <location filename="mainwindow.cpp" line="543"/>
         <source>Step into</source>
         <translation>צעד לתוך</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="554"/>
+        <location filename="mainwindow.cpp" line="555"/>
         <source>Toggle breakpoint</source>
         <translation>הוסף/הסר נקודת עצירה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="564"/>
+        <location filename="mainwindow.cpp" line="565"/>
         <source>Show registers</source>
         <translation>הצג אוגרים</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="575"/>
+        <location filename="mainwindow.cpp" line="576"/>
         <source>Show memory</source>
         <translation>הצג זיכרון</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="609"/>
+        <location filename="mainwindow.cpp" line="610"/>
         <source>About</source>
         <translation>אודות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="834"/>
+        <location filename="mainwindow.cpp" line="832"/>
+        <source>Project file (several .asm files)...</source>
+        <translation>קובץ פרויקט (כמה קובצי ‎.asm)...</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="839"/>
         <source>Bottom panel</source>
         <translation>פאנל תחתון</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1223"/>
+        <location filename="mainwindow.cpp" line="1105"/>
+        <source>Search a command...</source>
+        <translation>חפש פקודה...</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1110"/>
+        <source>Command</source>
+        <translation>פקודה</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1110"/>
+        <source>Shortcut</source>
+        <translation>קיצור</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1122"/>
+        <source>Restore default shortcuts</source>
+        <translation>החזר קיצורי ברירת מחדל</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1127"/>
+        <source>Click a shortcut and press the new keys. Saved in the [shortcuts] section of the settings file.</source>
+        <translation>לחץ על קיצור והקש את המקשים החדשים. נשמר בקטע ‎[shortcuts]‎ בקובץ ההגדרות.</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1149"/>
+        <source>Shortcuts</source>
+        <translation>קיצורי מקשים</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1199"/>
+        <source>Same shortcut for several commands: </source>
+        <translation>אותו קיצור לכמה פקודות: </translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1244"/>
+        <source>asmon.project lists a file that does not exist: %1</source>
+        <translation>בקובץ asmon.project רשום קובץ שלא קיים: %1</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1297"/>
+        <source># Asmon project: these files are assembled and linked together
+# with the file you build (the one with main).
+# One file per line, relative to this folder. Lines starting with # are ignored.
+</source>
+        <translation># פרויקט אסמון: הקבצים האלה עוברים אסמבלי ומקושרים יחד
+# עם הקובץ שאתה בונה (זה שיש בו main).
+# קובץ אחד בכל שורה, יחסית לתיקייה הזו. שורות שמתחילות ב-# לא נקראות.
+</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1497"/>
         <source>Open file</source>
         <translation>פתח קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1289"/>
+        <location filename="mainwindow.cpp" line="1573"/>
         <source>Assembler source files (*.asm);;All files (*)</source>
         <translation>קבצי אסמבלי (*.asm);;כל הקבצים (*.*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1288"/>
+        <location filename="mainwindow.cpp" line="1572"/>
         <source>Save file</source>
         <translation>שמור קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1312"/>
+        <location filename="mainwindow.cpp" line="1596"/>
         <source>Save .exe file</source>
         <translation>שמור קובץ .exe</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1313"/>
+        <location filename="mainwindow.cpp" line="1597"/>
         <source>Execution files (*.exe);;All files (*.*)</source>
         <translation>קבצים ברי הרצה (*.exe);;כל הקבצים (*.*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1401"/>
-        <location filename="mainwindow.cpp" line="2801"/>
+        <location filename="mainwindow.cpp" line="1685"/>
+        <location filename="mainwindow.cpp" line="3162"/>
         <source>Yes</source>
         <translation>כן</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1402"/>
+        <location filename="mainwindow.cpp" line="1686"/>
         <source>No</source>
         <translation>לא</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1403"/>
-        <location filename="mainwindow.cpp" line="2802"/>
+        <location filename="mainwindow.cpp" line="1687"/>
+        <location filename="mainwindow.cpp" line="3163"/>
         <source>Cancel</source>
         <translation>בטל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1404"/>
-        <location filename="mainwindow.cpp" line="1405"/>
+        <location filename="mainwindow.cpp" line="1688"/>
+        <location filename="mainwindow.cpp" line="1689"/>
         <source>Save changes?</source>
         <translation>לשמור שינויים?</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1433"/>
+        <location filename="mainwindow.cpp" line="1727"/>
         <source>Build started...</source>
         <translation>הבנייה החלה...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1438"/>
+        <location filename="mainwindow.cpp" line="1732"/>
         <source>Error! Program directory does not exist. Please reinstall the program.</source>
         <translation>שגיאה! תיקיית תוכנה לא נמצאה. אנא התקן מחדש את התוכנה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1439"/>
+        <location filename="mainwindow.cpp" line="1733"/>
         <source>Error!</source>
         <translation>שגיאה!</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1439"/>
+        <location filename="mainwindow.cpp" line="1733"/>
         <source>Directory NASM does not exist. Please reinstall the program.</source>
         <translation>תיקיית NASM לא נמצאה. אנא התקן מחדש את התוכנה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1520"/>
+        <location filename="mainwindow.cpp" line="1832"/>
         <source>Unable to start assembler. Check your settings.</source>
         <translation>לא ניתן להפעיל את האסמבלר. בדוק את ההגדרות.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1582"/>
+        <location filename="mainwindow.cpp" line="1922"/>
         <source>Unable to start linker. Check your settings.</source>
         <translation>לא ניתן להפעיל את הלינקר. בדוק את ההגדרות.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1027"/>
-        <location filename="mainwindow.cpp" line="1609"/>
+        <location filename="mainwindow.cpp" line="1042"/>
+        <location filename="mainwindow.cpp" line="1950"/>
         <source>Warning! Errors have occurred in the build:</source>
         <translation>אזהרה! נמצאו שגיאות בבנייה:</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1625"/>
+        <location filename="mainwindow.cpp" line="1718"/>
+        <source>This file is a module of the project: building %1</source>
+        <translation>הקובץ הזה הוא מודול בפרויקט: בונה את %1</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1772"/>
+        <source>Project: also building %1</source>
+        <translation>פרויקט: בונה גם את %1</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1966"/>
         <source>Built successfully.</source>
         <translation>נבנה בהצלחה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1644"/>
+        <location filename="mainwindow.cpp" line="1985"/>
         <source>The program is already running.</source>
         <translation>התוכנית כבר רצה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1661"/>
+        <location filename="mainwindow.cpp" line="2002"/>
         <source>The program is executing...</source>
         <translation>מריץ את התוכנית...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1726"/>
+        <location filename="mainwindow.cpp" line="2067"/>
         <source>The program finished normally. Execution time: %1 s</source>
         <translation>התוכנית הסתיימה בהצלחה. זמן ריצה: %1 שניות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1730"/>
+        <location filename="mainwindow.cpp" line="2071"/>
         <source>The program crashed! Execution time: %1 s</source>
         <translation>התוכנית קרסה! זמן ריצה: %1 שניות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1762"/>
+        <location filename="mainwindow.cpp" line="2103"/>
         <source>The program stopped.</source>
         <translation>התוכנית נעצרה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1764"/>
+        <location filename="mainwindow.cpp" line="2105"/>
         <source>The program is not running.</source>
         <translation>התוכנית לא רצה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1820"/>
+        <location filename="mainwindow.cpp" line="2161"/>
         <source>Before debugging you need to build the program.</source>
         <translation>לפני דיבוג יש לבנות את התוכנית.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1826"/>
+        <location filename="mainwindow.cpp" line="2167"/>
         <source>Debugging started...</source>
         <translation>הדיבוג החל...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1918"/>
+        <location filename="mainwindow.cpp" line="2259"/>
         <source>Pause</source>
         <translation>השהה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1928"/>
+        <location filename="mainwindow.cpp" line="2269"/>
         <source>Continue</source>
         <translation>המשך</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2065"/>
+        <location filename="mainwindow.cpp" line="2406"/>
         <source>Debugging finished.</source>
         <translation>הדיבוג הסתיים.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2206"/>
+        <location filename="mainwindow.cpp" line="2547"/>
         <source>In the previous session was not open any of the saved tabs!</source>
         <translation>בהפעלה הקודמת לא היו קבצים פתוחים.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2546"/>
+        <location filename="mainwindow.cpp" line="2610"/>
+        <source>Open the settings file</source>
+        <translation>פתח את קובץ ההגדרות</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2906"/>
         <source>Please set path to MASM assembler (ml.exe) and linker (link.exe) on your computer </source>
         <translation>אנא הגדר את המיקום של MASM (ml.exe) ושל הלינקר (link.exe) במחשב </translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2547"/>
+        <location filename="mainwindow.cpp" line="2907"/>
         <source>in fields &quot;Assembler path&quot; and &quot;Linker path&quot; above.</source>
         <translation>בשדות &quot;מיקום אסמבלר&quot; ו&quot;מיקום לינקר&quot; שלמעלה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2803"/>
+        <location filename="mainwindow.cpp" line="3164"/>
         <source>Warning!</source>
         <translation>אזהרה!</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2804"/>
+        <location filename="mainwindow.cpp" line="3165"/>
         <source>All settings will be deleted and all unsaved data will be lost. Are you sure?</source>
         <translation>כל ההגדרות יימחקו וכל המידע שלא נשמר ייאבד. האם אתה בטוח?</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2898"/>
+        <location filename="mainwindow.cpp" line="3259"/>
         <source>Close help</source>
         <translation>סגור עזרה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2911"/>
+        <location filename="mainwindow.cpp" line="3272"/>
         <source>Licensed under the GNU GPL v3.0</source>
         <translation>תחת רישיון GNU GPL v3.0</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2916"/>
+        <location filename="mainwindow.cpp" line="3277"/>
         <source>Based on the Qt.</source>
         <translation>מבוסס על Qt.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2914"/>
+        <location filename="mainwindow.cpp" line="3275"/>
         <source>Copyright (c) 2013 Dmitriy Manushin</source>
         <translation>Copyright (c) 2013 Dmitriy Manushin</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2915"/>
+        <location filename="mainwindow.cpp" line="3276"/>
         <source>Icon and advices - Alick Gaybullaev</source>
         <translation>אייקון וייעוץ - אליק גאיבולאייב</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="254"/>
+        <location filename="mainwindow.cpp" line="255"/>
         <source>View</source>
         <translation>תצוגה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="619"/>
+        <location filename="mainwindow.cpp" line="620"/>
         <source>Main</source>
         <translation>ראשי</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="651"/>
+        <location filename="mainwindow.cpp" line="652"/>
         <source>Command palette...</source>
         <translation>לוח פקודות...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="672"/>
-        <location filename="mainwindow.cpp" line="680"/>
-        <location filename="mainwindow.cpp" line="1116"/>
+        <location filename="mainwindow.cpp" line="673"/>
+        <location filename="mainwindow.cpp" line="681"/>
+        <location filename="mainwindow.cpp" line="1390"/>
         <source>Explorer</source>
         <translation>סייר</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="690"/>
+        <location filename="mainwindow.cpp" line="691"/>
         <source>Focus mode</source>
         <translation>מצב ריכוז</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="699"/>
+        <location filename="mainwindow.cpp" line="700"/>
         <source>Dark theme</source>
         <translation>ערכת נושא כהה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1086"/>
+        <location filename="mainwindow.cpp" line="1360"/>
         <source>Focus mode: press Ctrl+K, Z to exit.</source>
         <translation>מצב ריכוז: Ctrl+K ואז Z ליציאה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1224"/>
+        <location filename="mainwindow.cpp" line="1498"/>
         <source>Assembler source files (*.asm *.S *.s);;All files (*)</source>
         <translation>קבצי אסמבלי (*.asm *.S *.s);;כל הקבצים (*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2450"/>
+        <location filename="mainwindow.cpp" line="2810"/>
         <source>Show other assemblers (advanced)</source>
         <translation>הצג אסמבלרים נוספים (מתקדם)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2908"/>
+        <location filename="mainwindow.cpp" line="3269"/>
         <source>About Asmon</source>
         <translation>אודות אסמון</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2910"/>
+        <location filename="mainwindow.cpp" line="3271"/>
         <source>Assembly IDE with a built-in debugger and reverse-engineering tools.</source>
         <translation>סביבת פיתוח לאסמבלי עם דיבאגר מובנה וכלי הנדסה לאחור.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2913"/>
+        <location filename="mainwindow.cpp" line="3274"/>
         <source>Based on SASM %1 by Dmitriy Manushin (https://github.com/Dman95/SASM).</source>
         <translation>מבוסס על SASM %1 מאת דמיטרי מנושין (https://github.com/Dman95/SASM).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="769"/>
+        <location filename="mainwindow.cpp" line="770"/>
         <source>Build output</source>
         <translation>תוצרי בנייה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="776"/>
+        <location filename="mainwindow.cpp" line="777"/>
         <source>Build output (listing, disassembly, hex)</source>
         <translation>תוצרי בנייה (listing, דיסאסמבלי, hex)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="785"/>
+        <location filename="mainwindow.cpp" line="786"/>
         <source>Windows x64</source>
         <translation>Windows x64</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="786"/>
+        <location filename="mainwindow.cpp" line="787"/>
         <source>Linux ELF (WSL)</source>
         <translation>Linux ELF ‏(WSL)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="788"/>
+        <location filename="mainwindow.cpp" line="789"/>
         <source>Build target</source>
         <translation>יעד הבנייה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="796"/>
+        <location filename="mainwindow.cpp" line="797"/>
         <source>Install WSL...</source>
         <translation>התקן WSL...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="801"/>
+        <location filename="mainwindow.cpp" line="802"/>
         <source>WSL is already installed.</source>
         <translation>WSL כבר מותקן.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="805"/>
+        <location filename="mainwindow.cpp" line="806"/>
         <source>The WSL installer was started (it asks for administrator rights; a restart of Windows may be needed).</source>
         <translation>התקנת WSL התחילה (היא מבקשת הרשאות מנהל, וייתכן שיידרש אתחול של Windows).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="808"/>
+        <location filename="mainwindow.cpp" line="809"/>
         <source>Could not start the WSL installer.</source>
         <translation>לא ניתן להפעיל את התקנת WSL.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="817"/>
+        <location filename="mainwindow.cpp" line="818"/>
         <source>New from template</source>
         <translation>חדש מתבנית</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="820"/>
-        <source>Hello world — Windows x64 (io64.inc)</source>
-        <translation>Hello world — ‏Windows x64 ‏(io64.inc)</translation>
-    </message>
-    <message>
         <location filename="mainwindow.cpp" line="821"/>
-        <source>Hello world — Windows x64 (Windows API, no macros)</source>
-        <translation>Hello world — ‏Windows x64 (Windows API, בלי מאקרו)</translation>
+        <source>Hello world — Windows x64 (io64.inc)</source>
+        <translation>שלום עולם — Windows x64 ‏(io64.inc)</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="822"/>
-        <source>Hello world — Linux x64 (system calls)</source>
-        <translation>Hello world — ‏Linux x64 (קריאות מערכת)</translation>
+        <source>Hello world — Windows x64 (Windows API, no macros)</source>
+        <translation>שלום עולם — Windows x64 ‏(Windows API, בלי מאקרו)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="903"/>
+        <location filename="mainwindow.cpp" line="823"/>
+        <source>Hello world — Linux x64 (system calls)</source>
+        <translation>שלום עולם — Linux x64 ‏(קריאות מערכת)</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="908"/>
         <source>untitled.asm</source>
         <translation>ללא שם.asm</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1013"/>
+        <location filename="mainwindow.cpp" line="1027"/>
         <source>The Linux target supports x64 only. Switch to x64 mode in Settings.</source>
         <translation>יעד לינוקס תומך ב-x64 בלבד. עבור למצב x64 בהגדרות.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1032"/>
+        <location filename="mainwindow.cpp" line="1047"/>
         <source>Built successfully (Linux ELF x64).</source>
         <translation>נבנה בהצלחה (Linux ELF x64).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1447"/>
+        <location filename="mainwindow.cpp" line="1741"/>
         <source>The 32-bit toolchain is not installed. Switch to x64 mode in Settings, or reinstall Asmon with the 32-bit component.</source>
         <translation>כלי 32 ביט לא מותקנים. עבור למצב x64 בהגדרות, או התקן מחדש את אסמון עם רכיב ה-32 ביט.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1675"/>
+        <location filename="mainwindow.cpp" line="2016"/>
         <source>Use Build &gt; Install WSL, then try again.</source>
         <translation>השתמש ב: בנייה ← התקן WSL, ונסה שוב.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1805"/>
+        <location filename="mainwindow.cpp" line="2146"/>
         <source>Debugging Linux programs from Windows is not supported yet. You can build and run them (F9).</source>
         <translation>דיבוג של תוכניות לינוקס מתוך Windows עדיין לא נתמך. אפשר לבנות ולהריץ אותן (F9).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="707"/>
+        <location filename="mainwindow.cpp" line="708"/>
         <source>Debugger</source>
         <translation>דיבאגר</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="714"/>
+        <location filename="mainwindow.cpp" line="715"/>
         <source>Step out</source>
         <translation>צא מהפונקציה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="720"/>
+        <location filename="mainwindow.cpp" line="721"/>
         <source>Step one instruction (stepi)</source>
         <translation>הוראה אחת (stepi)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1891"/>
+        <location filename="mainwindow.cpp" line="2232"/>
         <source>Stopped outside your code at 0x%1 (see Disassembly).</source>
         <translation>נעצר מחוץ לקוד שלך, בכתובת 0x%1 (ראה דיסאסמבלי).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1903"/>
+        <location filename="mainwindow.cpp" line="2244"/>
         <source>line %1</source>
         <translation>שורה %1</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1904"/>
+        <location filename="mainwindow.cpp" line="2245"/>
         <source>The program crashed: %1 (%2) at %3. Registers and memory show the state at the crash; Stop ends the session.</source>
         <translation>התוכנית קרסה: %1 (%2) ב%3. האוגרים והזיכרון מראים את המצב ברגע הקריסה; עצור מסיים את הדיבוג.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1912"/>
+        <location filename="mainwindow.cpp" line="2253"/>
         <source>The program finished with exit code %1.</source>
         <translation>התוכנית הסתיימה עם קוד יציאה %1.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="731"/>
+        <location filename="mainwindow.cpp" line="732"/>
         <source>RE</source>
         <translation>RE</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="735"/>
+        <location filename="mainwindow.cpp" line="736"/>
         <source>Open the program in %1</source>
         <translation>פתח את התוכנית ב-%1</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="739"/>
+        <location filename="mainwindow.cpp" line="740"/>
         <source>Open a file in %1...</source>
         <translation>פתח קובץ ב-%1...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="745"/>
+        <location filename="mainwindow.cpp" line="746"/>
         <source>Headers and sections (objdump -x)</source>
         <translation>כותרות וסקשנים (objdump -x)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="762"/>
+        <location filename="mainwindow.cpp" line="763"/>
         <source>Not installed</source>
         <translation>לא מותקן</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="957"/>
+        <location filename="mainwindow.cpp" line="971"/>
         <source>Open a binary</source>
         <translation>פתח קובץ בינארי</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="958"/>
+        <location filename="mainwindow.cpp" line="972"/>
         <source>Programs and objects (*.exe *.dll *.o *.obj *.elf *.bin *.so);;All files (*)</source>
         <translation>תוכניות ואובייקטים (*.exe *.dll *.o *.obj *.elf *.bin *.so);;כל הקבצים (*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="993"/>
+        <location filename="mainwindow.cpp" line="1007"/>
         <source>Ghidra is starting. The program&apos;s path is on the clipboard: in Ghidra choose File &gt; Import File (I) and paste it.</source>
         <translation>Ghidra עולה. הנתיב של התוכנית הועתק ללוח: ב-Ghidra בחר File &gt; Import File ‏(I) והדבק אותו.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="996"/>
+        <location filename="mainwindow.cpp" line="1010"/>
         <source>Opening %1 in %2...</source>
         <translation>פותח את %1 ב-%2...</translation>
     </message>
@@ -1030,35 +1101,40 @@
         <translation>לא ניתן להתאים את ה-listing לתוכנית: צעד לפי שורה לא זמין, הוראה בודדת עדיין עובדת.</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="409"/>
+        <location filename="midebugger.cpp" line="414"/>
         <source>Step out: %1</source>
         <translation>יציאה מפונקציה: %1</translation>
+    </message>
+    <message>
+        <location filename="midebugger.cpp" line="505"/>
+        <source>Step out: no caller in your code (this is main), so the program runs on until it ends or reaches a breakpoint.</source>
+        <translation>יציאה מפונקציה: אין קורא בקוד שלך (זו main), אז התוכנית ממשיכה לרוץ עד הסוף או עד נקודת עצירה.</translation>
     </message>
 </context>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="linuxtarget.cpp" line="38"/>
+        <location filename="linuxtarget.cpp" line="39"/>
         <source>ld.lld was not found (%1). Install the LLVM component of Asmon to build Linux programs on Windows.</source>
         <translation>ld.lld לא נמצא (%1). התקן את רכיב ה-LLVM של אסמון כדי לבנות תוכניות לינוקס ב-Windows.</translation>
     </message>
     <message>
-        <location filename="linuxtarget.cpp" line="51"/>
+        <location filename="linuxtarget.cpp" line="52"/>
         <source>Unable to start assembler. Check your settings.</source>
         <translation>לא ניתן להפעיל את האסמבלר. בדוק את ההגדרות.</translation>
     </message>
     <message>
-        <location filename="linuxtarget.cpp" line="61"/>
+        <location filename="linuxtarget.cpp" line="73"/>
         <source>Unable to start linker. Check your settings.</source>
         <translation>לא ניתן להפעיל את הלינקר. בדוק את ההגדרות.</translation>
     </message>
     <message>
-        <location filename="linuxtarget.cpp" line="75"/>
+        <location filename="linuxtarget.cpp" line="87"/>
         <source>WSL is not installed (wsl.exe was not found).</source>
         <translation>WSL לא מותקן (wsl.exe לא נמצא).</translation>
     </message>
     <message>
-        <location filename="linuxtarget.cpp" line="85"/>
+        <location filename="linuxtarget.cpp" line="97"/>
         <source>WSL is installed but has no Linux distribution yet.</source>
         <translation>WSL מותקן, אבל עדיין אין בו הפצת לינוקס.</translation>
     </message>

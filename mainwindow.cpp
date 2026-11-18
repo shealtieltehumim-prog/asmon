@@ -100,6 +100,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     createMenus();
     createToolBars();
     createAsmonUi();
+    applyShortcutOverrides();
     refreshEditMenu();
     setAcceptDrops(true);
 
@@ -1047,6 +1048,174 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
     printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
     refreshBuildOutput();
     programIsBuilded = true;
+}
+
+// ---------------------------------------------------------------- shortcuts
+
+static void collectActions(QMenu *menu, QList<QAction *> &out)
+{
+    for (QAction *a : menu->actions()) {
+        if (a->menu())
+            collectActions(a->menu(), out);
+        else if (!a->isSeparator() && !out.contains(a))
+            out << a;
+    }
+}
+
+QList<QAction *> MainWindow::shortcutActions() const
+{
+    //! Every menu command that has a stable id (its English name).
+    QList<QAction *> all, out;
+    for (QAction *a : menuBar()->actions())
+        if (a->menu())
+            collectActions(a->menu(), all);
+    for (QAction *a : all)
+        if (!shortcutId(a).isEmpty())
+            out << a;
+    return out;
+}
+
+QString MainWindow::shortcutId(QAction *a)
+{
+    QString id = a->property("en").toString();
+    if (id.isEmpty())
+        id = a->objectName();
+    return id.simplified().replace('/', '_').replace('\\', '_');
+}
+
+void MainWindow::applyShortcutOverrides()
+{
+    //! [shortcuts] in Asmon.ini: "id=Ctrl+Alt+B" (empty value = no shortcut).
+    settings.beginGroup("shortcuts");
+    for (QAction *a : shortcutActions()) {
+        if (!a->property("asmonDefaultShortcut").isValid())
+            a->setProperty("asmonDefaultShortcut", a->shortcut().toString(QKeySequence::PortableText));
+        const QString id = shortcutId(a);
+        if (settings.contains(id))
+            a->setShortcut(QKeySequence::fromString(settings.value(id).toString(), QKeySequence::PortableText));
+    }
+    settings.endGroup();
+}
+
+void MainWindow::createShortcutsPage()
+{
+    QWidget *page = new QWidget;
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    QLineEdit *filter = new QLineEdit;
+    filter->setPlaceholderText(tr("Search a command..."));
+    filter->setClearButtonEnabled(true);
+    layout->addWidget(filter);
+
+    shortcutsTable = new QTableWidget(0, 2);
+    shortcutsTable->setHorizontalHeaderLabels(QStringList() << tr("Command") << tr("Shortcut"));
+    shortcutsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    shortcutsTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+    shortcutsTable->setColumnWidth(1, 220);
+    shortcutsTable->verticalHeader()->hide();
+    shortcutsTable->setSelectionMode(QAbstractItemView::NoSelection);
+    shortcutsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    layout->addWidget(shortcutsTable, 1);
+
+    shortcutsConflict = new QLabel;
+    shortcutsConflict->setWordWrap(true);
+    shortcutsConflict->setStyleSheet(QString("color: %1;").arg(Theme::color("errorcolor").name()));
+    QPushButton *defaults = new QPushButton(tr("Restore default shortcuts"));
+    QHBoxLayout *bottom = new QHBoxLayout;
+    bottom->addWidget(shortcutsConflict, 1);
+    bottom->addWidget(defaults);
+    layout->addLayout(bottom);
+    QLabel *hint = new QLabel(tr("Click a shortcut and press the new keys. Saved in the [shortcuts] "
+                                 "section of the settings file."));
+    hint->setWordWrap(true);
+    hint->setForegroundRole(QPalette::PlaceholderText);
+    layout->addWidget(hint);
+
+    connect(filter, &QLineEdit::textChanged, this, [this](const QString &t) {
+        for (int r = 0; r < shortcutsTable->rowCount(); ++r) {
+            const QTableWidgetItem *it = shortcutsTable->item(r, 0);
+            shortcutsTable->setRowHidden(r, !t.isEmpty()
+                && !it->text().contains(t, Qt::CaseInsensitive)
+                && !it->data(Qt::UserRole + 1).toString().contains(t, Qt::CaseInsensitive));
+        }
+    });
+    connect(defaults, &QPushButton::clicked, this, [this]() {
+        for (int r = 0; r < shortcutsTable->rowCount(); ++r) {
+            QAction *a = shortcutsTable->item(r, 0)->data(Qt::UserRole).value<QAction *>();
+            auto *edit = static_cast<QKeySequenceEdit *>(shortcutsTable->cellWidget(r, 1));
+            edit->setKeySequence(QKeySequence::fromString(a->property("asmonDefaultShortcut").toString(),
+                                                          QKeySequence::PortableText));
+        }
+    });
+    settingsUi.tabWidget->addTab(page, tr("Shortcuts"));
+}
+
+void MainWindow::fillShortcutsPage()
+{
+    shortcutsTable->setRowCount(0);
+    for (QAction *a : shortcutActions()) {
+        const int r = shortcutsTable->rowCount();
+        shortcutsTable->insertRow(r);
+        QString name = a->text();
+        name.remove('&');
+        //! a name that starts in English keeps its own order in the RTL table
+        if (!name.isEmpty() && name.at(0).direction() == QChar::DirL
+                && QApplication::layoutDirection() == Qt::RightToLeft)
+            name = QChar(0x202A) + name + QChar(0x202C);
+        QWidget *w = a->parentWidget();
+        auto *item = new QTableWidgetItem(a->icon(), name);
+        item->setData(Qt::UserRole, QVariant::fromValue(a));
+        item->setData(Qt::UserRole + 1, shortcutId(a));
+        item->setToolTip(shortcutId(a));
+        Q_UNUSED(w);
+        shortcutsTable->setItem(r, 0, item);
+        auto *edit = new QKeySequenceEdit(a->shortcut());
+        edit->setLayoutDirection(Qt::LeftToRight);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
+        edit->setClearButtonEnabled(true);
+#endif
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        edit->setMaximumSequenceLength(2);
+#endif
+        connect(edit, &QKeySequenceEdit::keySequenceChanged, this, &MainWindow::checkShortcutConflicts);
+        shortcutsTable->setCellWidget(r, 1, edit);
+    }
+    checkShortcutConflicts();
+}
+
+void MainWindow::checkShortcutConflicts()
+{
+    QHash<QString, QStringList> byKey;
+    for (int r = 0; r < shortcutsTable->rowCount(); ++r) {
+        auto *edit = static_cast<QKeySequenceEdit *>(shortcutsTable->cellWidget(r, 1));
+        const QString k = edit->keySequence().toString(QKeySequence::NativeText);
+        if (!k.isEmpty())
+            byKey[k] << shortcutsTable->item(r, 0)->text();
+    }
+    QStringList msgs;
+    for (auto it = byKey.constBegin(); it != byKey.constEnd(); ++it)
+        if (it.value().size() > 1)
+            msgs << QString("%1: %2").arg(it.key(), it.value().join(", "));
+    shortcutsConflict->setText(msgs.isEmpty() ? QString()
+                               : tr("Same shortcut for several commands: ") + msgs.join("; "));
+}
+
+void MainWindow::saveShortcuts()
+{
+    if (!shortcutsTable)
+        return;
+    settings.beginGroup("shortcuts");
+    for (int r = 0; r < shortcutsTable->rowCount(); ++r) {
+        QAction *a = shortcutsTable->item(r, 0)->data(Qt::UserRole).value<QAction *>();
+        auto *edit = static_cast<QKeySequenceEdit *>(shortcutsTable->cellWidget(r, 1));
+        const QString k = edit->keySequence().toString(QKeySequence::PortableText);
+        const QString id = shortcutId(a);
+        if (k == a->property("asmonDefaultShortcut").toString())
+            settings.remove(id);
+        else
+            settings.setValue(id, k);
+        a->setShortcut(edit->keySequence());
+    }
+    settings.endGroup();
 }
 
 QStringList MainWindow::projectModules(Tab *tab)
@@ -2429,6 +2598,24 @@ void MainWindow::openSettings()
         settingsWindow = new QWidget(this, Qt::Window);
         settingsWindow->setWindowModality(Qt::WindowModal);
         settingsUi.setupUi(settingsWindow);
+        settingsUi.tabWidget->setLayoutDirection(QApplication::layoutDirection());
+        settingsUi.tabWidget->setCurrentIndex(0);
+        //! the old CLI debugger's "show all registers" switch has no effect any more
+        for (QWidget *w : { (QWidget *) settingsUi.registersYesRadioButton,
+                            (QWidget *) settingsUi.registersNoRadioButton })
+            w->hide();
+        settingsUi.registersLabel_2->hide();
+        createShortcutsPage();
+        {
+            QPushButton *openIni = new QPushButton(tr("Open the settings file"));
+            openIni->setToolTip(QDir::toNativeSeparators(settings.fileName()));
+            connect(openIni, &QPushButton::clicked, this, [this]() {
+                settings.sync();
+                openFile(settings.fileName());
+                settingsWindow->close();
+            });
+            settingsUi.buttonBox->addButton(openIni, QDialogButtonBox::ResetRole);
+        }
         connect(settingsUi.buttonBox->button(QDialogButtonBox::Ok),
                 SIGNAL(clicked()), this, SLOT(exitSettings()));
         connect(settingsUi.buttonBox->button(QDialogButtonBox::Apply),
@@ -2526,6 +2713,7 @@ void MainWindow::openSettings()
     }
 
     settingsUi.currentLineCheckBox->setChecked(settings.value("currentlinemode", true).toBool());
+    fillShortcutsPage();
     settingsWindow->show();
 }
 
@@ -2873,6 +3061,7 @@ void MainWindow::recreateHighlighter()
 
 void MainWindow::saveSettings()
 {
+    saveShortcuts();
     settings.setValue("startwindow", settingsUi.startWindow->currentIndex());
     settings.setValue("language", settingsUi.language->currentIndex());
     startText = settingsStartTextEditor->toPlainText();

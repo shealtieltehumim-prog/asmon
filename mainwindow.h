@@ -81,6 +81,9 @@
 #include "debugpanels.h"
 #include "retools.h"
 #include "terminalwidget.h"
+#include <QKeySequenceEdit>
+#include <QTableWidget>
+#include <QHeaderView>
 #include <QComboBox>
 #include <QFileSystemModel>
 #include <QTreeView>
@@ -194,6 +197,8 @@ private:
     QTabWidget *bottomPanel;
     RuQTextEdit *debugConsole;
     TerminalWidget *terminal;
+    QTableWidget *shortcutsTable = nullptr;
+    QLabel *shortcutsConflict = nullptr;
     QHash<QString, QString> lastModulePaths; //!< file name -> path, last build
     QComboBox *targetBox;
     QDockWidget *buildOutputDock;
@@ -265,6 +270,13 @@ public slots:
     void openInReTool(const QString &id, bool pickFile);
     void showBottomPage(QWidget *page);
     QStringList projectModules(Tab *tab);
+    QList<QAction *> shortcutActions() const;
+    static QString shortcutId(QAction *a);
+    void applyShortcutOverrides();
+    void createShortcutsPage();
+    void fillShortcutsPage();
+    void checkShortcutConflicts();
+    void saveShortcuts();
     QString projectMainFile(Tab *tab);
     void createProjectFile();
     void appendDebugConsole(const QString &text, const QColor &color);
