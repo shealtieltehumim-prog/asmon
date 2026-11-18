@@ -29,6 +29,8 @@ FLAGS="-std=c++11 -O2 -w -I."
 case "$($CXX -dumpmachine)" in *mingw*|*msys*) FLAGS="$FLAGS -D_WINDOWS";; esac   # Ghidra's name for the Win32 code paths
 # mingw's <limits.h> defines INT_MIN as a macro, which breaks a local constant of the same name in opbehavior.cc
 sed -i 's/\bINT_MIN\b/INTB_MIN_/g' opbehavior.cc
+# the flex scanner defines its own isatty() on Windows, which clashes with mingw's <io.h>
+sed -i '/^static int isatty (int fildes) { return 0; }/d' slghscan.cc
 build() { # name defines
   [ -f "$OUT/obj/$2$1.o" ] || echo "$CXX $FLAGS $3 -c $1.cc -o $OUT/obj/$2$1.o"
 }
