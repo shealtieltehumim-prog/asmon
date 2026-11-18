@@ -616,23 +616,57 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found" }
-          & $iscc /Q "/DAppVersion=$ver" /DDist=..\dist /DReTools=..\retools installer\asmon.iss
+          & $iscc /Q "/DAppVersion=$ver" /DDist=..\dist installer\asmon.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-          # portable: settings stay next to asmon.exe (data\Asmon\Asmon.ini)
-          New-Item dist\portable -ItemType File -Force | Out-Null
           Copy-Item THIRD_PARTY.md dist\licenses\
+          # Optional packs are separate, small-to-medium downloads (versionless names: the Asmon
+          # messages refer to them). Each zip has its top folder inside: extract into the Asmon folder
+          # (RE tools: into Asmon\tools).
+          New-Item packs -ItemType Directory -Force | Out-Null
+          Move-Item dist\MinGW packs\MinGW
+          Move-Item dist\LLVM packs\LLVM
+          # portable: settings stay next to asmon.exe (data\Asmon\Asmon.ini); core only, like the installer
+          New-Item dist\portable -ItemType File -Force | Out-Null
           7z a -tzip -mx=7 "installer\output\Asmon-$ver-portable.zip" .\dist\* | Out-Null
-          # RE tools for the portable version: extract into Asmon\tools
-          7z a -tzip -mx=7 "installer\output\Asmon-$ver-RE-tools-portable.zip" .\retools\* | Out-Null
-          Get-ChildItem installer\output | ForEach-Object { "{0}  {1:N0} MB" -f $_.Name, ($_.Length / 1MB) }
+          7z a -tzip -mx=7 "installer\output\Asmon-x86-tools.zip" .\packs\MinGW | Out-Null
+          7z a -tzip -mx=7 "installer\output\Asmon-LLVM-tools.zip" .\packs\LLVM | Out-Null
+          7z a -tzip -mx=7 "installer\output\Asmon-RE-tools.zip" .\retools\* | Out-Null
+          # a SHA256 file for every download: "<hash>  <name>" (works with sha256sum -c and Get-FileHash)
+          Get-ChildItem installer\output -File | Where-Object { $_.Extension -ne '.sha256' } | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            [System.IO.File]::WriteAllText("$($_.FullName).sha256", "$h  $($_.Name)`n")
+          }
+          Get-ChildItem installer\output | ForEach-Object { "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
+          Get-Content installer\output\*.sha256
       - name: Install silently and smoke-test the installed copy
         shell: pwsh
         run: |
           $setup = Get-ChildItem installer\output\Asmon-*-Setup.exe | Select-Object -First 1
-          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/TYPE=full','/DIR=C:\AsmonTest' -Wait
-          foreach ($f in 'asmon.exe','NASM\nasm.exe','NASM\macro.o','MinGW64\bin\gcc.exe','MinGW64\bin\gdb.exe','MinGW\bin\gcc.exe','MinGW\bin\gdb.exe','LLVM\bin\ld.lld.exe','tools\ghidra\ghidraRun.bat','tools\jdk\bin\java.exe') {
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/DIR=C:\AsmonTest' -Wait
+          # the basic installation alone must hold everything for write / build / run / debug / RE
+          foreach ($f in 'asmon.exe','NASM\nasm.exe','NASM\macro.o','MinGW64\bin\gcc.exe','MinGW64\bin\gdb.exe','decomp\asmon-decomp.exe','licenses\THIRD_PARTY.md','licenses\VERSIONS.txt') {
             if (-not (Test-Path "C:\AsmonTest\$f")) { throw "missing after install: $f" }
             Write-Host "ok  $f"
+          }
+          foreach ($f in 'MinGW','LLVM','tools') {
+            if (Test-Path "C:\AsmonTest\$f") { throw "the installer must not contain the optional pack: $f" }
+          }
+          # the optional packs: extract each into the install folder (this is what the user does)
+          # and check the layout Asmon expects
+          7z x -y "installer\output\Asmon-x86-tools.zip" -oC:\AsmonTest | Out-Null
+          7z x -y "installer\output\Asmon-LLVM-tools.zip" -oC:\AsmonTest | Out-Null
+          7z x -y "installer\output\Asmon-RE-tools.zip" -oC:\AsmonTest\tools | Out-Null
+          foreach ($f in 'MinGW\bin\gcc.exe','MinGW\bin\gdb.exe','LLVM\bin\ld.lld.exe','tools\ghidra\ghidraRun.bat','tools\jdk\bin\java.exe') {
+            if (-not (Test-Path "C:\AsmonTest\$f")) { throw "missing after extracting the packs: $f" }
+            Write-Host "ok  $f"
+          }
+          # the SHA256 files match the files
+          foreach ($sf in Get-ChildItem installer\output\*.sha256) {
+            $want = ((Get-Content $sf.FullName -Raw).Trim() -split '\s+')[0]
+            $file = $sf.FullName -replace '\.sha256$',''
+            $got = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+            if ($want -ne $got) { throw "SHA256 mismatch: $file" }
+            Write-Host "sha256 ok  $(Split-Path $file -Leaf)"
           }
           # Clean machine: Asmon starts with a PATH that holds only the Windows folders (no MinGW,
           # MSYS2, Git, NASM...), builds Hello World with F9 and the program must run. Proves the
@@ -720,6 +754,22 @@ jobs:
           if (-not $ok) { throw "asmon.exe was not replaced" }
           if (-not (Get-Process asmon -ErrorAction SilentlyContinue)) { throw "asmon did not restart after the update" }
           Get-Process asmon | Stop-Process -Force
+      - name: Licenses and credits screen (Help menu)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $lp = Start-Process C:\UpdTest\asmon.exe -ArgumentList '--licenses' -PassThru
+          Start-Sleep 15
+          if ($lp.HasExited) { throw "asmon.exe --licenses exited with code $($lp.ExitCode)" }
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("shots\licenses-screen.png")
+          Stop-Process -Id $lp.Id -Force
+          foreach ($f in 'Asmon-GPL-3.0.txt','Ghidra-LICENSE.txt','THIRD_PARTY.md','VERSIONS.txt') {
+            if (-not (Test-Path "C:\UpdTest\licenses\$f")) { throw "missing license file: $f" }
+          }
       - name: Installer pages (interactive run, screenshots, then cancelled)
         shell: pwsh
         run: |
@@ -749,20 +799,41 @@ jobs:
           name: installer-screenshots
           path: shots
       # separate downloads: most people need only the installer
+      # every download is its own artifact, with its .sha256 next to it
       - uses: actions/upload-artifact@v4
         with:
           name: asmon-setup
-          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-Setup.exe
+          path: |
+            installer/output/Asmon-${{ env.ASMON_VERSION }}-Setup.exe
+            installer/output/Asmon-${{ env.ASMON_VERSION }}-Setup.exe.sha256
           compression-level: 0
       - uses: actions/upload-artifact@v4
         with:
           name: asmon-portable
-          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-portable.zip
+          path: |
+            installer/output/Asmon-${{ env.ASMON_VERSION }}-portable.zip
+            installer/output/Asmon-${{ env.ASMON_VERSION }}-portable.zip.sha256
           compression-level: 0
       - uses: actions/upload-artifact@v4
         with:
-          name: asmon-re-tools-portable
-          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-RE-tools-portable.zip
+          name: asmon-x86-tools
+          path: |
+            installer/output/Asmon-x86-tools.zip
+            installer/output/Asmon-x86-tools.zip.sha256
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-llvm-tools
+          path: |
+            installer/output/Asmon-LLVM-tools.zip
+            installer/output/Asmon-LLVM-tools.zip.sha256
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-re-tools
+          path: |
+            installer/output/Asmon-RE-tools.zip
+            installer/output/Asmon-RE-tools.zip.sha256
           compression-level: 0
       - name: Publish this build to the Asmon update server
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

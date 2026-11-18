@@ -40,6 +40,7 @@
 
 #include "theme.h"
 #include "mainwindow.h"
+#include "licensesdialog.h"
 #include "reversepage.h"
 #include <QScreen>
 #include <QInputDialog>
@@ -136,6 +137,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     for (int i = 1; i < args.size(); i++) {
         if (args[i] == "--asmon-restart") {
             restorePrevSession(true);
+            continue;
+        }
+        if (args[i] == "--licenses") { // opens the "Licenses and credits" screen (used by the tests)
+            QTimer::singleShot(0, this, [this]() { LicensesDialog(this).exec(); });
             continue;
         }
         if (args[i] == "--re" && i + 1 < args.size()) {
@@ -382,6 +387,10 @@ void MainWindow::createMenus()
     helpMenu = menuBar()->addMenu(tr("Help"));
     helpMenu->addAction(helpAction);
     helpMenu->addAction(aboutAction);
+    {
+        QAction *licensesAction = helpMenu->addAction(tr("Licenses and credits..."));
+        connect(licensesAction, &QAction::triggered, this, [this]() { LicensesDialog(this).exec(); });
+    }
     helpMenu->addSeparator();
     {
         QAction *updateAction = helpMenu->addAction(tr("Check for updates..."));
@@ -2491,7 +2500,7 @@ void MainWindow::buildProgram(bool debugMode)
     if (settings.value("mode", QString("x64")).toString() == "x86"
             && !QFile::exists(applicationDataPath() + "/MinGW/bin/gcc.exe")) {
         printLogWithTime(tr("The 32-bit toolchain is not installed. Switch to x64 mode in Settings, "
-                            "or reinstall Asmon with the 32-bit component.") + '\n', Theme::color("errorcolor"));
+                            "or extract the 32-bit tools pack (Asmon-x86-tools.zip) into the Asmon folder.") + '\n', Theme::color("errorcolor"));
         return;
     }
     #endif

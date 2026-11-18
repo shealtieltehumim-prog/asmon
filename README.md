@@ -17,10 +17,14 @@
 
 | קובץ | מה זה |
 |---|---|
-| `Asmon-x.y.z-Setup.exe` (כ-1GB) | מתקין אחד, שבו בוחרים רכיבים: בסיסית (כתיבה, הרצה ודיבוג) או מלאה (עם Ghidra, ‏Cutter, ‏x64dbg ו-ImHex). |
-| `Asmon-x.y.z-portable.zip` (כ-265MB) | גרסה ניידת בלי כלי ה-RE: מחלצים ומריצים את `asmon.exe`. ההגדרות נשמרות בתיקייה `data` שליד התוכנה. |
-| `Asmon-x.y.z-RE-tools-portable.zip` (כ-950MB) | כלי ה-RE לגרסה הניידת: לחלץ לתוך התיקייה `tools` שליד `asmon.exe`. |
+| `Asmon-x.y.z-Setup.exe` | **מתקין אחד, קטן יחסית, בלי בחירת רכיבים.** יש בו הכול לכתיבה, בנייה, הרצה, דיבוג והנדסה לאחור: אסמון, NASM, המקשר (MinGW-w64 ל-x64, כולל gdb), מנוע הדיבוג המקורי, המפרק (דיסאסמבלי) והמפענח. אין צורך להתקין שום דבר נוסף. |
+| `Asmon-x.y.z-portable.zip` | אותו תוכן בגרסה ניידת: מחלצים ומריצים את `asmon.exe`. ההגדרות נשמרות בתיקייה `data` שליד התוכנה. |
+| `Asmon-x86-tools.zip` (אופציונלי) | כלי 32 ביט (MinGW-w64 i686) לתוכניות x86. לחלץ לתוך תיקיית אסמון, כך שתיווצר התיקייה `MinGW`. |
+| `Asmon-LLVM-tools.zip` (אופציונלי) | LLVM (‏lld, ‏llvm-objdump, ‏lldb) לבניית תוכניות לינוקס בלי WSL. לחלץ לתוך תיקיית אסמון, כך שתיווצר התיקייה `LLVM`. |
+| `Asmon-RE-tools.zip` (אופציונלי, גדול) | כלי RE חיצוניים לתפריט RE: ‏Ghidra עם JDK, ‏Cutter, ‏x64dbg ו-ImHex. לחלץ לתוך התיקייה `tools` שבתיקיית אסמון. |
 | `Asmon-x86_64.AppImage` | לינוקס: מסמנים כקובץ הרצה (`chmod +x`) ומריצים. NASM,‏ GCC ו-GDB באים מהמערכת: `sudo apt install nasm gcc gdb`. דורש הפצה מ-2024 ואילך (למשל Ubuntu 24.04). |
+
+לכל קובץ יש קובץ `.sha256` ליד (פורמט `hash  שם-קובץ`). לבדיקה ב-PowerShell: `Get-FileHash <קובץ> -Algorithm SHA256` ולהשוות למה שכתוב בקובץ ה-`.sha256`.
 
 ### אזהרה של Windows בזמן ההתקנה
 המתקין לא חתום דיגיטלית (חתימת קוד עולה כסף), ולכן Windows SmartScreen יציג "Windows protected your PC". כדי להמשיך: **More info ← Run anyway**. הקוד כולו פתוח, וכל קובץ נבנה ב-GitHub Actions מהקוד שבריפו הזה.

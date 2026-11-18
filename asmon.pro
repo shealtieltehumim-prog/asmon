@@ -96,6 +96,7 @@ SOURCES += main.cpp\
     commandpalette.cpp \
     modebar.cpp \
     reversepage.cpp \
+    licensesdialog.cpp \
     decompiler.cpp \
     hexview.cpp \
     native/analysis.cpp \
@@ -139,6 +140,7 @@ HEADERS  += mainwindow.h \
     commandpalette.h \
     modebar.h \
     reversepage.h \
+    licensesdialog.h \
     decompiler.h \
     hexview.h \
     native/analysis.h \

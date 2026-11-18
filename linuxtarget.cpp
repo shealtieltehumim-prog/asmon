@@ -36,8 +36,8 @@ BuildResult build(const QString &nasm, const QString &lld, const QString &source
     QFile::remove(executable);
 
     if (!QFileInfo::exists(lld)) {
-        r.log = QObject::tr("ld.lld was not found (%1). Install the LLVM component of Asmon "
-                            "to build Linux programs on Windows.").arg(QDir::toNativeSeparators(lld));
+        r.log = QObject::tr("ld.lld was not found (%1). Extract the LLVM tools pack (Asmon-LLVM-tools.zip) "
+                            "into the Asmon folder to build Linux programs on Windows.").arg(QDir::toNativeSeparators(lld));
         return r;
     }
 

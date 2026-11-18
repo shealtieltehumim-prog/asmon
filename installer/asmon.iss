@@ -1,5 +1,6 @@
 ﻿; Asmon — Windows installer (Inno Setup 6)
-; Built by CI: iscc /DAppVersion=x.y.z /DDist=..\dist /DReTools=..\retools asmon.iss
+; Built by CI: iscc /DAppVersion=x.y.z /DDist=..\dist asmon.iss
+; Optional packs (32-bit tools, LLVM, external RE tools) are separate downloads, so the installer stays small.
 ; Asmon is free software under the GNU GPL v3 (fork of SASM by Dmitriy Manushin).
 
 #ifndef AppVersion
@@ -7,9 +8,6 @@
 #endif
 #ifndef Dist
   #define Dist "..\dist"
-#endif
-#ifndef ReTools
-  #define ReTools "..\retools"
 #endif
 
 [Setup]
@@ -46,26 +44,6 @@ Name: "he"; MessagesFile: "compiler:Languages\Hebrew.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-he.CompCore=אסמון + NASM + MinGW-w64 (GCC, ld, binutils, gdb)
-en.CompCore=Asmon + NASM + MinGW-w64 (GCC, ld, binutils, gdb)
-he.CompX86=כלי 32 ביט (MinGW-w64 i686: GCC, ld, gdb) לתוכניות x86
-en.CompX86=32-bit tools (MinGW-w64 i686: GCC, ld, gdb) for x86 programs
-he.CompLlvm=LLVM: lld, llvm-objdump, lldb (בניית תוכניות לינוקס בלי WSL)
-en.CompLlvm=LLVM: lld, llvm-objdump, lldb (build Linux programs without WSL)
-he.CompGhidra=Ghidra (כולל Java)
-en.CompGhidra=Ghidra (with Java)
-he.CompCutter=Cutter (Rizin)
-en.CompCutter=Cutter (Rizin)
-he.CompX64dbg=x64dbg
-en.CompX64dbg=x64dbg
-he.CompImhex=ImHex (עורך hex)
-en.CompImhex=ImHex (hex editor)
-he.TypeFull=התקנה מלאה (כל כלי ה-RE)
-en.TypeFull=Full installation (all RE tools)
-he.TypeCore=התקנה בסיסית (כתיבה, הרצה ודיבוג)
-en.TypeCore=Basic installation (write, run and debug)
-he.TypeCustom=התקנה מותאמת אישית
-en.TypeCustom=Custom installation
 he.TaskPath=הוסף את NASM וכלי MinGW ל-PATH (לשימוש מהטרמינל)
 en.TaskPath=Add NASM and the MinGW tools to PATH (for use in a terminal)
 he.TaskAssoc=פתח קבצי ‎.asm באסמון
@@ -73,35 +51,20 @@ en.TaskAssoc=Open .asm files with Asmon
 he.GroupOther=אפשרויות נוספות:
 en.GroupOther=Other options:
 
-[Types]
-Name: "full"; Description: "{cm:TypeFull}"
-Name: "core"; Description: "{cm:TypeCore}"
-Name: "custom"; Description: "{cm:TypeCustom}"; Flags: iscustom
-
-[Components]
-Name: "core"; Description: "{cm:CompCore}"; Types: full core custom; Flags: fixed
-Name: "llvm"; Description: "{cm:CompLlvm}"; Types: full core
-Name: "x86"; Description: "{cm:CompX86}"; Types: full
-Name: "ghidra"; Description: "{cm:CompGhidra}"; Types: full
-Name: "cutter"; Description: "{cm:CompCutter}"; Types: full
-Name: "x64dbg"; Description: "{cm:CompX64dbg}"; Types: full
-Name: "imhex"; Description: "{cm:CompImhex}"; Types: full
-
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "addpath"; Description: "{cm:TaskPath}"; GroupDescription: "{cm:GroupOther}"; Flags: unchecked
 Name: "assoc"; Description: "{cm:TaskAssoc}"; GroupDescription: "{cm:GroupOther}"; Flags: unchecked
 
 [Files]
-Source: "{#Dist}\*"; DestDir: "{app}"; Excludes: "\LLVM\*,\MinGW\*,\portable"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: core
-Source: "{#Dist}\LLVM\*"; DestDir: "{app}\LLVM"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: llvm
-Source: "{#Dist}\MinGW\*"; DestDir: "{app}\MinGW"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: x86
-Source: "{#ReTools}\ghidra\*"; DestDir: "{app}\tools\ghidra"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: ghidra
-Source: "{#ReTools}\jdk\*"; DestDir: "{app}\tools\jdk"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: ghidra
-Source: "{#ReTools}\cutter\*"; DestDir: "{app}\tools\cutter"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: cutter
-Source: "{#ReTools}\x64dbg\*"; DestDir: "{app}\tools\x64dbg"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: x64dbg
-Source: "{#ReTools}\imhex\*"; DestDir: "{app}\tools\imhex"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: imhex
+Source: "{#Dist}\*"; DestDir: "{app}"; Excludes: "\portable,\LLVM\*,\MinGW\*"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\THIRD_PARTY.md"; DestDir: "{app}\licenses"; Flags: ignoreversion
+
+; the optional packs are extracted by the user into the install folder: remove them too
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\MinGW"
+Type: filesandordirs; Name: "{app}\LLVM"
+Type: filesandordirs; Name: "{app}\tools"
 
 [Icons]
 Name: "{autoprograms}\Asmon"; Filename: "{app}\asmon.exe"

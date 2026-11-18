@@ -1285,8 +1285,8 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
     </message>
     <message>
         <location filename="mainwindow.cpp" line="2391"/>
-        <source>The 32-bit toolchain is not installed. Switch to x64 mode in Settings, or reinstall Asmon with the 32-bit component.</source>
-        <translation>כלי 32 ביט לא מותקנים. עבור למצב x64 בהגדרות, או התקן מחדש את אסמון עם רכיב ה-32 ביט.</translation>
+        <source>The 32-bit toolchain is not installed. Switch to x64 mode in Settings, or extract the 32-bit tools pack (Asmon-x86-tools.zip) into the Asmon folder.</source>
+        <translation>כלי 32 ביט לא מותקנים. עבור למצב x64 בהגדרות, או חלץ את חבילת כלי ה-32 ביט (Asmon-x86-tools.zip) לתיקיית אסמון.</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="2682"/>
@@ -1515,6 +1515,10 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
         <source>Programs (*.exe *.dll *.sys);;All files (*)</source>
         <translation>תוכניות (*.exe *.dll *.sys);;כל הקבצים (*)</translation>
     </message>
+    <message>
+        <source>Licenses and credits...</source>
+        <translation>רישיונות וקרדיטים...</translation>
+    </message>
 </context>
 <context>
     <name>MiDebugger</name>
@@ -1621,8 +1625,8 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
     <name>QObject</name>
     <message>
         <location filename="linuxtarget.cpp" line="39"/>
-        <source>ld.lld was not found (%1). Install the LLVM component of Asmon to build Linux programs on Windows.</source>
-        <translation>ld.lld לא נמצא (%1). התקן את רכיב ה-LLVM של אסמון כדי לבנות תוכניות לינוקס ב-Windows.</translation>
+        <source>ld.lld was not found (%1). Extract the LLVM tools pack (Asmon-LLVM-tools.zip) into the Asmon folder to build Linux programs on Windows.</source>
+        <translation>ld.lld לא נמצא (%1). חלץ את חבילת כלי ה-LLVM (Asmon-LLVM-tools.zip) לתיקיית אסמון כדי לבנות תוכניות לינוקס ב-Windows.</translation>
     </message>
     <message>
         <location filename="linuxtarget.cpp" line="52"/>
@@ -2547,6 +2551,35 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
     <message>
         <source>The decompiler returned nothing (exit code %1).</source>
         <translation>המפענח לא החזיר דבר (קוד יציאה %1).</translation>
+    </message>
+</context>
+<context>
+    <name>LicensesDialog</name>
+    <message>
+        <source>Licenses and credits</source>
+        <translation>רישיונות וקרדיטים</translation>
+    </message>
+    <message>
+        <source>Components and credits</source>
+        <translation>רכיבים וקרדיטים</translation>
+    </message>
+    <message>
+        <source>Tool versions in this build</source>
+        <translation>גרסאות הכלים בבנייה הזו</translation>
+    </message>
+    <message>
+        <source>The licenses folder was not found (%1).
+
+The full list of components and their licenses is at
+https://github.com/shealtieltehumim-prog/asmon/blob/main/THIRD_PARTY.md</source>
+        <translation>תיקיית הרישיונות לא נמצאה (%1).
+
+הרשימה המלאה של הרכיבים והרישיונות שלהם נמצאת ב:
+https://github.com/shealtieltehumim-prog/asmon/blob/main/THIRD_PARTY.md</translation>
+    </message>
+    <message>
+        <source>Could not open %1</source>
+        <translation>לא ניתן לפתוח את %1</translation>
     </message>
 </context>
 </TS>
