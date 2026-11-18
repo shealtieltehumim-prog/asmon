@@ -362,6 +362,7 @@ void MiDebugger::setupAfterFirstStop(quint64 mainAddress)
         });
     }
 
+    readUserCode();
     applyPendingBreakpoints();
     state = Stopped;
     emit started();
@@ -402,10 +403,14 @@ void MiDebugger::beginStep(StepMode mode)
             return;
         }
         if (mode == StepOut) {
+            if (inUserCode(pc)) {
+                stepOutUsingStack();
+                return;
+            }
+            //! In a library function: gdb knows its frames.
             stepPhase = PhaseFinish;
             command("-exec-finish", [this](const MiRecord &r) {
                 if (r.cls == "error") {
-                    //! e.g. in main, which has no caller frame gdb can see
                     emit log(tr("Step out: %1").arg(r.results.get("msg")) + '\n', true);
                     finishStepping(pc);
                 }
@@ -426,6 +431,82 @@ void MiDebugger::beginStep(StepMode mode)
         } else {
             runToNextLine();
         }
+    });
+}
+
+void MiDebugger::readUserCode()
+{
+    if (userHigh <= userLow)
+        return;
+    command(QString("-data-read-memory-bytes 0x%1 %2").arg(userLow, 0, 16).arg(userHigh - userLow),
+            [this](const MiRecord &r) {
+        const QList<MiValue> blocks = r.results["memory"].elements();
+        if (r.cls != "done" || blocks.isEmpty())
+            return;
+        //! the read may stop early at the end of the mapped section
+        const quint64 begin = parseAddress(blocks[0].get("begin"));
+        if (begin == userLow)
+            userCode = QByteArray::fromHex(blocks[0].get("contents").toLatin1());
+    });
+}
+
+//! True if v is in your code right after a call instruction, i.e. a value a
+//! "call" would have pushed. Assembly has no frame info gdb can trust, so
+//! Step Out finds the return address this way.
+bool MiDebugger::isReturnAddress(quint64 v) const
+{
+    if (v < userLow || v >= userLow + quint64(userCode.size()))
+        return false;
+    const int o = int(v - userLow);
+    auto b = [&](int i) { return i >= 0 ? quint8(userCode[i]) : quint8(0); };
+    if (o >= 5 && b(o - 5) == 0xE8)
+        return true;                                   // call rel32
+    for (int len : {2, 3, 4, 6, 7, 8}) {               // call r/m: FF /2 (+SIB/disp)
+        if (o >= len && b(o - len) == 0xFF && ((b(o - len + 1) >> 3) & 7) == 2)
+            return true;
+    }
+    return false;
+}
+
+void MiDebugger::stepOutUsingStack()
+{
+    const int word = arch64 ? 8 : 4;
+    const int words = 256;
+    command(QString("-data-read-memory-bytes $sp %1").arg(word * words), [this, word](const MiRecord &r) {
+        const QList<MiValue> blocks = r.results["memory"].elements();
+        QByteArray stack;
+        quint64 sp = 0;
+        if (r.cls == "done" && !blocks.isEmpty()) {
+            stack = QByteArray::fromHex(blocks[0].get("contents").toLatin1());
+            sp = parseAddress(blocks[0].get("begin"));
+        }
+        for (int off = 0; off + word <= stack.size(); off += word) {
+            quint64 v = 0;
+            for (int i = word - 1; i >= 0; --i)
+                v = (v << 8) | quint8(stack[off + i]);
+            if (!isReturnAddress(v))
+                continue;
+            //! Stop at the return address only once this frame has returned
+            //! (the stack pointer is above the slot): right also for recursion.
+            const quint64 slot = sp + quint64(off);
+            stepPhase = PhaseOut;
+            command(QString("-break-insert -t -c %1 *0x%2")
+                        .arg(GdbMi::quote(QString("$sp > 0x%1").arg(slot, 0, 16)))
+                        .arg(v, 0, 16),
+                    [this](const MiRecord &br) {
+                if (br.cls == "done")
+                    tempBreakpoint = br.results["bkpt"].get("number");
+            });
+            command("-exec-continue");
+            return;
+        }
+        //! No caller in your code: this is main (called by the C runtime) or
+        //! code entered with jmp. Returning from main ends the program.
+        emit log(tr("Step out: no caller in your code (this is main), so the program "
+                    "runs on until it ends or reaches a breakpoint.") + '\n', false);
+        stepMode = NoStep;
+        stepPhase = PhaseNone;
+        command("-exec-continue");
     });
 }
 

@@ -86,7 +86,7 @@ private slots:
 private:
     enum State { Off, Starting, Running, Stopped, Ended };
     enum StepMode { NoStep, StepOver, StepInto, StepOut, StepInsn };
-    enum StepPhase { PhaseNone, PhaseInsn, PhaseAfterCall, PhaseIntoCall, PhaseRunToLine, PhaseFinish };
+    enum StepPhase { PhaseNone, PhaseInsn, PhaseAfterCall, PhaseIntoCall, PhaseRunToLine, PhaseFinish, PhaseOut };
 
     void handleLine(const QString &line);
     void handleRecord(const MiRecord &r);
@@ -123,6 +123,10 @@ private:
     QMap<quint64, int> lineOfAddress; //!< first instruction of a line -> line
     QMap<int, quint64> addressOfLine;
     quint64 userLow = 0, userHigh = 0;
+    QByteArray userCode;          //!< bytes of [userLow, userHigh): finds return addresses
+    bool isReturnAddress(quint64 v) const;
+    void stepOutUsingStack();
+    void readUserCode();
 
     QSet<int> wantedBreakpoints;      //!< lines
     QHash<int, QString> breakpointIds; //!< line -> gdb breakpoint number
