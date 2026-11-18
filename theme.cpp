@@ -239,6 +239,8 @@ QSplitter::handle { background: %4; }
 QStatusBar { background: %1; color: %6; border-top: 1px solid %4; }
 QStatusBar::item { border: none; }
 QStatusBar QLabel { color: %6; padding: 0 8px; }
+QStatusBar QComboBox { background: transparent; border: none; color: %6; padding: 0 6px; min-height: 0; }
+QStatusBar QComboBox:hover { background: %8; color: %5; }
 QTabBar { qproperty-drawBase: 0; }
 QTabBar::close-button { image: url(%12); subcontrol-position: right; border-radius: 3px; margin: 2px; }
 QTabBar::close-button:hover { background: %8; }

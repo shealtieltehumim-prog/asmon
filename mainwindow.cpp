@@ -878,8 +878,10 @@ void MainWindow::createAsmonUi()
             programIsBuilded = false;
             updateStatusBar();
         });
-        fileToolBar->addSeparator();
-        fileToolBar->addWidget(targetBox);
+        //! in the status bar (VS Code style), so the menu row keeps room for all menus
+        targetBox->setObjectName("statusTarget");
+        targetBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+        statusBar()->insertPermanentWidget(0, targetBox);
 
         QAction *installWslAction = new QAction(tr("Install WSL..."), this);
         installWslAction->setProperty("en", "Install WSL Linux");
@@ -1462,7 +1464,7 @@ void MainWindow::updateStatusBar()
     QString mode = settings.value("assembler", QString("NASM")).toString() + "  ·  "
                    + settings.value("mode", QString("x64")).toString();
     #ifdef Q_OS_WIN32
-    mode += "  ·  " + (linuxTargetSelected() ? QString("Linux ELF") : QString("Windows"));
+    //! the target is the combo box beside this label
     #else
     mode += "  ·  Linux";
     #endif
