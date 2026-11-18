@@ -20,7 +20,9 @@
 #define ASMON_BUILD 0
 #endif
 
-static const char *kDefaultServer = "https://updates-production-522a5b29.up.railway.app";
+//! Own domain first (reachable through the home filter), the Railway address as a fallback.
+static const char *kDefaultServer = "https://updates.shealtiel.link";
+static const char *kFallbackServer = "https://updates-production-522a5b29.up.railway.app";
 
 Updater::Updater(QObject *parent) : QObject(parent)
 {
@@ -73,10 +75,23 @@ void Updater::run(const QStringList &args, std::function<void(int, const QByteAr
 
 void Updater::check()
 {
-    const QString base = serverUrl();
+    QStringList bases;
+    bases << serverUrl();
+    if (QSettings().value("updateurl").toString().trimmed().isEmpty())
+        bases << QString::fromLatin1(kFallbackServer);
+    checkAt(bases, 0);
+}
+
+void Updater::checkAt(const QStringList &bases, int index)
+{
+    const QString base = bases.value(index);
     run({ "-sS", "-L", "--max-time", "20", "--fail", base + "/api/latest" },
-        [this, base](int code, const QByteArray &out, const QString &err) {
+        [this, base, bases, index](int code, const QByteArray &out, const QString &err) {
             if (code != 0) {
+                if (index + 1 < bases.size()) {
+                    checkAt(bases, index + 1); // try the next server
+                    return;
+                }
                 emit failed(err.isEmpty() ? tr("No answer from the update server.") : err);
                 return;
             }

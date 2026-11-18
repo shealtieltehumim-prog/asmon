@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <functional>
 
 class QProcess;
@@ -35,6 +36,7 @@ public:
 
     //! Asks the server; emits updateAvailable / upToDate / failed.
     void check();
+    void checkAt(const QStringList &bases, int index);
     //! Downloads and verifies `info`, then emits downloaded(path) or failed.
     void download(const Info &info);
     //! Replaces asmon.exe with the downloaded file after this process exits, then starts it.
