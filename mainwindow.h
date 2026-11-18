@@ -239,6 +239,7 @@ private:
     //! Settings and Help
     QPointer<QWidget> settingsWindow;
     QPointer<QWidget> settingsPage;
+    QWidget *bottomCard = nullptr;
     int settingsReturnIndex;
     void closeSettingsPage();
     void createEditCommands();

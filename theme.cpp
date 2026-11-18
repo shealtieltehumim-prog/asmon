@@ -29,7 +29,7 @@ struct Chrome {
 Chrome chrome(bool dark)
 {
     if (dark)
-        return { "#181818", "#1f1f1f", "#181818", "#2b2b2b", "#cccccc", "#8b8b8b",
+        return { "#141414", "#1f1f1f", "#181818", "#2b2b2b", "#cccccc", "#8b8b8b",
                  "#0078d4", "#2a2d2e", "#264f78", "#ffffff", "#313131" };
     return { "#f8f8f8", "#ffffff", "#f8f8f8", "#e5e5e5", "#1f1f1f", "#6e6e6e",
              "#005fb8", "#e8e8e8", "#add6ff", "#000000", "#ffffff" };
@@ -266,8 +266,8 @@ QToolBar::separator { width: 1px; background: %4; margin: 6px 4px; }
 QToolButton { background: transparent; border: none; border-radius: 4px; padding: 4px; }
 QToolButton:hover { background: %8; }
 QToolButton:pressed, QToolButton:checked { background: %4; }
-QTabWidget::pane { border: none; border-top: 1px solid %4; }
-QTabBar { background: %3; }
+QTabWidget::pane { border: none; border-top: 1px solid %4; background: %2; }
+QTabBar { background: %2; }
 QTabBar::tab { background: %3; color: %6; padding: 8px 14px; border: none; border-right: 1px solid %4;
                border-top: 1px solid transparent; min-height: 18px; }
 QTabBar::tab:selected { background: %2; color: %5; border-top: 1px solid %7; }
@@ -292,7 +292,7 @@ QScrollBar::handle { background: %11; border-radius: 0; min-height: 30px; min-wi
 QScrollBar::handle:hover { background: %6; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
-QSplitter::handle { background: %4; }
+QSplitter::handle { background: transparent; }
 QStatusBar { background: %7; color: #ffffff; border: none; }
 QStatusBar::item { border: none; }
 QStatusBar QLabel { color: #ffffff; padding: 0 8px; }

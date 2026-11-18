@@ -45,6 +45,7 @@
 #include "processpicker.h"
 #include "framelesshelper.h"
 #include "updater.h"
+#include "cardframe.h"
 #include <QProgressDialog>
 #include <QShortcut>
 #include <QFontDatabase>
@@ -185,8 +186,9 @@ void MainWindow::initUi()
     splitter->setOrientation(Qt::Vertical);
     workLayout = new QVBoxLayout;
     workLayout->addWidget(splitter);
-    workLayout->setContentsMargins(0, 0, 0, 0);
+    workLayout->setContentsMargins(8, 2, 8, 8);   // space around the cards
     workLayout->setSpacing(0);
+    splitter->setHandleWidth(8);                  // the gap between the editor card and the panel card
     workWidget = new QWidget;
     workWidget->setLayout(workLayout);
 
@@ -280,7 +282,7 @@ void MainWindow::initUi()
             if (togglePanelAction)
                 togglePanelAction->setChecked(false);
             else
-                bottomPanel->hide();
+                bottomCard->hide();
         });
     }
     connect(bottomPanel, &QTabWidget::currentChanged, this, [this](int i) {
@@ -291,8 +293,9 @@ void MainWindow::initUi()
     });
 
     //! Add widgets on splitter
-    splitter->addWidget(tabs);
-    splitter->addWidget(bottomPanel);
+    splitter->addWidget(new CardFrame(tabs));
+    bottomCard = new CardFrame(bottomPanel);
+    splitter->addWidget(bottomCard);
     splitter->setCollapsible(0, false);
     debugAnyCommandWidget->close();
     debugAnyCommandWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -1107,7 +1110,7 @@ void MainWindow::createAsmonUi()
     togglePanelAction->setShortcut(QKeySequence("Ctrl+J"));
     togglePanelAction->setCheckable(true);
     togglePanelAction->setChecked(true);
-    connect(togglePanelAction, &QAction::toggled, bottomPanel, &QWidget::setVisible);
+    connect(togglePanelAction, &QAction::toggled, bottomCard, &QWidget::setVisible);
     QAction *terminalAction = new QAction(tr("Terminal"), this);
     terminalAction->setProperty("en", "Terminal shell cmd bash");
     terminalAction->setShortcut(QKeySequence("Ctrl+`"));
@@ -1929,7 +1932,7 @@ void MainWindow::showBottomPage(QWidget *page)
         if (togglePanelAction)
             togglePanelAction->setChecked(true);
         else
-            bottomPanel->show();
+            bottomCard->show();
     }
 }
 
