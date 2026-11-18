@@ -332,6 +332,10 @@ jobs:
           $ws.SendKeys("{F9}"); Start-Sleep 15          # build and run: prints, then crashes
           Shot "2-build-and-run"
           $ws.SendKeys("{F5}"); Start-Sleep 20          # debug: stops at the first line of main
+          # the program is debugged by Asmon's own engine: the program runs, and no gdb is started
+          if (Get-Process gdb -ErrorAction SilentlyContinue) { throw "gdb is running: the native engine was expected" }
+          if (-not (Get-Process AsmonProg -ErrorAction SilentlyContinue)) { throw "the debugged program is not running" }
+          Write-Host "native engine: AsmonProg is running under the debugger, no gdb process"
           $ws.SendKeys("{F10}"); Start-Sleep 4
           $ws.SendKeys("{F10}"); Start-Sleep 4
           $ws.SendKeys("{F10}"); Start-Sleep 4
@@ -380,6 +384,10 @@ jobs:
           Start-Sleep 15
           $null = $ws.AppActivate($p.Id); Start-Sleep 2
           $ws.SendKeys("{F5}"); Start-Sleep 20
+          # the program is debugged by Asmon's own engine: the program runs, and no gdb is started
+          if (Get-Process gdb -ErrorAction SilentlyContinue) { throw "gdb is running: the native engine was expected" }
+          if (-not (Get-Process AsmonProg -ErrorAction SilentlyContinue)) { throw "the debugged program is not running" }
+          Write-Host "native engine: AsmonProg is running under the debugger, no gdb process"
           $ws.SendKeys("{F10}"); Start-Sleep 4
           $ws.SendKeys("{F10}"); Start-Sleep 4
           $ws.SendKeys("{F11}"); Start-Sleep 6
