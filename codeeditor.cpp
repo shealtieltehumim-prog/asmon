@@ -600,6 +600,30 @@ void CodeEditor::applyThemeColors()
     repaintLineNumberArea();
 }
 
+void CodeEditor::setTextDirection(Qt::LayoutDirection d)
+{
+    QTextOption option = document()->defaultTextOption();
+    option.setTextDirection(d);
+    option.setAlignment((d == Qt::RightToLeft ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignAbsolute);
+    document()->setDefaultTextOption(option);
+    viewport()->update();
+}
+
+void CodeEditor::setShowWhitespace(bool on)
+{
+    QTextOption option = document()->defaultTextOption();
+    QTextOption::Flags f = option.flags();
+    f.setFlag(QTextOption::ShowTabsAndSpaces, on);
+    option.setFlags(f);
+    document()->setDefaultTextOption(option);
+}
+
+void CodeEditor::setWordWrap(bool on)
+{
+    setLineWrapMode(on ? QPlainTextEdit::WidgetWidth : QPlainTextEdit::NoWrap);
+    repaintLineNumberArea();
+}
+
 // ---------------------------------------------------------------- diagnostics
 
 void CodeEditor::setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics)

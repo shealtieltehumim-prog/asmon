@@ -77,6 +77,7 @@ SOURCES += main.cpp\
     searchpanel.cpp \
     processpicker.cpp \
     updater.cpp \
+    editcommands.cpp \
     framelesshelper.cpp \
     retools.cpp \
     debugpanels.cpp \

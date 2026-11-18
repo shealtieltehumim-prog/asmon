@@ -117,6 +117,7 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     createMenus();
     createToolBars();
     createAsmonUi();
+    createEditCommands();
 
     //! quiet update check a few seconds after start (builds made by CI only; "autoupdate=false" in the ini turns it off)
     if (Updater::currentBuild() > 0 && settings.value("autoupdate", true).toBool())
@@ -921,7 +922,10 @@ void MainWindow::createAsmonUi()
         statusState = new QLabel;
         statusCursor->setLayoutDirection(Qt::LeftToRight);
         statusBar()->addWidget(statusState, 1);
+        statusDoc = new QLabel;
+        statusDoc->setLayoutDirection(Qt::LeftToRight);
         statusBar()->addPermanentWidget(statusMode);
+        statusBar()->addPermanentWidget(statusDoc);
         statusBar()->addPermanentWidget(statusCursor);
         statusBar()->setSizeGripEnabled(false);
         updateStatusBar();
@@ -1888,10 +1892,17 @@ void MainWindow::updateStatusBar()
         return;
     if (tabs && tabs->count() > 0 && mainWidget->currentIndex() == 1) {
         const QTextCursor c = ((Tab *) tabs->currentWidget())->code->textCursor();
-        statusCursor->setText(tr("Ln %1, Col %2").arg(c.blockNumber() + 1)
-                                  .arg(c.positionInBlock() - CodeEditor::marksBefore(c) + 1));
+        QString pos = tr("Ln %1, Col %2").arg(c.blockNumber() + 1)
+                          .arg(c.positionInBlock() - CodeEditor::marksBefore(c) + 1);
+        if (c.hasSelection())
+            pos += "  " + tr("(%1 selected)").arg(CodeEditor::stripBidiMarks(c.selectedText()).size());
+        statusCursor->setText(pos);
+        QTextDocument *doc = ((Tab *) tabs->currentWidget())->code->document();
+        statusDoc->setText(tr("Lines: %1").arg(doc->blockCount()) + "   " + tr("Length: %1").arg(doc->characterCount() - 1)
+                           + "   UTF-8");
     } else {
         statusCursor->clear();
+        statusDoc->clear();
     }
     QString mode = settings.value("assembler", QString("NASM")).toString() + "  ·  "
                    + settings.value("mode", QString("x64")).toString();

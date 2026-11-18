@@ -96,6 +96,13 @@ public:
     static QString stripBidiMarks(QString text);
     QString plainTextWithoutMarks() const;
     static int marksBefore(const QTextCursor &c);
+    //! Notepad++ style: text direction of the whole document (the gutter stays on the left)
+    void setTextDirection(Qt::LayoutDirection d);
+    Qt::LayoutDirection textDirection() const { return document()->defaultTextOption().textDirection(); }
+    void setShowWhitespace(bool on);
+    bool showWhitespace() const { return document()->defaultTextOption().flags() & QTextOption::ShowTabsAndSpaces; }
+    void setWordWrap(bool on);
+    bool wordWrap() const { return lineWrapMode() != QPlainTextEdit::NoWrap; }
 
 public slots:
     void updateDebugLine(int number);

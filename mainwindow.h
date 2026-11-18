@@ -202,6 +202,7 @@ private:
     QTabWidget *bottomPanel;
     QStackedWidget *outputStack;
     QLabel *statusCursor = nullptr;
+    QLabel *statusDoc = nullptr;
     QAction *togglePanelAction = nullptr;
     QLabel *statusMode = nullptr;
     QLabel *statusState = nullptr;
@@ -240,6 +241,7 @@ private:
     QPointer<QWidget> settingsPage;
     int settingsReturnIndex;
     void closeSettingsPage();
+    void createEditCommands();
     class Updater *updater;
     QPointer<class QProgressDialog> updateProgress;
     bool updateManual, updateDownloading;
