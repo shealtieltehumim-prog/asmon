@@ -157,7 +157,7 @@ jobs:
         run: |
           mkdir -p dtest && cd dtest
           printf '\xb8\x07\x00\x00\x00\xc3' > f.bin
-          printf 'load file x86:LE:64:default:windows f.bin\nadjust vma 0x401000\nmap function 0x401000 f\nload function f\ndecompile\nprint C\nquit\n' \
+          printf 'load file x86:LE:64:default:windows f.bin\nadjust vma 0x140001000\nmap function 0x140001000 f\nload function f\ndecompile\nprint C\nquit\n' \
             | ../dist/decomp/asmon-decomp.exe -s "$(cygpath -w "$PWD/../dist/decomp/Ghidra/Processors/x86/data/languages")" | tee out.txt
           grep -q "return 7;" out.txt
 

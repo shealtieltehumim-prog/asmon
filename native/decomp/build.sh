@@ -30,6 +30,11 @@ case "$($CXX -dumpmachine)" in *mingw*|*msys*) FLAGS="$FLAGS -D_WINDOWS";; esac 
 # mingw's <limits.h> defines INT_MIN as a macro, which breaks a local constant of the same name in opbehavior.cc
 sed -i 's/\bINT_MIN\b/INTB_MIN_/g' opbehavior.cc
 # the flex scanner defines its own isatty() on Windows, which clashes with mingw's <io.h>
+# Windows has a 32-bit 'long': the scanner must read 64-bit numbers such as 0xffffffffffffff00 with stoull
+sed -i 's/std::stoul(numtext/std::stoull(numtext/' slghscan.cc
+sed -i 's/strtoul(/strtoull(/g' space.cc                                   # addresses such as 0x140001480
+sed -i 's/adjustVma(long adjust)/adjustVma(long long adjust)/' *.hh *.cc    # the image base is a 64-bit number
+sed -i 's/unsigned long adjust;/unsigned long long adjust;/; s/adjust = 0uL;/adjust = 0uLL;/' ifacedecomp.cc
 sed -i '/^static int isatty (int fildes) { return 0; }/d' slghscan.cc
 build() { # name defines
   [ -f "$OUT/obj/$2$1.o" ] || echo "$CXX $FLAGS $3 -c $1.cc -o $OUT/obj/$2$1.o"
