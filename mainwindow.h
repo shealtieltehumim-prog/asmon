@@ -80,6 +80,7 @@
 #include "midebugger.h"
 #include "debugpanels.h"
 #include "retools.h"
+#include "terminalwidget.h"
 #include <QComboBox>
 #include <QFileSystemModel>
 #include <QTreeView>
@@ -190,6 +191,9 @@ private:
     QAction *darkThemeAction;
     CommandPalette *commandPalette;
     QDockWidget *explorerDock;
+    QTabWidget *bottomPanel;
+    RuQTextEdit *debugConsole;
+    TerminalWidget *terminal;
     QComboBox *targetBox;
     QDockWidget *buildOutputDock;
     BuildOutputView *buildOutputView;
@@ -258,6 +262,9 @@ public slots:
     void onDebugRunning();
     void debugStepOut();
     void openInReTool(const QString &id, bool pickFile);
+    void showBottomPage(QWidget *page);
+    void appendDebugConsole(const QString &text, const QColor &color);
+    void syncBottomPanelWithTab();
     void debugStepInstruction();
     void refreshBuildOutput();
     bool linuxTargetSelected() const;

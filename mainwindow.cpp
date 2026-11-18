@@ -179,12 +179,37 @@ void MainWindow::initUi()
     //! Create gdb command widget
     debugAnyCommandWidget = new DebugAnyCommandWidget;
 
+    //! Asmon: bottom panel: Build log | Debug console | Terminal. Ctrl+J shows/hides it.
+    bottomPanel = new QTabWidget;
+    bottomPanel->setObjectName("bottomPanel");
+    bottomPanel->setDocumentMode(true);
+    debugConsole = new RuQTextEdit;
+    debugConsole->setReadOnly(true);
+    debugConsole->setLayoutDirection(Qt::LeftToRight);
+    debugConsole->setPlaceholderText(tr("gdb commands and their output (while debugging)"));
+    QWidget *debugConsolePage = new QWidget;
+    QVBoxLayout *debugConsoleLayout = new QVBoxLayout(debugConsolePage);
+    debugConsoleLayout->setContentsMargins(0, 0, 0, 0);
+    debugConsoleLayout->setSpacing(0);
+    debugConsoleLayout->addWidget(debugConsole, 1);
+    debugConsoleLayout->addWidget(debugAnyCommandWidget);
+    terminal = new TerminalWidget;
+    bottomPanel->addTab(compilerOut, tr("Build log"));
+    bottomPanel->addTab(debugConsolePage, tr("Debug console"));
+    bottomPanel->addTab(terminal, tr("Terminal"));
+    bottomPanel->setCurrentIndex(0);
+    connect(bottomPanel, &QTabWidget::currentChanged, this, [this](int i) {
+        if (bottomPanel->widget(i) == terminal) {
+            syncBottomPanelWithTab();
+            terminal->focusInput();
+        }
+    });
+
     //! Add widgets on splitter
     splitter->addWidget(tabs);
-    splitter->addWidget(compilerOut);
-    splitter->setCollapsible(1, false);
-    workLayout->addWidget(debugAnyCommandWidget);
-    int compilerOutSize = 100;
+    splitter->addWidget(bottomPanel);
+    splitter->setCollapsible(0, false);
+    int compilerOutSize = 220;
     debugAnyCommandWidget->close();
     debugAnyCommandWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     splitter->setSizes(QList<int>() << splitter->size().height() - compilerOutSize << compilerOutSize);
@@ -805,8 +830,27 @@ void MainWindow::createAsmonUi()
         fileMenu->insertMenu(openAction, templatesMenu);
     }
 
+    connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(syncBottomPanelWithTab()));
+    QAction *togglePanelAction = new QAction(tr("Bottom panel"), this);
+    togglePanelAction->setProperty("en", "Toggle bottom panel output terminal");
+    togglePanelAction->setShortcut(QKeySequence("Ctrl+J"));
+    togglePanelAction->setCheckable(true);
+    togglePanelAction->setChecked(true);
+    connect(togglePanelAction, &QAction::toggled, bottomPanel, &QWidget::setVisible);
+    QAction *terminalAction = new QAction(tr("Terminal"), this);
+    terminalAction->setProperty("en", "Terminal shell cmd bash");
+    terminalAction->setShortcut(QKeySequence("Ctrl+`"));
+    connect(terminalAction, &QAction::triggered, this, [this, togglePanelAction]() {
+        togglePanelAction->setChecked(true);
+        syncBottomPanelWithTab();
+        showBottomPage(terminal);
+        terminal->focusInput();
+    });
+
     viewMenu->addAction(commandPaletteAction);
     viewMenu->addSeparator();
+    viewMenu->addAction(togglePanelAction);
+    viewMenu->addAction(terminalAction);
     viewMenu->addAction(toggleExplorerAction);
     viewMenu->addAction(buildOutputAction);
     viewMenu->addAction(focusModeAction);
@@ -981,6 +1025,7 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
         Common::pathInTemp("AsmonProg.exe"), dataPath + "/include", sourceDir);
     if (!r.ok) {
         printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
+        showBottomPage(compilerOut);
         printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
         return;
     }
@@ -988,6 +1033,35 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
     printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
     refreshBuildOutput();
     programIsBuilded = true;
+}
+
+void MainWindow::showBottomPage(QWidget *page)
+{
+    if (!bottomPanel || !page)
+        return;
+    bottomPanel->setCurrentWidget(page);
+    if (!bottomPanel->isVisible())
+        bottomPanel->show();
+}
+
+void MainWindow::appendDebugConsole(const QString &text, const QColor &color)
+{
+    QTextCursor c(debugConsole->document());
+    c.movePosition(QTextCursor::End);
+    QTextCharFormat f;
+    f.setForeground(color);
+    c.insertText(text, f);
+    debugConsole->setTextCursor(c);
+    debugConsole->ensureCursorVisible();
+}
+
+void MainWindow::syncBottomPanelWithTab()
+{
+    if (!tabs || tabs->count() == 0)
+        return;
+    Tab *t = (Tab *) tabs->currentWidget();
+    const QString path = t->getCurrentFilePath();
+    terminal->setWorkingDirectory(path.isEmpty() ? saveOpenDirectory : QFileInfo(path).absolutePath());
 }
 
 void MainWindow::showCommandPalette()
@@ -1000,7 +1074,7 @@ void MainWindow::toggleFocusMode(bool on)
     if (on) {
         hiddenByFocusMode.clear();
         QList<QWidget *> candidates;
-        candidates << menuBar() << fileToolBar << debugToolBar << compilerOut;
+        candidates << menuBar() << fileToolBar << debugToolBar << bottomPanel;
         for (QDockWidget *d : findChildren<QDockWidget *>())
             candidates << d;
         for (QWidget *w : candidates) {
@@ -1120,10 +1194,6 @@ void MainWindow::refreshEditMenu()
 
 void MainWindow::newFile()
 {
-    if (tabs->count() > 0) {
-        settings.setValue("tabgeometry", ((Tab *) tabs->currentWidget())->saveGeometry());
-        settings.setValue("tabwindowstate", ((Tab *) tabs->currentWidget())->saveState());
-    }
     //! Tabs
     mainWidget->setCurrentIndex(1);
     Tab *tab = new Tab;
@@ -1298,8 +1368,6 @@ void MainWindow::closeAllChildWindows()
 
 bool MainWindow::deleteTab(int index, bool saveFileName)
 {
-    settings.setValue("tabgeometry", ((Tab *) tabs->widget(index))->saveGeometry());
-    settings.setValue("tabwindowstate", ((Tab *) tabs->widget(index))->saveState());
     if (okToContinue(index)) {
         if (debugger && index == tabs->currentIndex())
             debugExit();
@@ -1363,6 +1431,7 @@ void MainWindow::buildProgram(bool debugMode)
 
     using Common::applicationDataPath;
     printLogWithTime(tr("Build started...") + '\n', Theme::color("fontcolor"));
+    showBottomPage(compilerOut);
     QCoreApplication::processEvents();
 
     if (! QFile::exists(applicationDataPath())) {
@@ -1538,6 +1607,7 @@ void MainWindow::buildProgram(bool debugMode)
         builded = false;
     if (!builded) {
         printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
+        showBottomPage(compilerOut);
 
         //! Print errors
         printLog(prettifyBuildLog(logText), Theme::color("errorcolor"));
@@ -1589,6 +1659,7 @@ void MainWindow::runProgram()
     ((Tab *) tabs->currentWidget())->clearOutput();
 
     printLogWithTime(tr("The program is executing...") + '\n', Theme::color("fontcolor"));
+    showBottomPage(compilerOut);
     QCoreApplication::processEvents();
 
     QString input = Common::pathInTemp("input.txt");
@@ -1780,7 +1851,7 @@ void MainWindow::debug()
     connect(debugger, &MiDebugger::running, this, &MainWindow::onDebugRunning);
     connect(debugger, &MiDebugger::programOutput, this, [this](const QString &t) { printOutput(t); });
     connect(debugger, &MiDebugger::consoleOutput, this, [this](const QString &t) {
-        printLog(t, Theme::color("fontcolor"));
+        appendDebugConsole(t, Theme::color("fontcolor"));
     });
     connect(debugger, &MiDebugger::log, this, [this](const QString &t, bool error) {
         printLog(t, Theme::color(error ? "errorcolor" : "fontcolor"));
@@ -1796,6 +1867,8 @@ void MainWindow::debug()
     code->setDebugEnabled();
     enableDebugActions();
     showAnyCommandWidget();
+    debugConsole->clear();
+    showBottomPage(debugConsole->parentWidget());
     debugDock->show();
     debugDock->raise();
 
@@ -2012,7 +2085,8 @@ void MainWindow::debugRunCommand(QString command, bool print)
 {
     if (!debugger || !debugger->isStopped())
         return;
-    printLog("> " + command + "\n", QColor(Theme::isDark() ? "#4fc1ff" : "#2047f7"));
+    showBottomPage(debugConsole->parentWidget());
+    appendDebugConsole("(gdb) " + command + "\n", Theme::color("keywordscolor"));
     debugger->consoleCommand(print ? "print " + command : command);
 }
 

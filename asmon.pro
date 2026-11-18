@@ -52,6 +52,7 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    terminalwidget.cpp \
     retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
@@ -81,6 +82,7 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
     regexp.h \
     theme.h \
+    terminalwidget.h \
     retools.h \
     debugpanels.h \
     midebugger.h \
