@@ -1,0 +1,8 @@
+{
+  "name": "asmon-updates",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Update server for Asmon: serves the latest asmon.exe and its manifest",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
