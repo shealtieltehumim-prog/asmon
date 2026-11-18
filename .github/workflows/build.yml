@@ -616,8 +616,6 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found" }
-          & $iscc /Q "/DAppVersion=$ver" /DDist=..\dist installer\asmon.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Copy-Item THIRD_PARTY.md dist\licenses\
           # Optional packs are separate, small-to-medium downloads (versionless names: the Asmon
           # messages refer to them). Each zip has its top folder inside: extract into the Asmon folder
@@ -625,6 +623,10 @@ jobs:
           New-Item packs -ItemType Directory -Force | Out-Null
           Move-Item dist\MinGW packs\MinGW
           Move-Item dist\LLVM packs\LLVM
+          # the installer is built from the core only (the optional folders are already moved out,
+          # so it does not even create empty folders for them)
+          & $iscc /Q "/DAppVersion=$ver" /DDist=..\dist installer\asmon.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           # portable: settings stay next to asmon.exe (data\Asmon\Asmon.ini); core only, like the installer
           New-Item dist\portable -ItemType File -Force | Out-Null
           7z a -tzip -mx=7 "installer\output\Asmon-$ver-portable.zip" .\dist\* | Out-Null
