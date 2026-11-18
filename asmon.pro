@@ -22,8 +22,12 @@ DATADIR = $$PREFIX/share
 
 bsd {
     binfile.files += $$OUT_PWD/$$TARGET
-    binfile.files += BSD/bin/*
     binfile.path = $$BINDIR
+    # the binary does not exist yet when qmake runs in a clean build directory
+    binfile.CONFIG += no_check_exist executable
+    toolfiles.files += BSD/bin/*
+    toolfiles.path = $$BINDIR
+    toolfiles.CONFIG += nostrip executable
     data.files += BSD/share/asmon/*
     data.path = $$DATADIR/asmon/
     shortcutfiles.files += BSD/share/applications/asmon.desktop
@@ -33,8 +37,12 @@ bsd {
     docfiles.path = $$DATADIR/doc/asmon/
 } else {
     binfile.files += $$OUT_PWD/$$TARGET
-    binfile.files += Linux/bin/*
     binfile.path = $$BINDIR
+    # the binary does not exist yet when qmake runs in a clean build directory
+    binfile.CONFIG += no_check_exist executable
+    toolfiles.files += Linux/bin/*
+    toolfiles.path = $$BINDIR
+    toolfiles.CONFIG += nostrip executable
     data.files += Linux/share/asmon/*
     data.path = $$DATADIR/asmon/
     shortcutfiles.files += Linux/share/applications/asmon.desktop
@@ -50,6 +58,7 @@ bsd {
     INSTALLS += iconfile
 }
 INSTALLS += binfile
+INSTALLS += toolfiles
 INSTALLS += data
 INSTALLS += shortcutfiles
 INSTALLS += docfiles
