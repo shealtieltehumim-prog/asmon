@@ -153,7 +153,8 @@ void Decompiler::processDone(int exitCode, QProcess::ExitStatus status)
         output_ += p->readAllStandardOutput();
         p->deleteLater();
     }
-    const QString all = QString::fromUtf8(output_);
+    QString all = QString::fromUtf8(output_);
+    all.remove(QLatin1Char('\r'));           // Windows console text mode
     bool ok = false;
     QString text;
     const int e = all.lastIndexOf("@@END@@");
