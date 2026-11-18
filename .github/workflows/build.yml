@@ -585,10 +585,21 @@ jobs:
         with:
           name: installer-screenshots
           path: shots
+      # separate downloads: most people need only the installer
       - uses: actions/upload-artifact@v4
         with:
-          name: asmon-installer-and-portable
-          path: installer/output
+          name: asmon-setup
+          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-Setup.exe
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-portable
+          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-portable.zip
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-re-tools-portable
+          path: installer/output/Asmon-${{ env.ASMON_VERSION }}-RE-tools-portable.zip
           compression-level: 0
       - name: Attach to the GitHub release (v* tags / published releases)
         if: startsWith(github.ref, 'refs/tags/v')
