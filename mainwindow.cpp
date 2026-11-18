@@ -361,8 +361,9 @@ void MainWindow::createMenus()
     debugMenu->addAction(debugShowMemoryAction);
     debugMenu->addSeparator();
     debugMenu->addAction(stopAction);
-    settingsMenu = menuBar()->addMenu(tr("Settings"));
-    settingsMenu->addAction(settingsAction);
+    //! Settings is a single command: a direct menu-bar item (one click), not a menu with one entry.
+    menuBar()->addAction(settingsAction);
+    settingsMenu = nullptr;
     helpMenu = menuBar()->addMenu(tr("Help"));
     helpMenu->addAction(helpAction);
     helpMenu->addAction(aboutAction);
@@ -967,7 +968,7 @@ void MainWindow::createAsmonUi()
     //! RE menu: open the program in external reverse-engineering tools
     {
         QMenu *reMenu = new QMenu(tr("RE"), this);
-        menuBar()->insertMenu(settingsMenu->menuAction(), reMenu);
+        menuBar()->insertMenu(settingsAction, reMenu);
         for (const ReTools::Tool &tool : ReTools::all()) {
             const QString id = tool.id;
             QAction *current = reMenu->addAction(tr("Open the program in %1").arg(tool.name));
