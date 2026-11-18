@@ -534,9 +534,37 @@ jobs:
             if (-not (Test-Path "C:\AsmonTest\$f")) { throw "missing after install: $f" }
             Write-Host "ok  $f"
           }
+          # Clean machine: Asmon starts with a PATH that holds only the Windows folders (no MinGW,
+          # MSYS2, Git, NASM...), builds Hello World with F9 and the program must run. Proves the
+          # installed bundle needs nothing else installed.
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $cleanBuilt = Join-Path $env:PROGRAMDATA 'Asmon\AsmonProg.exe'
+          Remove-Item $cleanBuilt -Force -ErrorAction SilentlyContinue
+          Copy-Item templates\hello_win64.asm "$env:RUNNER_TEMP\clean_hello.asm"
+          $savedPath = $env:PATH
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $pc = Start-Process C:\AsmonTest\asmon.exe -ArgumentList "$env:RUNNER_TEMP\clean_hello.asm" -PassThru
+          $env:PATH = $savedPath
+          Start-Sleep 15
+          if ($pc.HasExited) { throw "installed asmon.exe (clean PATH) exited with code $($pc.ExitCode)" }
+          $wsc = New-Object -ComObject WScript.Shell
+          $null = $wsc.AppActivate($pc.Id); Start-Sleep 2
+          $wsc.SendKeys("{F9}"); Start-Sleep 20
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("shots\clean-path-build-run.png")
+          Get-Process -Name AsmonProg -ErrorAction SilentlyContinue | Stop-Process -Force
+          if ($pc.HasExited) { throw "asmon.exe (clean PATH) crashed on build and run" }
+          Stop-Process -Id $pc.Id -Force
+          if (-not (Test-Path $cleanBuilt)) { throw "clean PATH: Asmon did not produce $cleanBuilt (build with bundled tools failed)" }
+          $out = & $cleanBuilt 2>&1 | Out-String
+          Write-Host "clean PATH program output: $out"
+          if ($out -notmatch 'Hello, world!') { throw "clean PATH: the built program printed '$out'" }
+          Write-Host "clean-PATH build and run OK"
           # RE menu: open the built program in each tool from Asmon (command palette), check the
           # tool's process starts, take screenshots
-          New-Item -ItemType Directory -Force shots | Out-Null
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           function Shot($name) {
             $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
