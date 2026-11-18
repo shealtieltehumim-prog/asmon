@@ -85,6 +85,10 @@ public:
     //! in the gutter, the message as a tooltip). Cleared on the next edit.
     struct Diagnostic { QString message; bool error; };
     void setDiagnostics(const QMap<int, Diagnostic> &lineDiagnostics);
+    //! conditional breakpoints (line -> condition); setting one also sets the breakpoint
+    QString breakpointCondition(int line) const { return conditions.value(line); }
+    const QMap<int, QString> &breakpointConditions() const { return conditions; }
+    void setBreakpointCondition(int line, const QString &condition);
     //! Ctrl+Space or typing: suggest instructions, registers, directives,
     //! io macros and this file's labels
     void showCompletion() { updateCompletion(true); }
@@ -133,6 +137,7 @@ private:
     QSettings settings;
     QColor lineNumberPanelColor;
     QMap<int, Diagnostic> diagnostics;
+    QMap<int, QString> conditions;
     bool applyingBidiMarks = false;
     class QCompleter *completer = nullptr;
     void updateCompletion(bool force);

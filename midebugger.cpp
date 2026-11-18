@@ -300,6 +300,22 @@ void MiDebugger::handleStopped(const MiValue &res)
         return;
     }
 
+    if (reason.endsWith("watchpoint-trigger")) {
+        //! "stop on write": the instruction after the write is current
+        const MiValue v = res["value"];
+        const QString id = res["wpt"].get("number");
+        emit log(tr("Memory written: %1  %2 → %3").arg(watchpointNames.value(id, res["wpt"].get("exp")),
+                                                       v.get("old"), v.get("new")) + '\n', false);
+        if (stepPhase == PhaseRunToLine)
+            command("-break-disable " + lineBreakpoints.join(' '));
+        if (!tempBreakpoint.isEmpty()) {
+            command("-break-delete " + tempBreakpoint, [](const MiRecord &) {});
+            tempBreakpoint.clear();
+        }
+        finishStepping(pc);
+        return;
+    }
+
     if (stepMode != NoStep) {
         stepStopped(reason);
         return;
@@ -650,7 +666,10 @@ void MiDebugger::applyPendingBreakpoints()
         if (it == addressOfLine.end())
             continue;
         breakpointIds.insert(line, QString()); // pending
-        command(QString("-break-insert *0x%1").arg(it.value(), 0, 16), [this, line](const MiRecord &r) {
+        const QString cond = breakpointConditions.value(line);
+        command(QString("-break-insert %1*0x%2")
+                    .arg(cond.isEmpty() ? QString() : "-c " + GdbMi::quote(cond) + " ")
+                    .arg(it.value(), 0, 16), [this, line](const MiRecord &r) {
             if (r.cls == "done")
                 breakpointIds.insert(line, r.results["bkpt"].get("number"));
             else
@@ -665,6 +684,108 @@ void MiDebugger::applyPendingBreakpoints()
             ++it;
         }
     }
+}
+
+void MiDebugger::setBreakpointCondition(int line, const QString &condition)
+{
+    const QString cond = gdbCondition(condition);
+    if (cond.isEmpty())
+        breakpointConditions.remove(line);
+    else
+        breakpointConditions.insert(line, cond);
+    const QString id = breakpointIds.value(line);
+    if (!id.isEmpty() && state == Stopped)
+        command(cond.isEmpty() ? "-break-condition " + id : "-break-condition " + id + " " + cond,
+                [](const MiRecord &) {});
+}
+
+QString MiDebugger::gdbCondition(const QString &condition)
+{
+    //! registers without '$' -> gdb registers; "==" / "!=" / "<" ... are C
+    static const QRegularExpression reg(
+        "(?<![$\\w])(r[a-ds]x|r[sd]i|r[bs]p|r(?:8|9|1[0-5])[dwb]?|e[a-ds]x|e[sd]i|e[bs]p|[a-d]x|[sd]i|[bs]p|"
+        "[a-d][lh]|[sd]il|[bs]pl|rip|eip|eflags)(?![\\w])", QRegularExpression::CaseInsensitiveOption);
+    QString c = condition.trimmed();
+    c.replace(reg, "$\\1");
+    //! gdb registers are lower case
+    static const QRegularExpression dollar("\\$([A-Za-z0-9]+)");
+    QString out;
+    int last = 0;
+    auto it = dollar.globalMatch(c);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        out += c.mid(last, m.capturedStart() - last) + "$" + m.captured(1).toLower();
+        last = int(m.capturedEnd());
+    }
+    out += c.mid(last);
+    return out;
+}
+
+void MiDebugger::watchMemory(const QString &addressExpr, int size, const QString &shownName,
+                             std::function<void(bool, const QString &)> cb)
+{
+    const char *type = size == 1 ? "unsigned char" : size == 2 ? "unsigned short"
+                     : size == 4 ? "unsigned int" : "unsigned long long";
+    //! fix the address now ($rsp-8 must not follow rsp later)
+    command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)(" + addressExpr + ")"),
+            [this, cb, shownName, type](const MiRecord &ar) {
+        if (ar.cls != "done") {
+            cb(false, ar.results.get("msg"));
+            return;
+        }
+        const quint64 address = ar.results.get("value").toULongLong();
+        const QString expr = QString("*(%1 *)0x%2").arg(type).arg(address, 0, 16);
+        command("-break-watch " + GdbMi::quote(expr), [this, cb, shownName](const MiRecord &r) {
+            if (r.cls == "done") {
+                const QString id = r.results["wpt"].get("number");
+                watchpointIds << id;
+                watchpointNames.insert(id, shownName);
+                cb(true, QString());
+            } else {
+                cb(false, r.results.get("msg"));
+            }
+        });
+    });
+}
+
+void MiDebugger::clearMemoryWatches()
+{
+    if (!watchpointIds.isEmpty())
+        command("-break-delete " + watchpointIds.join(' '), [](const MiRecord &) {});
+    watchpointIds.clear();
+    watchpointNames.clear();
+}
+
+int MiDebugger::lineContaining(quint64 address) const
+{
+    auto it = lineOfAddress.upperBound(address);
+    if (it == lineOfAddress.constBegin())
+        return 0;
+    --it;
+    return it.value();
+}
+
+void MiDebugger::callStack(std::function<void(const QList<Frame> &)> cb)
+{
+    if (state != Stopped)
+        return;
+    const int word = arch64 ? 8 : 4;
+    command(QString("-data-read-memory-bytes $sp %1").arg(word * 512), [this, word, cb](const MiRecord &r) {
+        QList<Frame> frames;
+        frames << Frame{ pc, inUserCode(pc) ? lineContaining(pc) : 0 };
+        const QList<MiValue> blocks = r.results["memory"].elements();
+        if (r.cls == "done" && !blocks.isEmpty()) {
+            const QByteArray stack = QByteArray::fromHex(blocks[0].get("contents").toLatin1());
+            for (int off = 0; off + word <= stack.size() && frames.size() < 64; off += word) {
+                quint64 v = 0;
+                for (int i = word - 1; i >= 0; --i)
+                    v = (v << 8) | quint8(stack[off + i]);
+                if (isReturnAddress(v))
+                    frames << Frame{ v, lineContaining(v - 1) };
+            }
+        }
+        cb(frames);
+    });
 }
 
 // ---------------------------------------------------------------- mapping

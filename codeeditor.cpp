@@ -101,6 +101,11 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
     //! Asmon: Hebrew in strings and comments (see updateBidiHint)
     connect(document(), &QTextDocument::contentsChange, this, &CodeEditor::updateBidiHints);
+    //! a removed breakpoint forgets its condition
+    connect(this, &CodeEditor::breakpointsChanged, this, [this](quint64 line, bool added) {
+        if (!added)
+            conditions.remove(int(line));
+    });
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(shiftBreakpoints(int)));
 
     updateLineNumberAreaWidth(0);
@@ -186,10 +191,20 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
                                     top + fontMetrics().height() / 2 - d / 2, d, d);
                 painter.setBrush(Qt::NoBrush);
             }
-            if (breakpoints.contains(blockNumber + 1) && hasBreakpoints)
+            if (breakpoints.contains(blockNumber + 1) && hasBreakpoints) {
                 painter.drawPixmap(lineNumberArea->width() - debugAreaWidth + 3,
                                    top + fontMetrics().height() / 2 - breakpointImage.height() / 2,
                                    breakpointImage.width(), breakpointImage.height(), breakpointImage);
+                if (conditions.contains(blockNumber + 1)) {
+                    //! conditional: an orange ring around the dot
+                    painter.setRenderHint(QPainter::Antialiasing);
+                    painter.setPen(QPen(QColor("#f0a030"), 2));
+                    painter.setBrush(Qt::NoBrush);
+                    const int d = breakpointImage.height() + 2;
+                    painter.drawEllipse(lineNumberArea->width() - debugAreaWidth + 2,
+                                        top + fontMetrics().height() / 2 - d / 2, d, d);
+                }
+            }
         }
 
         block = block.next();
@@ -940,4 +955,18 @@ void CodeEditor::insertCompletion(const QString &word)
     tc.setPosition(tc.block().position() + start, QTextCursor::KeepAnchor);
     tc.insertText(word);
     setTextCursor(tc);
+}
+
+void CodeEditor::setBreakpointCondition(int line, const QString &condition)
+{
+    if (condition.isEmpty()) {
+        conditions.remove(line);
+    } else {
+        conditions.insert(line, condition);
+        if (!breakpoints.contains(line)) {
+            breakpoints.append(line);
+            emit breakpointsChanged(quint64(line), true);
+        }
+    }
+    repaintLineNumberArea();
 }

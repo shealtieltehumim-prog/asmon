@@ -777,6 +777,17 @@ void MainWindow::createAsmonUi()
 
     //! Debug / RE panels: only visible while debugging
     debugPanels = new DebugPanels;
+    connect(debugPanels, &DebugPanels::goToLine, this, [this](int line) { jumpToLocation(QString(), line, 0); });
+    connect(debugPanels, &DebugPanels::message, this, [this](const QString &t) {
+        printLogWithTime(t + '\n', Theme::color("fontcolor"));
+        statusBar()->showMessage(t, 5000);
+    });
+    debugPanels->labelForLine = [this](int line) -> QString {
+        if (!tabs || tabs->count() == 0)
+            return QString();
+        const QStringList lines = ((Tab *) tabs->currentWidget())->code->plainTextWithoutMarks().split('\n');
+        return Symbols::parentLabel(lines, line - 1);
+    };
     debugDock = new QDockWidget(tr("Debugger"), this);
     debugDock->setObjectName("debugDock");
     debugDock->setWidget(debugPanels);
@@ -811,6 +822,15 @@ void MainWindow::createAsmonUi()
     debugStepInsnAction->setEnabled(false);
     connect(debugStepInsnAction, SIGNAL(triggered()), this, SLOT(debugStepInstruction()));
     debugMenu->insertAction(debugToggleBreakpointAction, debugStepOutAction);
+    {
+        QAction *condAction = new QAction(tr("Breakpoint condition..."), this);
+        condAction->setProperty("en", "Conditional breakpoint condition");
+        condAction->setShortcut(QKeySequence("Ctrl+Shift+F8"));
+        connect(condAction, &QAction::triggered, this, &MainWindow::editBreakpointCondition);
+        const QList<QAction *> acts = debugMenu->actions();
+        const int idx = acts.indexOf(debugToggleBreakpointAction);
+        debugMenu->insertAction(idx + 1 < acts.size() ? acts.at(idx + 1) : nullptr, condAction);
+    }
     debugMenu->insertAction(debugToggleBreakpointAction, debugStepInsnAction);
     debugToolBar->addAction(debugStepOutAction);
 
@@ -1670,6 +1690,23 @@ void MainWindow::findInFiles()
             selected = CodeEditor::stripBidiMarks(c.selectedText());
     }
     searchPanel->focusSearch(selected);
+}
+
+void MainWindow::editBreakpointCondition()
+{
+    if (!tabs || tabs->count() == 0)
+        return;
+    CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
+    const int line = code->textCursor().blockNumber() + 1;
+    bool ok = false;
+    const QString cond = QInputDialog::getText(this, tr("Breakpoint condition"),
+        tr("Stop on line %1 only when (for example: rcx == 5, rax > 100, rdi != 0).\n"
+           "Empty: always stop.").arg(line), QLineEdit::Normal, code->breakpointCondition(line), &ok);
+    if (!ok)
+        return;
+    code->setBreakpointCondition(line, cond.trimmed());
+    if (debugger)
+        debugger->setBreakpointCondition(line, cond.trimmed());
 }
 
 void MainWindow::addRecentFile(const QString &path)
@@ -2707,6 +2744,8 @@ void MainWindow::debug()
             resizeDocks({ debugDock }, { width() * 40 / 100 }, Qt::Horizontal);
     });
 
+    for (auto it = code->breakpointConditions().constBegin(); it != code->breakpointConditions().constEnd(); ++it)
+        debugger->setBreakpointCondition(it.key(), it.value());
     QList<int> lines;
     for (quint64 l : *(code->getBreakpoints()))
         lines << int(l);

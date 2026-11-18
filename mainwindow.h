@@ -286,6 +286,7 @@ public slots:
     void findReferences();
     void goToSymbol();
     void goToLine();
+    void editBreakpointCondition();
     void findInFiles();
     void addRecentFile(const QString &path);
     void refreshRecentFiles();

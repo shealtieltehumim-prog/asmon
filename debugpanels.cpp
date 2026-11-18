@@ -84,6 +84,7 @@ DebugPanels::DebugPanels(QWidget *parent) : QWidget(parent)
     tabs->addTab(makeStackTab(), tr("Stack"));
     tabs->addTab(makeDisassemblyTab(), tr("Disassembly"));
     tabs->addTab(makeWatchTab(), tr("Watch"));
+    tabs->addTab(makeCallsTab(), tr("Calls"));
     layout->addWidget(tabs);
     connect(tabs, &QTabWidget::currentChanged, this, &DebugPanels::refresh);
 }
@@ -116,6 +117,7 @@ void DebugPanels::refresh()
     case StackTab: refreshStack(); break;
     case DisassemblyTab: refreshDisassembly(); break;
     case WatchTab: refreshWatches(); break;
+    case CallsTab: refreshCalls(); break;
     default: break;
     }
 }
@@ -560,6 +562,40 @@ void DebugPanels::refreshDisassembly()
     }
 }
 
+// ------------------------------------------------------------------ calls
+
+QWidget *DebugPanels::makeCallsTab()
+{
+    callsTable = makeTable(3, { "#", tr("Function"), tr("Line") });
+    connect(callsTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
+        const int line = callsTable->item(row, 2) ? callsTable->item(row, 2)->data(Qt::UserRole).toInt() : 0;
+        if (line > 0)
+            emit goToLine(line);
+    });
+    return callsTable;
+}
+
+void DebugPanels::refreshCalls()
+{
+    if (!dbg)
+        return;
+    dbg->callStack([this](const QList<MiDebugger::Frame> &frames) {
+        callsTable->setRowCount(frames.size());
+        for (int i = 0; i < frames.size(); ++i) {
+            const MiDebugger::Frame &f = frames.at(i);
+            const QString name = (f.line > 0 && labelForLine) ? labelForLine(f.line) : QString();
+            callsTable->setItem(i, 0, readOnlyItem(QString::number(i)));
+            callsTable->setItem(i, 1, readOnlyItem(name.isEmpty()
+                ? QString("0x%1").arg(f.address, 0, 16) : name));
+            auto *lineItem = readOnlyItem(f.line > 0 ? QString::number(f.line) : tr("outside your code"));
+            lineItem->setData(Qt::UserRole, f.line);
+            callsTable->setItem(i, 2, lineItem);
+        }
+        callsTable->resizeColumnToContents(0);
+        callsTable->resizeColumnToContents(1);
+    });
+}
+
 // ------------------------------------------------------------------ watch
 
 QWidget *DebugPanels::makeWatchTab()
@@ -594,6 +630,34 @@ QWidget *DebugPanels::makeWatchTab()
     bar->addWidget(add);
     bar->addWidget(remove);
     l->addLayout(bar);
+    //! second row: stop when the program writes to the expression's memory
+    auto *bar2 = new QHBoxLayout;
+    bar2->setContentsMargins(6, 0, 6, 4);
+    auto *breakWrite = new QPushButton(tr("Stop when written"));
+    breakWrite->setToolTip(tr("Stops the program right after an instruction writes to this memory "
+                              "(the address of the expression, the number of bytes chosen)"));
+    auto *clearWrites = new QPushButton(tr("Clear memory stops"));
+    bar2->addWidget(breakWrite);
+    bar2->addWidget(clearWrites);
+    bar2->addStretch(1);
+    l->addLayout(bar2);
+    connect(breakWrite, &QPushButton::clicked, this, [this]() {
+        const QString e = watchExpr->text().trimmed();
+        if (!dbg || e.isEmpty()) {
+            emit message(tr("Type a label, register or [rbp-8] first."));
+            return;
+        }
+        const int size = watchSize->currentText().toInt();
+        dbg->watchMemory(addressExpression(e, dbg->is64Bit()), size, e, [this, e, size](bool ok, const QString &msg) {
+            emit message(ok ? tr("Will stop when %1 bytes at %2 are written.").arg(size).arg(e)
+                            : tr("Could not watch %1: %2").arg(e, msg));
+        });
+    });
+    connect(clearWrites, &QPushButton::clicked, this, [this]() {
+        if (dbg)
+            dbg->clearMemoryWatches();
+        emit message(tr("Memory stops cleared."));
+    });
     watchTable = makeTable(3, { tr("Expression"), tr("Type"), tr("Value") });
     l->addWidget(watchTable);
     return w;

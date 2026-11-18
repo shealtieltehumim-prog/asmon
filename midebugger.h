@@ -59,6 +59,19 @@ public:
     void stop();
 
     void setBreakpoint(int line, bool enabled);
+    //! Asmon: "rcx == 5" (register names may be written without $). Empty: none.
+    void setBreakpointCondition(int line, const QString &condition);
+    static QString gdbCondition(const QString &condition);
+    //! Stop when the program writes to size bytes at addressExpr (a gdb
+    //! address expression, e.g. "&msg" or "$rbp-8"). cb(ok, message).
+    void watchMemory(const QString &addressExpr, int size, const QString &shownName,
+                     std::function<void(bool, const QString &)> cb);
+    void clearMemoryWatches();
+    //! Call stack: the current instruction, then each return address found on
+    //! the stack (no frame info in assembly). line = the line of the call.
+    struct Frame { quint64 address; int line; };
+    void callStack(std::function<void(const QList<Frame> &)> cb);
+    int lineContaining(quint64 address) const;
 
     // data access for the panels
     void command(const QString &cmd, Callback cb = nullptr);
@@ -131,6 +144,9 @@ private:
 
     QSet<int> wantedBreakpoints;      //!< lines
     QHash<int, QString> breakpointIds; //!< line -> gdb breakpoint number
+    QHash<int, QString> breakpointConditions; //!< line -> gdb condition
+    QStringList watchpointIds;
+    QHash<QString, QString> watchpointNames; //!< gdb number -> name shown to the user
 };
 
 #endif // ASMON_MIDEBUGGER_H

@@ -39,7 +39,7 @@ public:
 
     void attach(MiDebugger *debugger);   //!< nullptr when the session ends
     void showTab(int index);
-    enum { RegistersTab, MemoryTab, StackTab, DisassemblyTab, WatchTab };
+    enum { RegistersTab, MemoryTab, StackTab, DisassemblyTab, WatchTab, CallsTab };
 
     //! Value formatting used by Watch (static: unit-testable).
     enum WatchType { Auto, Hex, Binary, Signed, Unsigned, Char, Float };
@@ -47,6 +47,12 @@ public:
     //! "msg" -> "&msg", "rsp" -> "$rsp", "[rbp-8]" -> "($rbp-8)", "0x40" stays.
     static QString addressExpression(const QString &text, bool is64);
     static QString decodeFlags(quint64 eflags);
+    //! name of the function a code line belongs to (for the call stack)
+    std::function<QString(int line)> labelForLine;
+
+signals:
+    void goToLine(int line);
+    void message(const QString &text);
 
 public slots:
     void refresh();
@@ -66,6 +72,9 @@ private:
     void refreshStack();
     void refreshDisassembly();
     void refreshWatches();
+    void refreshCalls();
+    QWidget *makeCallsTab();
+    QTableWidget *callsTable = nullptr;
     QWidget *makeRegistersTab();
     QWidget *makeMemoryTab();
     QWidget *makeStackTab();
