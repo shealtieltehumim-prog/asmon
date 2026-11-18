@@ -73,7 +73,7 @@ QMap<QString, QColor> editorDefaults(bool dark)
     m.insert("backgroundcolor", bg);
     m.insert("fontcolor", QColor(dark ? "#d4d4d4" : "#1f1f1f"));
     m.insert("linenumberpanelcolor", bg);
-    m.insert("linenumberfontcolor", QColor(dark ? "#6e7681" : "#8a8a8a"));
+    m.insert("linenumberfontcolor", QColor(dark ? "#858585" : "#6e7681"));
     m.insert("currentlinecolor", QColor(dark ? "#262626" : "#f2f6ff"));
     m.insert("debuglinecolor", QColor(dark ? "#4b4214" : "#ffe9a8"));
     m.insert("successcolor", QColor(dark ? "#4ec9a0" : "#107c10"));
@@ -267,10 +267,10 @@ QToolButton { background: transparent; border: none; border-radius: 4px; padding
 QToolButton:hover { background: %8; }
 QToolButton:pressed, QToolButton:checked { background: %4; }
 QTabWidget::pane { border: none; border-top: 1px solid %4; }
-QTabBar { background: %1; }
-QTabBar::tab { background: %1; color: %6; padding: 6px 14px; border: none;
-               border-bottom: 2px solid transparent; }
-QTabBar::tab:selected { background: %2; color: %5; border-bottom: 2px solid %7; }
+QTabBar { background: %3; }
+QTabBar::tab { background: %3; color: %6; padding: 8px 14px; border: none; border-right: 1px solid %4;
+               border-top: 1px solid transparent; min-height: 18px; }
+QTabBar::tab:selected { background: %2; color: %5; border-top: 1px solid %7; }
 QTabBar::tab:hover:!selected { color: %5; background: %8; }
 QDockWidget { color: %6; titlebar-close-icon: none; }
 QDockWidget::title { background: %3; padding: 6px 8px; border-bottom: 1px solid %4; }
@@ -286,18 +286,18 @@ QTableWidget, QTableView, QListWidget, QTreeView { background: %2; alternate-bac
                border: none; gridline-color: %4; selection-background-color: %9; }
 QHeaderView::section { background: %3; color: %6; border: none; border-bottom: 1px solid %4;
                padding: 4px 6px; }
-QScrollBar:vertical { background: transparent; width: 10px; margin: 0; }
-QScrollBar:horizontal { background: transparent; height: 10px; margin: 0; }
-QScrollBar::handle { background: %11; border-radius: 5px; min-height: 24px; min-width: 24px; }
+QScrollBar:vertical { background: transparent; width: 14px; margin: 0; }
+QScrollBar:horizontal { background: transparent; height: 14px; margin: 0; }
+QScrollBar::handle { background: %11; border-radius: 0; min-height: 30px; min-width: 30px; }
 QScrollBar::handle:hover { background: %6; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QSplitter::handle { background: %4; }
-QStatusBar { background: %1; color: %6; border-top: 1px solid %4; }
+QStatusBar { background: %7; color: #ffffff; border: none; }
 QStatusBar::item { border: none; }
-QStatusBar QLabel { color: %6; padding: 0 8px; }
-QStatusBar QComboBox { background: transparent; border: none; color: %6; padding: 0 6px; min-height: 0; }
-QStatusBar QComboBox:hover { background: %8; color: %5; }
+QStatusBar QLabel { color: #ffffff; padding: 0 8px; }
+QStatusBar QComboBox { background: transparent; border: none; color: #ffffff; padding: 0 6px; min-height: 0; }
+QStatusBar QComboBox:hover { background: rgba(255,255,255,0.18); color: #ffffff; }
 QTabBar { qproperty-drawBase: 0; }
 QTabBar::close-button { image: url(%12); subcontrol-position: right; border-radius: 3px; margin: 2px; }
 QTabBar::close-button:hover { background: %8; }

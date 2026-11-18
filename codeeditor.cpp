@@ -74,7 +74,7 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     hasBreakpoints = withBeakpoints;
     prevBlockCount = -1;
     setDebugMode(false);
-    debugAreaWidth = 3 + debugImage.width() + 1;
+    debugAreaWidth = 22; // glyph margin on the left of the numbers, like VS Code
     setWordWrapMode(QTextOption::NoWrap);
     //! Asmon: code is always left-to-right, even in the Hebrew (RTL) interface.
     //! Every line is laid out as an LTR paragraph, so a line such as
@@ -99,6 +99,7 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberAreaWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
+    connect(this, &QPlainTextEdit::cursorPositionChanged, this, [this]() { lineNumberArea->update(); });
     //! Asmon: Hebrew in strings and comments (see updateBidiHint)
     connect(document(), &QTextDocument::contentsChange, this, &CodeEditor::updateBidiHints);
     //! a removed breakpoint forgets its condition
@@ -124,7 +125,7 @@ int CodeEditor::lineNumberAreaWidth()
 
     //! room for at least 3 digits and a margin: the gutter does not jump
     //! between 9 and 10 lines, and numbers do not touch the window edge
-    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 14 + debugAreaWidth;
+    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 18 + debugAreaWidth;
 
     return space;
 }
@@ -169,42 +170,41 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 
     while (block.isValid() && top <= event->rect().bottom()) {
         if (block.isVisible() && bottom >= event->rect().top()) {
+            const int lh = fontMetrics().height();
+            const int cx = debugAreaWidth / 2;       // glyph margin centre
+            const int cy = top + lh / 2;
+            const bool activeLine = (blockNumber == textCursor().blockNumber());
             QString number = QString::number(blockNumber + 1);
-            painter.setPen(Theme::color("linenumberfontcolor"));
-            painter.drawText(0, top, lineNumberArea->width() - debugAreaWidth, fontMetrics().height(),
+            painter.setPen(activeLine ? Theme::color("fontcolor") : Theme::color("linenumberfontcolor"));
+            painter.drawText(debugAreaWidth, top, lineNumberArea->width() - debugAreaWidth - 12, lh,
                              Qt::AlignRight | Qt::AlignAbsolute, number);
 
-            if (blockNumber + 1 == currentDebugLine)
-                //! Blocks counting starts with 0, line number is equivalent (block number + 1)
-                //if QTextOption::NoWrap is not set, lines count - visible lines, block count - lines divided by '\n'
-                painter.drawPixmap(lineNumberArea->width() - debugAreaWidth + 3,
-                                   top + fontMetrics().height() / 2 - debugImage.height() / 2,
-                                   debugImage.width(), debugImage.height(), debugImage);
+            painter.setRenderHint(QPainter::Antialiasing);
             if (diagnostics.contains(blockNumber + 1) && blockNumber + 1 != currentDebugLine
                     && !breakpoints.contains(blockNumber + 1)) {
                 //! a small round mark for a build error (red) or warning (amber)
-                const int d = qMax(6, fontMetrics().height() / 3);
-                painter.setRenderHint(QPainter::Antialiasing);
+                const int d = 7;
                 painter.setPen(Qt::NoPen);
                 painter.setBrush(diagnostics[blockNumber + 1].error ? QColor("#f14c4c") : QColor("#cca700"));
-                painter.drawEllipse(lineNumberArea->width() - debugAreaWidth + 6,
-                                    top + fontMetrics().height() / 2 - d / 2, d, d);
-                painter.setBrush(Qt::NoBrush);
+                painter.drawEllipse(QPointF(cx, cy), d / 2.0, d / 2.0);
             }
             if (breakpoints.contains(blockNumber + 1) && hasBreakpoints) {
-                painter.drawPixmap(lineNumberArea->width() - debugAreaWidth + 3,
-                                   top + fontMetrics().height() / 2 - breakpointImage.height() / 2,
-                                   breakpointImage.width(), breakpointImage.height(), breakpointImage);
+                //! VS Code style breakpoint: a solid red dot in the glyph margin
+                const qreal r = 5.5;
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(QColor("#e51400"));
+                painter.drawEllipse(QPointF(cx, cy), r, r);
                 if (conditions.contains(blockNumber + 1)) {
                     //! conditional: an orange ring around the dot
-                    painter.setRenderHint(QPainter::Antialiasing);
-                    painter.setPen(QPen(QColor("#f0a030"), 2));
+                    painter.setPen(QPen(QColor("#f0a030"), 1.6));
                     painter.setBrush(Qt::NoBrush);
-                    const int d = breakpointImage.height() + 2;
-                    painter.drawEllipse(lineNumberArea->width() - debugAreaWidth + 2,
-                                        top + fontMetrics().height() / 2 - d / 2, d, d);
+                    painter.drawEllipse(QPointF(cx, cy), r + 2.2, r + 2.2);
                 }
             }
+            if (blockNumber + 1 == currentDebugLine)
+                painter.drawPixmap(cx - debugImage.width() / 2, cy - debugImage.height() / 2,
+                                   debugImage.width(), debugImage.height(), debugImage);
+            painter.setBrush(Qt::NoBrush);
         }
 
         block = block.next();
