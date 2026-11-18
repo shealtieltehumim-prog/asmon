@@ -164,6 +164,39 @@ begin
   if NewPath <> Path then RegWriteExpandStringValue(EnvRoot(), EnvKey(), 'Path', NewPath);
 end;
 
+// The GPL text is English: in the Hebrew (right-to-left) wizard the license box
+// would align it to the right and flip its punctuation. Make that box LTR.
+const
+  GWL_EXSTYLE = -20;
+  WS_EX_RIGHT = $1000;
+  WS_EX_RTLREADING = $2000;
+  WS_EX_LEFTSCROLLBAR = $4000;
+  WS_EX_LAYOUTRTL = $400000;
+
+function GetWindowLong(Wnd: HWND; Index: Integer): LongInt;
+  external 'GetWindowLongW@user32.dll stdcall';
+function SetWindowLong(Wnd: HWND; Index: Integer; NewLong: LongInt): LongInt;
+  external 'SetWindowLongW@user32.dll stdcall';
+
+procedure InitializeWizard();
+var
+  H: HWND;
+  Text: String;
+begin
+  H := WizardForm.LicenseMemo.Handle;
+  SetWindowLong(H, GWL_EXSTYLE, GetWindowLong(H, GWL_EXSTYLE)
+    and not (WS_EX_RIGHT or WS_EX_RTLREADING or WS_EX_LEFTSCROLLBAR or WS_EX_LAYOUTRTL));
+  Text := WizardForm.LicenseMemo.Text;
+  WizardForm.LicenseMemo.Text := Text;
+end;
+
+// Used only by the automated screenshot test (/AUTOACCEPT=1).
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if (CurPageID = wpLicense) and (ExpandConstant('{param:AUTOACCEPT|0}') = '1') then
+    WizardForm.LicenseAcceptedRadio.Checked := True;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if (CurStep = ssPostInstall) and WizardIsTaskSelected('addpath') then begin

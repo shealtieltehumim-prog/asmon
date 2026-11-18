@@ -517,7 +517,7 @@ jobs:
             $bmp.Save("shots\$name.png")
           }
           $setup = Get-ChildItem installer\output\Asmon-*-Setup.exe | Select-Object -First 1
-          $p = Start-Process $setup.FullName -ArgumentList '/LANG=he','/CURRENTUSER' -PassThru
+          $p = Start-Process $setup.FullName -ArgumentList '/LANG=he','/CURRENTUSER','/AUTOACCEPT=1','/DIR=C:\AsmonPages' -PassThru
           Start-Sleep 15
           $ws = New-Object -ComObject WScript.Shell
           for ($i = 1; $i -le 5; $i++) {
