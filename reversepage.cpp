@@ -25,6 +25,8 @@
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QShortcut>
+#include <QSyntaxHighlighter>
+#include <QTextCharFormat>
 #include <QSplitter>
 #include <QTabBar>
 #include <QTableWidget>
@@ -34,6 +36,40 @@
 #include <functional>
 
 namespace {
+
+//! Colours for the decompiled C code, from the same theme colours as the editor.
+class CHighlighter : public QSyntaxHighlighter
+{
+public:
+    explicit CHighlighter(QTextDocument *doc) : QSyntaxHighlighter(doc)
+    {
+        auto fmt = [](const QString &key) { QTextCharFormat f; f.setForeground(Theme::color(key)); return f; };
+        const QTextCharFormat kw = fmt("keywordscolor"), num = fmt("numberscolor"), str = fmt("quotationcolor"),
+                              com = fmt("commentscolor"), type = fmt("registerscolor");
+        rules_ << Rule { QRegularExpression("\\b(if|else|while|do|for|switch|case|default|break|continue|return|goto|sizeof)\\b"), kw };
+        rules_ << Rule { QRegularExpression("\\b(void|char|short|int|long|unsigned|signed|float|double|struct|union|enum|bool"
+                                            "|u?int[0-9]+|undefined[0-9]*|code|xunknown[0-9]*|byte|word|dword|qword)\\b"), type };
+        rules_ << Rule { QRegularExpression("\\b(0x[0-9a-fA-F]+|[0-9]+)\\b"), num };
+        rules_ << Rule { QRegularExpression("\"([^\"\\\\]|\\\\.)*\""), str };
+        rules_ << Rule { QRegularExpression("//[^\\n]*|/\\*.*?\\*/"), com };
+    }
+
+protected:
+    void highlightBlock(const QString &text) override
+    {
+        for (const Rule &r : rules_) {
+            QRegularExpressionMatchIterator it = r.re.globalMatch(text);
+            while (it.hasNext()) {
+                const QRegularExpressionMatch m = it.next();
+                setFormat(int(m.capturedStart()), int(m.capturedLength()), r.format);
+            }
+        }
+    }
+
+private:
+    struct Rule { QRegularExpression re; QTextCharFormat format; };
+    QList<Rule> rules_;
+};
 
 //! One card of the page: a small muted heading and the content below it.
 QWidget *makeCard(const QString &heading, QWidget *body)
@@ -194,6 +230,7 @@ ReversePage::ReversePage(QWidget *parent) : QWidget(parent)
         code_->setLayoutDirection(Qt::LeftToRight);
         code_->setFont(Theme::codeFont());
         code_->setLineWrapMode(QPlainTextEdit::NoWrap);
+        new CHighlighter(code_->document());
         l->addWidget(codeStatus_);
         l->addWidget(code_, 1);
     }
