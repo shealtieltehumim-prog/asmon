@@ -59,13 +59,13 @@ QMap<QString, QColor> editorDefaults(bool dark)
     const QColor bg(c.editor);
     QList<QColor> fg;
     if (dark)
-        fg << QColor("#569cd6") << QColor("#c586c0") << QColor("#b5cea8") << QColor("#4fc1ff")
-           << QColor("#dcdcaa") << QColor("#6a9955") << QColor("#4ec9b0") << QColor("#9cdcfe")
-           << QColor("#ce9178");
+        fg << QColor("#3794ff") << QColor("#ff79c6") << QColor("#ffb86c") << QColor("#35d4ff")
+           << QColor("#f1fa5c") << QColor("#6a9955") << QColor("#2de2b8") << QColor("#bd93f9")
+           << QColor("#ff6e6e");
     else
-        fg << QColor("#0000ff") << QColor("#9a3cc8") << QColor("#098658") << QColor("#0070c1")
-           << QColor("#795e26") << QColor("#008000") << QColor("#267f99") << QColor("#001080")
-           << QColor("#a31515");
+        fg << QColor("#0050e6") << QColor("#c2189c") << QColor("#d45a00") << QColor("#0086b3")
+           << QColor("#8a6d00") << QColor("#2e7d32") << QColor("#00897b") << QColor("#6f42c1")
+           << QColor("#d32f2f");
     for (int i = 0; i < 9; ++i) {
         m.insert(QString(kSyntaxKeys[i]) + "color", fg[i]);
         m.insert(QString(kSyntaxKeys[i]) + "colorbg", bg);
@@ -212,6 +212,26 @@ void ensureInitialized(QSettings &settings)
             settings.setValue("fontfamily", "Consolas");
         settings.setValue("fontversion", 3);
     }
+    //! colours v2: stronger syntax colours; only replaces colours that are still the old defaults
+    if (settings.value("colorversion", 1).toInt() < 2) {
+        static const char *oldDark[] = { "#569cd6", "#c586c0", "#b5cea8", "#4fc1ff", "#dcdcaa", "#6a9955", "#4ec9b0", "#9cdcfe", "#ce9178" };
+        static const char *oldLight[] = { "#0000ff", "#9a3cc8", "#098658", "#0070c1", "#795e26", "#008000", "#267f99", "#001080", "#a31515" };
+        const QMap<QString, QColor> nd = editorDefaults(true), nl = editorDefaults(false);
+        for (int i = 0; i < 9; ++i) {
+            const QString key = QString(kSyntaxKeys[i]) + "color";
+            const QString cur = settings.value(key).toString().toLower();
+            if (cur == oldDark[i])
+                settings.setValue(key, nd.value(key).name());
+            else if (cur == oldLight[i])
+                settings.setValue(key, nl.value(key).name());
+        }
+        for (const char *k : { "labels", "system" })
+            if (!settings.contains(QString(k) + "bold"))
+                settings.setValue(QString(k) + "bold", true);
+        if (!settings.contains("commentsitalic"))
+            settings.setValue("commentsitalic", true);
+        settings.setValue("colorversion", 2);
+    }
     if (settings.contains("theme"))
         return;
     setTheme(settings, true);
@@ -254,32 +274,32 @@ void apply(QApplication &app)
 QMainWindow, QDialog { background: %1; }
 QMainWindow::separator { background: %4; width: 1px; height: 1px; }
 QMenuBar { background: %1; color: %5; border: none; padding: 2px 4px; }
-QMenuBar::item { background: transparent; padding: 4px 10px; border-radius: 4px; }
-QMenuBar::item:selected { background: %8; }
+QMenuBar::item { background: %13; padding: 4px 12px; margin: 3px 3px; border: 1px solid %4; border-radius: 8px; }
+QMenuBar::item:selected { background: %7; color: #ffffff; border: 1px solid %7; }
 QMenu { background: %3; color: %5; border: 1px solid %4; padding: 4px; }
-QMenu::item { padding: 5px 24px; border-radius: 4px; }
+QMenu::item { padding: 5px 24px; border-radius: 6px; }
 QMenu::item:selected { background: %7; color: #ffffff; }
 QMenu::item:disabled { color: %6; }
 QMenu::separator { height: 1px; background: %4; margin: 4px 8px; }
 QToolBar { background: %1; border: none; spacing: 2px; padding: 2px 6px; }
 QToolBar::separator { width: 1px; background: %4; margin: 6px 4px; }
-QToolButton { background: transparent; border: none; border-radius: 4px; padding: 4px; }
-QToolButton:hover { background: %8; }
+QToolButton { background: %13; border: 1px solid %4; border-radius: 8px; padding: 4px; margin: 2px 1px; }
+QToolButton:hover { background: %8; border: 1px solid %7; }
 QToolButton:pressed, QToolButton:checked { background: %4; }
 QTabWidget::pane { border: none; border-top: 1px solid %4; background: %2; }
 QTabBar { background: %2; }
-QTabBar::tab { background: %3; color: %6; padding: 8px 14px; border: none; border-right: 1px solid %4;
-               border-top: 1px solid transparent; min-height: 18px; }
-QTabBar::tab:selected { background: %2; color: %5; border-top: 1px solid %7; }
+QTabBar::tab { background: %13; color: %6; padding: 6px 14px; margin: 4px 2px; border: 1px solid %4;
+               border-radius: 8px; min-height: 18px; }
+QTabBar::tab:selected { background: %9; color: #ffffff; border: 1px solid %7; }
 QTabBar::tab:hover:!selected { color: %5; background: %8; }
 QDockWidget { color: %6; titlebar-close-icon: none; }
 QDockWidget::title { background: %3; padding: 6px 8px; border-bottom: 1px solid %4; }
 QPlainTextEdit, QTextEdit { border: none; selection-background-color: %9; }
 QLineEdit, QSpinBox, QComboBox { background: %10; color: %5; border: 1px solid %4;
-               border-radius: 4px; padding: 4px 6px; selection-background-color: %9; }
+               border-radius: 8px; padding: 4px 8px; selection-background-color: %9; }
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid %7; }
 QComboBox QAbstractItemView { background: %3; border: 1px solid %4; selection-background-color: %7; }
-QPushButton { background: %10; color: %5; border: 1px solid %4; border-radius: 4px; padding: 5px 14px; }
+QPushButton { background: %10; color: %5; border: 1px solid %4; border-radius: 8px; padding: 6px 16px; }
 QPushButton:hover { background: %8; }
 QPushButton:default { background: %7; color: #ffffff; border: 1px solid %7; }
 QTableWidget, QTableView, QListWidget, QTreeView { background: %2; alternate-background-color: %3;
@@ -288,34 +308,36 @@ QHeaderView::section { background: %3; color: %6; border: none; border-bottom: 1
                padding: 4px 6px; }
 QScrollBar:vertical { background: transparent; width: 14px; margin: 0; }
 QScrollBar:horizontal { background: transparent; height: 14px; margin: 0; }
-QScrollBar::handle { background: %11; border-radius: 0; min-height: 30px; min-width: 30px; }
+QScrollBar::handle:vertical { background: %11; border-radius: 5px; margin: 2px 3px; min-height: 30px; }
+QScrollBar::handle:horizontal { background: %11; border-radius: 5px; margin: 3px 2px; min-width: 30px; }
 QScrollBar::handle:hover { background: %6; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QSplitter::handle { background: transparent; }
-QStatusBar { background: %7; color: #ffffff; border: none; }
+QStatusBar { background: %1; color: %6; border: none; }
 QStatusBar::item { border: none; }
-QStatusBar QLabel { color: #ffffff; padding: 0 8px; }
-QStatusBar QComboBox { background: transparent; border: none; color: #ffffff; padding: 0 6px; min-height: 0; }
-QStatusBar QComboBox:hover { background: rgba(255,255,255,0.18); color: #ffffff; }
+QStatusBar QLabel { color: %6; padding: 0 8px; }
+QStatusBar QComboBox { background: transparent; border: none; color: %6; padding: 0 6px; min-height: 0; }
+QStatusBar QComboBox:hover { background: %8; color: %5; border-radius: 6px; }
 QTabBar { qproperty-drawBase: 0; }
 QTabBar::close-button { image: url(%12); subcontrol-position: right; border-radius: 3px; margin: 2px; }
 QTabBar::close-button:hover { background: %8; }
 QTabWidget#bottomPanel::pane { border: none; border-top: 1px solid %4; }
-QTabWidget#bottomPanel QTabBar::tab { padding: 5px 12px; font-size: 9pt; }
+QTabWidget#bottomPanel QTabBar::tab { padding: 3px 12px; margin: 4px 2px; font-size: 9pt; }
 QDockWidget > QWidget { border: none; }
 QTreeView { outline: 0; }
-QTreeView::item { padding: 3px 2px; border-radius: 4px; }
+QTreeView::item { padding: 3px 2px; border-radius: 6px; }
 QTreeView::item:hover { background: %8; }
 QTreeView::item:selected { background: %9; color: %5; }
 QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
 QToolTip { background: %3; color: %5; border: 1px solid %4; padding: 4px; }
 QCheckBox, QRadioButton, QLabel, QGroupBox { color: %5; }
-QGroupBox { border: 1px solid %4; border-radius: 6px; margin-top: 10px; padding-top: 6px; }
+QGroupBox { border: 1px solid %4; border-radius: 12px; margin-top: 12px; padding-top: 8px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; right: 10px; padding: 0 4px; }
 )")
         .arg(c.window, c.editor, c.panel, c.border, c.text, c.muted, c.accent, c.hover, c.selection)
-        .arg(c.input, dark ? QString("#424242") : QString("#c4c4c4"), closeIconPath());
+        .arg(c.input, dark ? QString("#424242") : QString("#c4c4c4"), closeIconPath())
+        .arg(dark ? QString("#232323") : QString("#e9e9e9"));
     app.setStyleSheet(qss);
 }
 

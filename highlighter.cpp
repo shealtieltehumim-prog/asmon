@@ -77,9 +77,9 @@
      for (int i = 0; i < formats.size(); i++) {
          formats[i]->setForeground(Theme::color(names[i] + "color"));
          formats[i]->setBackground(Theme::color(names[i] + "colorbg"));
-         if (settings.value(names[i] + "bold", (i == 0) ? true : false).toBool())
+         if (settings.value(names[i] + "bold", (i == 0 || i == 4 || i == 6) ? true : false).toBool())
              formats[i]->setFontWeight(QFont::Bold);
-         formats[i]->setFontItalic(settings.value(names[i] + "italic", false).toBool());
+         formats[i]->setFontItalic(settings.value(names[i] + "italic", i == 5).toBool());
      }
      labelWithDotFormat.setForeground(Theme::color("fontcolor"));
      formats << &labelWithDotFormat;
