@@ -828,6 +828,10 @@ void MainWindow::createAsmonUi()
             connect(a, &QAction::triggered, this, [this, file]() { newFromTemplate(file); });
         }
         fileMenu->insertMenu(openAction, templatesMenu);
+        QAction *projectAction = new QAction(tr("Project file (several .asm files)..."), this);
+        projectAction->setProperty("en", "Project file modules link multiple asm files asmon.project");
+        connect(projectAction, &QAction::triggered, this, &MainWindow::createProjectFile);
+        fileMenu->insertAction(openAction, projectAction);
     }
 
     connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(syncBottomPanelWithTab()));
@@ -913,6 +917,10 @@ QString MainWindow::prettifyBuildLog(const QString &text)
     const QString tempDir = Common::pathInTemp(QString());
     out.replace(tempDir + QDir::separator(), QString());
     out.replace(QDir::fromNativeSeparators(tempDir) + "/", QString());
+    for (auto it = lastModulePaths.constBegin(); it != lastModulePaths.constEnd(); ++it) {
+        out.replace(QDir::toNativeSeparators(it.value()), it.key());
+        out.replace(it.value(), it.key());
+    }
     return out;
 }
 
@@ -926,6 +934,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
                                            QRegularExpression::CaseInsensitiveOption);
         const QRegularExpressionMatch m = re.match(line);
         if (m.hasMatch() && tabs && tabs->count() > 0) {
+            //! an error in another module of the project: open that file
+            const QString fileName = line.left(m.capturedStart()).trimmed().section(' ', -1);
+            const QString current = QFileInfo(((Tab *) tabs->currentWidget())->getCurrentFilePath()).fileName();
+            if (fileName != current && lastModulePaths.contains(fileName))
+                openFile(lastModulePaths.value(fileName));
             CodeEditor *code = ((Tab *) tabs->currentWidget())->code;
             const QTextBlock block = code->document()->findBlockByNumber(m.captured(1).toInt() - 1);
             if (block.isValid()) {
@@ -1022,7 +1035,8 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
         dataPath + "/NASM/nasm.exe", dataPath + "/LLVM/bin/ld.lld.exe",
         Common::pathInTemp("program.asm"), Common::pathInTemp("program.lst"),
         Common::pathInTemp(settings.value("objectfilename", "program.o").toString()),
-        Common::pathInTemp("AsmonProg.exe"), dataPath + "/include", sourceDir);
+        Common::pathInTemp("AsmonProg.exe"), dataPath + "/include", sourceDir,
+        projectModules(currentTab));
     if (!r.ok) {
         printLogWithTime(tr("Warning! Errors have occurred in the build:") + '\n', Theme::color("errorcolor"));
         showBottomPage(compilerOut);
@@ -1033,6 +1047,97 @@ void MainWindow::buildForLinuxTarget(Tab *currentTab)
     printLog(prettifyBuildLog(r.log), Theme::color("errorcolor"));
     refreshBuildOutput();
     programIsBuilded = true;
+}
+
+QStringList MainWindow::projectModules(Tab *tab)
+{
+    //! Returns the absolute paths of the other modules listed in
+    //! asmon.project next to the file, or {""} after reporting an error.
+    lastModulePaths.clear();
+    const QString filePath = tab->getCurrentFilePath();
+    if (filePath.isEmpty())
+        return QStringList();
+    const QDir dir = QFileInfo(filePath).absoluteDir();
+    QFile f(dir.filePath("asmon.project"));
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QStringList();
+    QStringList modules;
+    const QString self = QFileInfo(filePath).absoluteFilePath();
+    const QStringList lines = QString::fromUtf8(f.readAll()).split('\n');
+    for (QString l : lines) {
+        l = l.trimmed();
+        if (l.isEmpty() || l.startsWith('#') || l.startsWith(';'))
+            continue;
+        const QString abs = QFileInfo(dir.filePath(l)).absoluteFilePath();
+        if (abs == self)
+            continue;
+        if (!QFileInfo::exists(abs)) {
+            printLogWithTime(tr("asmon.project lists a file that does not exist: %1").arg(l) + '\n',
+                             Theme::color("errorcolor"));
+            showBottomPage(compilerOut);
+            return QStringList() << QString();
+        }
+        modules << abs;
+        lastModulePaths.insert(QFileInfo(abs).fileName(), abs);
+    }
+    return modules;
+}
+
+QString MainWindow::projectMainFile(Tab *tab)
+{
+    //! If tab's file is listed in asmon.project, the main file is the .asm
+    //! next to it that is not listed and defines main.
+    const QString filePath = tab ? tab->getCurrentFilePath() : QString();
+    if (filePath.isEmpty())
+        return QString();
+    const QDir dir = QFileInfo(filePath).absoluteDir();
+    QFile f(dir.filePath("asmon.project"));
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QString();
+    QSet<QString> listed;
+    for (QString l : QString::fromUtf8(f.readAll()).split('\n')) {
+        l = l.trimmed();
+        if (!l.isEmpty() && !l.startsWith('#') && !l.startsWith(';'))
+            listed.insert(QFileInfo(dir.filePath(l)).absoluteFilePath());
+    }
+    if (!listed.contains(QFileInfo(filePath).absoluteFilePath()))
+        return QString();
+    static const QRegularExpression mainLabel("^\\s*(main|_main|start|_start)\\s*:",
+                                              QRegularExpression::MultilineOption);
+    for (const QString &name : dir.entryList(QStringList() << "*.asm" << "*.s" << "*.S", QDir::Files, QDir::Name)) {
+        const QString abs = dir.absoluteFilePath(name);
+        if (listed.contains(abs))
+            continue;
+        QFile src(abs);
+        if (src.open(QIODevice::ReadOnly) && QString::fromUtf8(src.readAll()).contains(mainLabel))
+            return abs;
+    }
+    return QString();
+}
+
+void MainWindow::createProjectFile()
+{
+    if (!tabs || tabs->count() == 0)
+        return;
+    Tab *tab = (Tab *) tabs->currentWidget();
+    if (tab->getCurrentFilePath().isEmpty() && !saveFile(-1, true))
+        return;
+    const QFileInfo fi(tab->getCurrentFilePath());
+    const QString projectPath = fi.absoluteDir().filePath("asmon.project");
+    if (!QFile::exists(projectPath)) {
+        QString text = tr("# Asmon project: these files are assembled and linked together\n"
+                          "# with the file you build (the one with main).\n"
+                          "# One file per line, relative to this folder. Lines starting with # are ignored.\n");
+        const QStringList others = fi.absoluteDir().entryList(QStringList() << "*.asm" << "*.s" << "*.S",
+                                                               QDir::Files, QDir::Name);
+        for (const QString &o : others)
+            if (o != fi.fileName())
+                text += o + '\n';
+        QFile f(projectPath);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text))
+            f.write(text.toUtf8());
+    }
+    openFile(projectPath);
 }
 
 void MainWindow::showBottomPage(QWidget *page)
@@ -1234,6 +1339,16 @@ void MainWindow::openFile(QString path)
     if (path.isEmpty()) {
         return;
     }
+    //! Asmon: a file that is already open is shown, not opened twice.
+    const QString wanted = QFileInfo(path).absoluteFilePath();
+    for (int i = 0; i < tabs->count(); ++i) {
+        const QString p = ((Tab *) tabs->widget(i))->getCurrentFilePath();
+        if (!p.isEmpty() && QFileInfo(p).absoluteFilePath() == wanted) {
+            mainWidget->setCurrentIndex(1);
+            tabs->setCurrentIndex(i);
+            return;
+        }
+    }
 
     newFile();
     Tab *curTab = (Tab *) tabs->currentWidget();
@@ -1427,6 +1542,16 @@ void MainWindow::buildProgram(bool debugMode)
 {
     saveFile(-1, false); //save file before building if program already was saved
 
+    //! Asmon: building from a module of a project builds the project's main file.
+    {
+        const QString mainPath = projectMainFile((Tab *) tabs->currentWidget());
+        if (!mainPath.isEmpty()) {
+            printLogWithTime(tr("This file is a module of the project: building %1")
+                                 .arg(QFileInfo(mainPath).fileName()) + '\n', Theme::color("fontcolor"));
+            openFile(mainPath);
+        }
+    }
+
     programIsBuilded = false;
 
     using Common::applicationDataPath;
@@ -1465,6 +1590,24 @@ void MainWindow::buildProgram(bool debugMode)
     }
 
     while (! QFile::exists(path)) {
+    }
+
+    //! Asmon: multi-module projects (asmon.project next to the file).
+    const QStringList modules = projectModules(currentTab);
+    if (!modules.isEmpty() && modules.first().isEmpty())
+        return; // projectModules() reported an error
+    if (!modules.isEmpty()) {
+        QStringList names;
+        for (const QString &m : modules)
+            names << QFileInfo(m).fileName();
+        printLogWithTime(tr("Project: also building %1").arg(names.join(", ")) + '\n', Theme::color("fontcolor"));
+        //! save modules that are open and modified
+        for (int i = 0; i < tabs->count(); ++i) {
+            Tab *t = (Tab *) tabs->widget(i);
+            if (t != currentTab && modules.contains(QFileInfo(t->getCurrentFilePath()).absoluteFilePath())
+                    && t->code->document()->isModified())
+                saveFile(i, false);
+        }
     }
 
     if (linuxTargetSelected()) {
@@ -1521,6 +1664,29 @@ void MainWindow::buildProgram(bool debugMode)
         return;
     }
 
+    //! Asmon: assemble the project's other modules, each into its own object.
+    QStringList moduleObjects;
+    QString modulesLog;
+    const QString objectSuffix = QFileInfo(settings.value("objectfilename", "program.o").toString()).suffix();
+    for (int i = 0; i < modules.size(); ++i) {
+        const QString obj = Common::pathInTemp(QString("module_%1.%2").arg(i + 1).arg(objectSuffix));
+        QStringList args = assemblerOptions.split(QChar(' '));
+        args.replaceInStrings("$SOURCE$", QDir::toNativeSeparators(modules[i]));
+        args.replaceInStrings("$LSTOUTPUT$", Common::pathInTemp(QString("module_%1.lst").arg(i + 1)));
+        args.replaceInStrings("$PROGRAM.OBJ$", obj);
+        args.replaceInStrings("$PROGRAM$", Common::pathInTemp("AsmonProg.exe"));
+        args.replaceInStrings("$MACRO.OBJ$", stdioMacros);
+        if (settings.value("assembler", QString("NASM")).toString() == "NASM")
+            args << "-I" << QDir::toNativeSeparators(QFileInfo(modules[i]).absolutePath() + "/");
+        QProcess p;
+        p.setProcessChannelMode(QProcess::MergedChannels);
+        p.setWorkingDirectory(applicationDataPath() + "/include");
+        p.start(assemblerPath, args);
+        p.waitForFinished();
+        modulesLog += QString::fromLocal8Bit(p.readAll());
+        moduleObjects << obj;
+    }
+
     //! GCC
     QString linkerOptions = assembler->getLinkerOptions();
     if (settings.contains("linkingoptions"))
@@ -1561,10 +1727,15 @@ void MainWindow::buildProgram(bool debugMode)
     QString linkerOutput;
     //! Asmon: if the assembler failed there is no object file; running the
     //! linker anyway only adds noise ("cannot find program.o", "collect2").
-    const bool objectExists = QFile::exists(
+    bool objectExists = QFile::exists(
         Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
+    for (const QString &obj : moduleObjects)
+        objectExists = objectExists && QFile::exists(obj);
     if (!disableLinking && objectExists) {
         QStringList linkerArguments = linkerOptions.split(QChar(' '));
+        const int objIndex = linkerArguments.indexOf("$PROGRAM.OBJ$");
+        for (int i = moduleObjects.size() - 1; i >= 0; --i)
+            linkerArguments.insert(objIndex >= 0 ? objIndex + 1 : linkerArguments.size(), moduleObjects[i]);
         linkerArguments.replaceInStrings("$PROGRAM.OBJ$",
             Common::pathInTemp(settings.value("objectfilename", "program.o").toString()));
         linkerArguments.replaceInStrings("$MACRO.OBJ$", stdioMacros);
@@ -1599,6 +1770,7 @@ void MainWindow::buildProgram(bool debugMode)
             logText.clear();
     }
     logFile.close();
+    logText += modulesLog;
 
     bool builded;
     if (QFile::exists(Common::pathInTemp("AsmonProg.exe")))
@@ -1644,10 +1816,10 @@ void MainWindow::runProgram()
         QMessageBox::information(0, QString("Asmon"), tr("The program is already running."));
         return;
     }
-    outputIndex = tabs->currentIndex();
     if (!programIsBuilded) {
         buildProgram();
     }
+    outputIndex = tabs->currentIndex(); // after the build: it may switch to the project's main file
     if (!programIsBuilded) {
        return;
     }

@@ -28,9 +28,11 @@ struct BuildResult {
 };
 
 //! Assemble + link. sourceDir (may be empty) is added to NASM's include path.
+//! modules: more .asm files (from asmon.project) assembled and linked too.
 BuildResult build(const QString &nasm, const QString &lld, const QString &source,
                   const QString &listing, const QString &object, const QString &executable,
-                  const QString &includeDir, const QString &sourceDir);
+                  const QString &includeDir, const QString &sourceDir,
+                  const QStringList &modules = QStringList());
 
 //! True when wsl.exe exists and at least one Linux distribution is installed.
 //! details receives a short human-readable reason when false.

@@ -28,7 +28,8 @@ static QString runTool(const QString &program, const QStringList &args, const QS
 
 BuildResult build(const QString &nasm, const QString &lld, const QString &source,
                   const QString &listing, const QString &object, const QString &executable,
-                  const QString &includeDir, const QString &sourceDir)
+                  const QString &includeDir, const QString &sourceDir,
+                  const QStringList &modules)
 {
     BuildResult r;
     QFile::remove(object);
@@ -55,7 +56,18 @@ BuildResult build(const QString &nasm, const QString &lld, const QString &source
         return r; // assembler errors are in the log
 
     //! Static executable, no C library: entry point is main.
-    const QStringList lldArgs = { "-e", "main", "-o", executable, object };
+    QStringList lldArgs = { "-e", "main", "-o", executable, object };
+    for (int i = 0; i < modules.size(); ++i) {
+        const QString obj = QFileInfo(object).absolutePath() + QString("/module_%1.o").arg(i + 1);
+        QFile::remove(obj);
+        QStringList args;
+        args << "-I" << QDir::toNativeSeparators(QFileInfo(modules[i]).absolutePath() + "/")
+             << "-f" << "elf64" << "-g" << "-F" << "dwarf" << modules[i] << "-o" << obj;
+        r.log += runTool(nasm, args, includeDir, &started);
+        if (!QFileInfo::exists(obj))
+            return r;
+        lldArgs << obj;
+    }
     r.log += runTool(lld, lldArgs, QString(), &started);
     if (!started) {
         r.log += QObject::tr("Unable to start linker. Check your settings.") + '\n';

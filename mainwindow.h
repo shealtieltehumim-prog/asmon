@@ -194,6 +194,7 @@ private:
     QTabWidget *bottomPanel;
     RuQTextEdit *debugConsole;
     TerminalWidget *terminal;
+    QHash<QString, QString> lastModulePaths; //!< file name -> path, last build
     QComboBox *targetBox;
     QDockWidget *buildOutputDock;
     BuildOutputView *buildOutputView;
@@ -263,6 +264,9 @@ public slots:
     void debugStepOut();
     void openInReTool(const QString &id, bool pickFile);
     void showBottomPage(QWidget *page);
+    QStringList projectModules(Tab *tab);
+    QString projectMainFile(Tab *tab);
+    void createProjectFile();
     void appendDebugConsole(const QString &text, const QColor &color);
     void syncBottomPanelWithTab();
     void debugStepInstruction();
