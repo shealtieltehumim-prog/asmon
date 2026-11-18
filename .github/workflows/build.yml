@@ -397,7 +397,7 @@ jobs:
           if ($p.HasExited) { throw "asmon.exe crashed during the project test" }
           Stop-Process -Id $p.Id -Force
           Get-ChildItem shots
-      - name: GUI test (reverse engineering mode: open a real Windows program)
+      - name: GUI test - reverse engineering mode, open a real Windows program
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
