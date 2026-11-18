@@ -145,7 +145,8 @@ QIcon icon(const QString &name)
 QString defaultCodeFont()
 {
     const QStringList families = QFontDatabase::families();
-    for (const char *f : { "JetBrains Mono", "Cascadia Mono", "Consolas", "DejaVu Sans Mono",
+    //! Consolas is what most Windows editors use (VS Code, Visual Studio): preferred when installed.
+    for (const char *f : { "Consolas", "JetBrains Mono", "Cascadia Mono", "DejaVu Sans Mono",
                            "Liberation Mono", "Courier New" }) {
         if (families.contains(QString(f)))
             return QString(f);
@@ -161,6 +162,13 @@ void loadBundledFonts()
         rubikLoaded = (QFontDatabase::addApplicationFont(f) >= 0) || rubikLoaded;
     for (const char *f : { ":/fonts/JetBrainsMono-Regular.ttf", ":/fonts/JetBrainsMono-Bold.ttf",
                            ":/fonts/JetBrainsMono-Italic.ttf" })
+        QFontDatabase::addApplicationFont(f);
+    //! More monospace fonts to choose from in Settings (all free licenses, see fonts/*-OFL.txt).
+    for (const char *f : { ":/fonts/CascadiaCode-Regular.ttf", ":/fonts/CascadiaMono-Regular.ttf",
+                           ":/fonts/CascadiaMono-Bold.ttf", ":/fonts/SourceCodePro-Regular.otf",
+                           ":/fonts/SourceCodePro-Bold.otf", ":/fonts/Hack-Regular.ttf",
+                           ":/fonts/Hack-Bold.ttf", ":/fonts/FiraCode-Regular.ttf",
+                           ":/fonts/FiraCode-Bold.ttf" })
         QFontDatabase::addApplicationFont(f);
 }
 
@@ -196,6 +204,13 @@ void ensureInitialized(QSettings &settings)
                                          "Courier New", "Courier" }).contains(f))
             settings.setValue("fontfamily", "JetBrains Mono");
         settings.setValue("fontversion", 2);
+    }
+    //! fonts v3: Consolas (when installed) is the default, like VS Code; only moves users still on the
+    //! automatic JetBrains Mono choice, a deliberate pick is kept.
+    if (settings.value("fontversion", 1).toInt() < 3) {
+        if (settings.value("fontfamily").toString() == "JetBrains Mono" && QFontDatabase::families().contains("Consolas"))
+            settings.setValue("fontfamily", "Consolas");
+        settings.setValue("fontversion", 3);
     }
     if (settings.contains("theme"))
         return;

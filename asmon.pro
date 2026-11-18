@@ -70,6 +70,7 @@ SOURCES += main.cpp\
     symbols.cpp \
     searchpanel.cpp \
     processpicker.cpp \
+    framelesshelper.cpp \
     retools.cpp \
     debugpanels.cpp \
     midebugger.cpp \
@@ -103,6 +104,7 @@ HEADERS  += mainwindow.h \
     symbols.h \
     searchpanel.h \
     processpicker.h \
+    framelesshelper.h \
     retools.h \
     debugpanels.h \
     midebugger.h \

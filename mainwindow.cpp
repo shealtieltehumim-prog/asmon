@@ -43,6 +43,7 @@
 #include <QScreen>
 #include <QInputDialog>
 #include "processpicker.h"
+#include "framelesshelper.h"
 #include <QStatusBar>
 #include <QGuiApplication>
 
@@ -715,6 +716,15 @@ void MainWindow::createToolBars()
     cornerLayout->setSpacing(0);
     cornerLayout->addWidget(fileToolBar);
     menuBar()->setCornerWidget(corner, Qt::TopRightCorner);
+
+    //! Hebrew interface: window buttons (minimize, maximize, close) on the left, close at the far left.
+    if (QApplication::layoutDirection() == Qt::RightToLeft) {
+        FramelessHelper *fh = new FramelessHelper(this, corner);
+        fh->addButtons(cornerLayout);
+        fh->addDragArea(menuBar());
+        fh->addDragArea(corner);
+        fh->addDragArea(fileToolBar);
+    }
 
     restoreState(settings.value("windowstate").toByteArray());
 }
