@@ -16,17 +16,17 @@ jobs:
           $wl = $assets | Where-Object { $_.name -match '^winlibs-x86_64-posix-seh-gcc-[0-9.]+-mingw-w64ucrt-[0-9.]+-r[0-9]+\.zip$' } | Select-Object -First 1
           gh release download $env:WINLIBS_TAG -R brechtsanders/winlibs_mingw -p $wl.name -D dl
           7z x "dl\$($wl.name)" -odl\winlibs -y | Out-Null
-          Move-Item dl\winlibs\mingw64 C:\MinGW64
+          Move-Item dl\winlibs\mingw64 C:\WLibs
       - name: Run each tool with a clean PATH
         shell: pwsh
         run: |
           Write-Host "=== where is nasm?"
-          Get-ChildItem C:\MinGW64 -Recurse -Include nasm*,ndisasm* -ErrorAction SilentlyContinue | ForEach-Object { "$($_.FullName)  $($_.Length)" }
-          Get-ChildItem C:\MinGW64\bin -Filter "*.exe" | Where-Object Name -match '^n' | ForEach-Object Name
-          $objdump = "C:\MinGW64\bin\objdump.exe"
+          Get-ChildItem C:\WLibs -Recurse -Include nasm*,ndisasm* -ErrorAction SilentlyContinue | ForEach-Object { "$($_.FullName)  $($_.Length)" }
+          Get-ChildItem C:\WLibs\bin -Filter "*.exe" | Where-Object Name -match '^n' | ForEach-Object Name
+          $objdump = "C:\WLibs\bin\objdump.exe"
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           foreach ($t in 'nasm','gcc','as','ld','gdb','objdump') {
-            $exe = "C:\MinGW64\bin\$t.exe"
+            $exe = "C:\WLibs\bin\$t.exe"
             Write-Host "=== $t"
             & $objdump -p $exe | Select-String 'DLL Name' | ForEach-Object { $_.Line.Trim() }
             try { & $exe --version 2>&1 | Select-Object -First 1; Write-Host "exit code: $LASTEXITCODE" }
@@ -34,5 +34,5 @@ jobs:
           }
           Write-Host "=== build hello with gcc only"
           Set-Content "$env:TEMP\h.c" 'int puts(const char*); int main(){puts("hi from clean PATH");return 0;}'
-          & C:\MinGW64\bin\gcc.exe "$env:TEMP\h.c" -o "$env:TEMP\h.exe"; Write-Host "gcc exit: $LASTEXITCODE"
+          & C:\WLibs\bin\gcc.exe "$env:TEMP\h.c" -o "$env:TEMP\h.exe"; Write-Host "gcc exit: $LASTEXITCODE"
           & "$env:TEMP\h.exe"
