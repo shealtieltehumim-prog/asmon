@@ -319,6 +319,7 @@ jobs:
           path: dist
       - uses: Vampire/setup-wsl@v6
         with:
+          update: 'true'
           additional-packages: gdb
       - name: WSL basics (what Asmon checks and runs)
         shell: pwsh
