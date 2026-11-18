@@ -67,7 +67,7 @@ static void testProgram(const std::string &dir)
     CHECK(s.kind == Stop::Stopped);
     CHECK_EQ(s.pc, main);
     d.setLines(readListing(dir + "\\engine_test.lst", main));
-    CHECK_EQ(d.lineAt(main), 13);
+    CHECK_EQ(d.lineAt(main), 14);
     CHECK(d.inUserCode(main + 0x20));
     CHECK(!d.inUserCode(main + 0x1000));
 
@@ -119,10 +119,10 @@ static void testProgram(const std::string &dir)
     CHECK(d.evalAddress("rsp", a, err) && a == r.rsp);
 
     // stepping by line: we are on the "call helper" line
-    CHECK_EQ(d.lineContaining(main + 0x17), 21);
+    CHECK_EQ(d.lineContaining(main + 0x17), 22);
     s = d.stepInto();
     CHECK_EQ(s.pc, helper);
-    CHECK_EQ(d.lineAt(s.pc), 35);
+    CHECK_EQ(d.lineAt(s.pc), 36);
     s = d.stepOver();            // mov rdx, 42
     CHECK_EQ(s.pc, helper + 5);
     d.regs(r);
@@ -130,9 +130,9 @@ static void testProgram(const std::string &dir)
     auto frames = d.callStack();
     CHECK(frames.size() >= 2);
     if (frames.size() >= 2) {
-        CHECK_EQ(frames[0].line, 36);
+        CHECK_EQ(frames[0].line, 37);
         CHECK_EQ(frames[1].address, main + 0x1C);
-        CHECK_EQ(frames[1].line, 21);
+        CHECK_EQ(frames[1].line, 22);
     }
     s = d.stepOut();             // back after the call
     CHECK(s.kind == Stop::Stopped);

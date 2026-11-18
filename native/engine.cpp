@@ -27,6 +27,7 @@ struct Engine::Impl {
     bool initialBreakSeen = false;
     std::atomic<bool> pausePending{ false };
     int exitCode = 0;
+    bool crashReported = false;           //!< a first-chance crash was shown: its second chance just ends the program
     HANDLE outRead = nullptr;
     std::thread reader;
     struct Watch { bool active = false; uint64_t addr = 0; int size = 0; } watches[4];
@@ -556,7 +557,14 @@ Event Engine::pump(bool expectStep)
                 curTid_ = savedCur;       // a stray trap: ignore it
                 break;
             }
+            if (!first && d->crashReported) {
+                // the program was handed its crash after we showed it: let it end
+                d->contStatus = DBG_EXCEPTION_NOT_HANDLED;
+                curTid_ = savedCur;
+                break;
+            }
             if (!first || fatalFirstChance(code)) {
+                d->crashReported = true;
                 e.kind = StopKind::Exception;
                 if (code == EXCEPTION_ACCESS_VIOLATION && er.NumberParameters >= 2) {
                     e.faultKind = int(er.ExceptionInformation[0]);
