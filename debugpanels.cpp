@@ -227,6 +227,9 @@ QWidget *DebugPanels::makeRegistersTab()
     flagsLabel->setLayoutDirection(Qt::LeftToRight);
     flagsLabel->setContentsMargins(6, 4, 6, 4);
     flagsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    //! wrap instead of forcing the whole debugger panel to be wide
+    flagsLabel->setWordWrap(true);
+    flagsLabel->setMinimumWidth(1);
     l->addWidget(flagsLabel);
     l->addWidget(regTable);
     return w;

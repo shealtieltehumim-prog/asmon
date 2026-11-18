@@ -2280,6 +2280,12 @@ void MainWindow::debug()
     showBottomPage(debugConsole->parentWidget());
     debugDock->show();
     debugDock->raise();
+    //! Asmon: on a small screen the debugger panel must not squeeze the code
+    //! away. Keep it at most ~40% of the window (the user can still drag it).
+    QTimer::singleShot(0, this, [this]() {
+        if (debugDock && !debugDock->isFloating() && debugDock->width() > width() * 45 / 100)
+            resizeDocks({ debugDock }, { width() * 40 / 100 }, Qt::Horizontal);
+    });
 
     QList<int> lines;
     for (quint64 l : *(code->getBreakpoints()))

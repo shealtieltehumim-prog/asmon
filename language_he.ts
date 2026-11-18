@@ -1098,7 +1098,7 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
     <message>
         <location filename="mainwindow.cpp" line="1007"/>
         <source>Ghidra is starting. The program&apos;s path is on the clipboard: in Ghidra choose File &gt; Import File (I) and paste it.</source>
-        <translation>Ghidra עולה. הנתיב של התוכנית הועתק ללוח: ב-Ghidra בחר File &gt; Import File ‏(I) והדבק אותו.</translation>
+        <translation>Ghidra עולה. הנתיב של התוכנית הועתק ללוח. ב-Ghidra בחר בתפריט ‪File &gt; Import File (I)‬ והדבק אותו.</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="1010"/>
