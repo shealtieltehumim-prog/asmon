@@ -30,7 +30,7 @@ quint64 parseAddress(const QString &s)
 } // namespace
 
 MiDebugger::MiDebugger(const Config &config, QObject *parent)
-    : QObject(parent), cfg(config)
+    : DebugBackend(parent), cfg(config)
 {
 }
 
@@ -873,9 +873,10 @@ QString MiDebugger::gdbCondition(const QString &condition)
     return out;
 }
 
-void MiDebugger::watchMemory(const QString &addressExpr, int size, const QString &shownName,
+void MiDebugger::watchMemory(const QString &addressText, int size, const QString &shownName,
                              std::function<void(bool, const QString &)> cb)
 {
+    const QString addressExpr = gdbAddressExpression(addressText);
     const char *type = size == 1 ? "unsigned char" : size == 2 ? "unsigned short"
                      : size == 4 ? "unsigned int" : "unsigned long long";
     //! fix the address now ($rsp-8 must not follow rsp later)
@@ -955,4 +956,132 @@ quint64 MiDebugger::addressForLine(int line) const
 bool MiDebugger::inUserCode(quint64 address) const
 {
     return address >= userLow && address < userHigh;
+}
+
+// ---------------------------------------------------------------- typed data access
+
+QString MiDebugger::gdbAddressExpression(const QString &text)
+{
+    QString t = text.trimmed();
+    if (t.isEmpty())
+        return t;
+    static const QRegularExpression reg("\\b(r[a-d]x|r[sd]i|r[sb]p|r\\d{1,2}[dwb]?|e[a-d]x|e[sd]i|e[sb]p|rip|eip|[a-d][xlh]|[sd]il?|[sb]pl?)\\b",
+                                        QRegularExpression::CaseInsensitiveOption);
+    if (t.startsWith('[') && t.endsWith(']')) {
+        //! NASM-style memory operand: [rbp-8] -> ($rbp-8)
+        QString inner = t.mid(1, t.size() - 2);
+        inner.replace(reg, "$\\1");
+        return "(" + inner + ")";
+    }
+    if (reg.match(t).hasMatch() && reg.match(t).captured(0).size() == t.size())
+        return "$" + t; // a register: its value is the address
+    static const QRegularExpression ident("^[A-Za-z_.?][A-Za-z0-9_.$#@~?]*$");
+    if (ident.match(t).hasMatch())
+        return "&" + t; // a label: its address
+    QString e = t;
+    e.replace(reg, "$\\1");
+    return e; // number or expression
+}
+
+static quint64 miHex(const QString &s)
+{
+    return s.toULongLong(nullptr, 0);
+}
+
+static QByteArray miFromHex(const QString &s)
+{
+    return QByteArray::fromHex(s.toLatin1());
+}
+
+void MiDebugger::evaluateAddress(const QString &text, std::function<void(bool, quint64)> cb)
+{
+    const QString expr = gdbAddressExpression(text);
+    command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)(" + expr + ")"),
+            [cb](const MiRecord &r) {
+        if (r.cls != "done") {
+            cb(false, 0);
+            return;
+        }
+        bool ok = false;
+        const quint64 v = r.results.get("value").toULongLong(&ok, 0);
+        cb(ok, v);
+    });
+}
+
+void MiDebugger::readRegisters(const QStringList &names, std::function<void(const QList<Register> &)> cb)
+{
+    if (gdbRegisterNames.isEmpty()) {
+        command("-data-list-register-names", [this, names, cb](const MiRecord &r) {
+            for (const MiValue &v : r.results["register-names"].elements())
+                gdbRegisterNames << v.str;
+            if (!gdbRegisterNames.isEmpty())
+                readRegisters(names, cb);
+        });
+        return;
+    }
+    QStringList indices, shown;
+    for (const QString &n : names) {
+        const int i = gdbRegisterNames.indexOf(n);
+        if (i >= 0) {
+            indices << QString::number(i);
+            shown << n;
+        }
+    }
+    command("-data-list-register-values --skip-unavailable x " + indices.join(' '),
+            [this, shown, cb](const MiRecord &r) {
+        QHash<int, QString> byNumber;
+        for (const MiValue &v : r.results["register-values"].elements())
+            byNumber.insert(v.get("number").toInt(), v.get("value"));
+        QList<Register> out;
+        for (const QString &n : shown)
+            out << Register{ n, miHex(byNumber.value(gdbRegisterNames.indexOf(n))) };
+        cb(out);
+    });
+}
+
+void MiDebugger::writeRegister(const QString &name, const QString &valueText,
+                               std::function<void(bool, const QString &)> cb)
+{
+    command(QString("-gdb-set var $%1 = %2").arg(name, valueText), [cb](const MiRecord &r) {
+        cb(r.cls != "error", r.results.get("msg"));
+    });
+}
+
+void MiDebugger::readMemory(quint64 address, int length, std::function<void(bool, const QByteArray &)> cb)
+{
+    command(QString("-data-read-memory-bytes 0x%1 %2").arg(address, 0, 16).arg(length), [cb](const MiRecord &r) {
+        if (r.cls == "done" && !r.results["memory"].elements().isEmpty())
+            cb(true, miFromHex(r.results["memory"].elements()[0].get("contents")));
+        else
+            cb(false, QByteArray());
+    });
+}
+
+void MiDebugger::writeMemory(quint64 address, const QByteArray &bytes, std::function<void(bool)> cb)
+{
+    command(QString("-data-write-memory-bytes 0x%1 %2").arg(address, 0, 16).arg(QString::fromLatin1(bytes.toHex())),
+            [cb](const MiRecord &r) { cb(r.cls != "error"); });
+}
+
+void MiDebugger::disassemble(quint64 start, int byteCount, std::function<void(const QList<Instruction> &)> cb)
+{
+    command(QString("-data-disassemble -s 0x%1 -e 0x%2 -- 0").arg(start, 0, 16).arg(start + quint64(byteCount), 0, 16),
+            [cb](const MiRecord &r) {
+        QList<Instruction> out;
+        for (const MiValue &i : r.results["asm_insns"].elements()) {
+            Instruction in;
+            in.address = miHex(i.get("address"));
+            in.text = i.get("inst");
+            const QString fn = i.get("func-name");
+            if (!fn.isEmpty())
+                in.symbol = QString("<%1+%2>").arg(fn, i.get("offset"));
+            out << in;
+        }
+        if (r.cls == "error") {
+            Instruction in;
+            in.text = r.results.get("msg");
+            out << in;
+        }
+        cb(out);
+    });
 }

@@ -21,7 +21,7 @@
 #include <QWidget>
 #include <functional>
 
-class MiDebugger;
+class DebugBackend;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -37,15 +37,13 @@ class DebugPanels : public QWidget
 public:
     explicit DebugPanels(QWidget *parent = nullptr);
 
-    void attach(MiDebugger *debugger);   //!< nullptr when the session ends
+    void attach(DebugBackend *debugger);   //!< nullptr when the session ends
     void showTab(int index);
     enum { RegistersTab, MemoryTab, StackTab, DisassemblyTab, WatchTab, CallsTab };
 
     //! Value formatting used by Watch (static: unit-testable).
     enum WatchType { Auto, Hex, Binary, Signed, Unsigned, Char, Float };
     static QString formatValue(const QByteArray &bytes, int size, int type);
-    //! "msg" -> "&msg", "rsp" -> "$rsp", "[rbp-8]" -> "($rbp-8)", "0x40" stays.
-    static QString addressExpression(const QString &text, bool is64);
     static QString decodeFlags(quint64 eflags);
     //! name of the function a code line belongs to (for the call stack)
     std::function<QString(int line)> labelForLine;
@@ -84,14 +82,13 @@ private:
     QWidget *makeWatchTab();
     void evaluateAddress(const QString &text, std::function<void(bool, quint64)> cb);
 
-    QPointer<MiDebugger> dbg;
+    QPointer<DebugBackend> dbg;
     QTabWidget *tabs;
     bool updating = false;
 
     // registers
     QTableWidget *regTable;
     QLabel *flagsLabel;
-    QStringList regNames;            //!< gdb's numbering
     QStringList shownRegs;
     QHash<QString, QString> lastRegValues;
 

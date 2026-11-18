@@ -117,6 +117,7 @@ HEADERS  += mainwindow.h \
     framelesshelper.h \
     retools.h \
     debugpanels.h \
+    debugbackend.h \
     midebugger.h \
     gdbmi.h \
     linuxtarget.h \

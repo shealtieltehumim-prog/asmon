@@ -16,7 +16,7 @@
 #ifndef ASMON_MIDEBUGGER_H
 #define ASMON_MIDEBUGGER_H
 
-#include "assembler.h"
+#include "debugbackend.h"
 #include "gdbmi.h"
 
 #include <QHash>
@@ -26,79 +26,57 @@
 #include <QSet>
 #include <functional>
 
-class MiDebugger : public QObject
+class MiDebugger : public DebugBackend
 {
     Q_OBJECT
 public:
-    struct Config {
-        QString gdb;          //!< gdb executable
-        QString executable;   //!< program to debug
-        QString workingDir;   //!< program's current directory
-        QString inputFile;    //!< stdin for the program
-        QString listing;      //!< assembler listing (.lst)
-        bool windows = false; //!< target is a Windows program
-        QStringList gdbPrefixArgs; //!< e.g. WSL: gdb = "wsl.exe", prefix = --cd dir --exec gdb
-        qint64 attachPid = 0;      //!< attach to this running process instead of starting one
-        Assembler *assembler = nullptr;
-        //! the project's other files: module N (from 1) has line ids N * kModuleLineBase + line
-        struct Module { QString source; QString listing; };
-        QList<Module> modules;
-    };
-    //! Line ids: the main file's lines are 1.., module N's are N * kModuleLineBase + line.
-    static constexpr int kModuleLineBase = 10000000;
     using Callback = std::function<void(const MiRecord &)>;
 
     explicit MiDebugger(const Config &config, QObject *parent = nullptr);
     ~MiDebugger() override;
 
-    void start(const QList<int> &breakpointLines);
-    bool isActive() const { return state != Off && state != Ended; }
-    bool isStopped() const { return state == Stopped; }
-    bool isAttached() const { return cfg.attachPid > 0; }
+    void start(const QList<int> &breakpointLines) override;
+    bool isActive() const override { return state != Off && state != Ended; }
+    bool isStopped() const override { return state == Stopped; }
+    bool isAttached() const override { return cfg.attachPid > 0; }
 
     // execution control
-    void continueRun();
-    void pause();
-    void stepOver();        //!< next source line, calls/macros run through
-    void stepInto();        //!< next source line, entering calls into your code
-    void stepOut();         //!< run until the current function returns
-    void stepInstruction(); //!< exactly one machine instruction
-    void stop();
+    void continueRun() override;
+    void pause() override;
+    void stepOver() override;
+    void stepInto() override;
+    void stepOut() override;
+    void stepInstruction() override;
+    void stop() override;
 
-    void setBreakpoint(int line, bool enabled);
-    //! Asmon: "rcx == 5" (register names may be written without $). Empty: none.
-    void setBreakpointCondition(int line, const QString &condition);
+    void setBreakpoint(int line, bool enabled) override;
+    void setBreakpointCondition(int line, const QString &condition) override;
     static QString gdbCondition(const QString &condition);
-    //! Stop when the program writes to size bytes at addressExpr (a gdb
-    //! address expression, e.g. "&msg" or "$rbp-8"). cb(ok, message).
-    void watchMemory(const QString &addressExpr, int size, const QString &shownName,
-                     std::function<void(bool, const QString &)> cb);
-    void clearMemoryWatches();
-    //! Call stack: the current instruction, then each return address found on
-    //! the stack (no frame info in assembly). line = the line of the call.
-    struct Frame { quint64 address; int line; };
-    void callStack(std::function<void(const QList<Frame> &)> cb);
-    int lineContaining(quint64 address) const;
+    //! "msg" -> "&msg", "rsp" -> "$rsp", "[rbp-8]" -> "($rbp-8)", "0x40" stays (gdb syntax).
+    static QString gdbAddressExpression(const QString &text);
+    void watchMemory(const QString &addressText, int size, const QString &shownName,
+                     std::function<void(bool, const QString &)> cb) override;
+    void clearMemoryWatches() override;
+    void callStack(std::function<void(const QList<Frame> &)> cb) override;
+    int lineContaining(quint64 address) const override;
 
     // data access for the panels
+    void readRegisters(const QStringList &names, std::function<void(const QList<Register> &)> cb) override;
+    void writeRegister(const QString &name, const QString &valueText,
+                       std::function<void(bool, const QString &)> cb) override;
+    void readMemory(quint64 address, int length, std::function<void(bool, const QByteArray &)> cb) override;
+    void writeMemory(quint64 address, const QByteArray &bytes, std::function<void(bool)> cb) override;
+    void evaluateAddress(const QString &text, std::function<void(bool, quint64)> cb) override;
+    void disassemble(quint64 start, int byteCount, std::function<void(const QList<Instruction> &)> cb) override;
+    bool hasConsole() const override { return true; }
+    void consoleCommand(const QString &cliCommand) override;
+    QString engineName() const override { return QStringLiteral("gdb"); }
     void command(const QString &cmd, Callback cb = nullptr);
-    void consoleCommand(const QString &cliCommand);
-    int lineForAddress(quint64 address) const;
-    quint64 addressForLine(int line) const;
-    quint64 currentPc() const { return pc; }
-    int currentLine() const { return lineForAddress(pc); }
-    bool is64Bit() const { return arch64; }
-
-signals:
-    void started();
-    void stopped(quint64 pc, int line);   //!< paused (line 0: outside your code)
-    void running();
-    void finished(int exitCode);
-    void crashed(const QString &signal, const QString &meaning, quint64 pc, int line);
-    void programOutput(const QString &text);
-    void consoleOutput(const QString &text);
-    void log(const QString &text, bool error);
-    void ended();                         //!< gdb has exited
+    int lineForAddress(quint64 address) const override;
+    quint64 addressForLine(int line) const override;
+    quint64 currentPc() const override { return pc; }
+    int currentLine() const override { return lineForAddress(pc); }
+    bool is64Bit() const override { return arch64; }
 
 private slots:
     void onReadyRead();
@@ -153,6 +131,7 @@ private:
     void stepOutUsingStack();
     void readUserCode();
 
+    QStringList gdbRegisterNames;     //!< gdb's register numbering, read once
     QSet<int> wantedBreakpoints;      //!< lines
     QHash<int, QString> breakpointIds; //!< line -> gdb breakpoint number
     QHash<int, QString> breakpointConditions; //!< line -> gdb condition

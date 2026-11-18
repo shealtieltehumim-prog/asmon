@@ -3,7 +3,7 @@
 ** Modifications © 2026 Asmon contributors.
 ****************************************************************************/
 #include "debugpanels.h"
-#include "midebugger.h"
+#include "debugbackend.h"
 #include "theme.h"
 
 #include <QComboBox>
@@ -52,20 +52,6 @@ QTableWidgetItem *readOnlyItem(const QString &text)
     return i;
 }
 
-quint64 hexValue(const QString &s)
-{
-    bool ok = false;
-    quint64 v = s.toULongLong(&ok, 16);
-    if (!ok)
-        v = s.toULongLong(&ok, 0);
-    return ok ? v : 0;
-}
-
-QByteArray fromHex(const QString &contents)
-{
-    return QByteArray::fromHex(contents.toLatin1());
-}
-
 const QStringList kRegs64 = { "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp",
                               "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
                               "rip", "eflags", "cs", "ss", "ds", "es", "fs", "gs" };
@@ -94,16 +80,15 @@ void DebugPanels::showTab(int index)
     tabs->setCurrentIndex(index);
 }
 
-void DebugPanels::attach(MiDebugger *debugger)
+void DebugPanels::attach(DebugBackend *debugger)
 {
     dbg = debugger;
-    regNames.clear();
     lastRegValues.clear();
     disasmFixedExpr.clear();
     if (!dbg)
         return;
-    connect(dbg, &MiDebugger::stopped, this, [this]() { refresh(); });
-    connect(dbg, &MiDebugger::crashed, this, [this]() { refresh(); });
+    connect(dbg, &DebugBackend::stopped, this, [this]() { refresh(); });
+    connect(dbg, &DebugBackend::crashed, this, [this]() { refresh(); });
 }
 
 void DebugPanels::refresh()
@@ -124,47 +109,13 @@ void DebugPanels::refresh()
 
 // ------------------------------------------------------------------ helpers
 
-QString DebugPanels::addressExpression(const QString &text, bool is64)
-{
-    QString t = text.trimmed();
-    if (t.isEmpty())
-        return t;
-    static const QRegularExpression reg("\\b(r[a-d]x|r[sd]i|r[sb]p|r\\d{1,2}[dwb]?|e[a-d]x|e[sd]i|e[sb]p|rip|eip|[a-d][xlh]|[sd]il?|[sb]pl?)\\b",
-                                        QRegularExpression::CaseInsensitiveOption);
-    Q_UNUSED(is64);
-    if (t.startsWith('[') && t.endsWith(']')) {
-        //! NASM-style memory operand: [rbp-8] -> ($rbp-8)
-        QString inner = t.mid(1, t.size() - 2);
-        inner.replace(reg, "$\\1");
-        return "(" + inner + ")";
-    }
-    if (reg.match(t).hasMatch() && reg.match(t).captured(0).size() == t.size())
-        return "$" + t; // a register: its value is the address
-    static const QRegularExpression ident("^[A-Za-z_.?][A-Za-z0-9_.$#@~?]*$");
-    if (ident.match(t).hasMatch())
-        return "&" + t; // a label: its address
-    QString e = t;
-    e.replace(reg, "$\\1");
-    return e; // number or expression
-}
-
 void DebugPanels::evaluateAddress(const QString &text, std::function<void(bool, quint64)> cb)
 {
     if (!dbg) {
         cb(false, 0);
         return;
     }
-    const QString expr = addressExpression(text, dbg->is64Bit());
-    dbg->command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)(" + expr + ")"),
-                 [cb](const MiRecord &r) {
-        if (r.cls != "done") {
-            cb(false, 0);
-            return;
-        }
-        bool ok = false;
-        const quint64 v = r.results.get("value").toULongLong(&ok, 0);
-        cb(ok, v);
-    });
+    dbg->evaluateAddress(text, cb);
 }
 
 QString DebugPanels::decodeFlags(quint64 f)
@@ -241,43 +192,23 @@ void DebugPanels::refreshRegisters()
 {
     if (!dbg)
         return;
-    if (regNames.isEmpty()) {
-        dbg->command("-data-list-register-names", [this](const MiRecord &r) {
-            for (const MiValue &v : r.results["register-names"].elements())
-                regNames << v.str;
-            if (!regNames.isEmpty())
-                refreshRegisters();
-        });
-        return;
-    }
-    const QStringList &wanted = dbg->is64Bit() ? kRegs64 : kRegs32;
-    QStringList indices;
-    shownRegs.clear();
-    for (const QString &n : wanted) {
-        const int i = regNames.indexOf(n);
-        if (i >= 0) {
-            indices << QString::number(i);
-            shownRegs << n;
-        }
-    }
-    dbg->command("-data-list-register-values --skip-unavailable x " + indices.join(' '), [this](const MiRecord &r) {
-        QHash<int, QString> byNumber;
-        for (const MiValue &v : r.results["register-values"].elements())
-            byNumber.insert(v.get("number").toInt(), v.get("value"));
+    const bool x64 = dbg->is64Bit();
+    const QStringList &wanted = x64 ? kRegs64 : kRegs32;
+    dbg->readRegisters(wanted, [this, x64](const QList<DebugBackend::Register> &regs) {
         updating = true;
-        regTable->setRowCount(shownRegs.size());
+        regTable->setRowCount(regs.size());
         const QColor changed = Theme::isDark() ? QColor("#f9c74f") : QColor("#b5590e");
-        for (int row = 0; row < shownRegs.size(); ++row) {
-            const QString name = shownRegs[row];
-            const QString value = byNumber.value(regNames.indexOf(name));
-            const quint64 u = hexValue(value);
+        for (int row = 0; row < regs.size(); ++row) {
+            const QString name = regs[row].name;
+            const quint64 u = regs[row].value;
+            const QString value = QString("0x%1").arg(u, 0, 16);
             auto *nameItem = readOnlyItem(name);
             auto *hexItem = new QTableWidgetItem(value);
             QString dec;
             if (name == "eflags")
                 dec = decodeFlags(u);
             else if (name.size() == 3 && (name.startsWith('e') || name.startsWith('r')) && name != "rip" && name != "eip")
-                dec = dbg->is64Bit() ? QString::number(qint64(u)) : QString::number(qint32(u));
+                dec = x64 ? QString::number(qint64(u)) : QString::number(qint32(u));
             else
                 dec = QString::number(u);
             auto *decItem = readOnlyItem(dec);
@@ -308,9 +239,9 @@ void DebugPanels::registerEdited(QTableWidgetItem *item)
         return;
     const QString name = regTable->item(item->row(), 0)->text();
     const QString value = item->text().trimmed();
-    dbg->command(QString("-gdb-set var $%1 = %2").arg(name, value), [this](const MiRecord &r) {
-        if (r.cls == "error")
-            flagsLabel->setText(r.results.get("msg"));
+    dbg->writeRegister(name, value, [this](bool ok, const QString &msg) {
+        if (!ok)
+            flagsLabel->setText(msg);
         refresh();
     });
 }
@@ -372,13 +303,10 @@ void DebugPanels::refreshMemory()
         return;
     }
     const int rows = 16;
-    dbg->command(QString("-data-read-memory-bytes 0x%1 %2").arg(memBase, 0, 16).arg(rows * 16),
-                 [this, rows](const MiRecord &r) {
+    dbg->readMemory(memBase, rows * 16, [this, rows](bool ok, const QByteArray &bytes) {
         updating = true;
         memTable->setRowCount(rows);
-        QByteArray data;
-        if (r.cls == "done" && !r.results["memory"].elements().isEmpty())
-            data = fromHex(r.results["memory"].elements()[0].get("contents"));
+        const QByteArray data = ok ? bytes : QByteArray();
         for (int row = 0; row < rows; ++row) {
             const quint64 a = memBase + quint64(row) * 16;
             memTable->setItem(row, 0, readOnlyItem(QString("%1").arg(a, 16, 16, QChar('0'))));
@@ -414,8 +342,7 @@ void DebugPanels::memoryEdited(QTableWidgetItem *item)
         return;
     }
     const quint64 a = memBase + quint64(item->row()) * 16 + quint64(item->column() - 1);
-    dbg->command(QString("-data-write-memory-bytes 0x%1 %2").arg(a, 0, 16).arg(b, 2, 16, QChar('0')),
-                 [this](const MiRecord &) { refresh(); });
+    dbg->writeMemory(a, QByteArray(1, char(b)), [this](bool) { refresh(); });
 }
 
 // ------------------------------------------------------------------ stack
@@ -433,17 +360,16 @@ void DebugPanels::refreshStack()
     const bool x64 = dbg->is64Bit();
     const int width = x64 ? 8 : 4;
     const int count = 24;
-    const QString sp = x64 ? "$rsp" : "$esp";
-    const QString bp = x64 ? "$rbp" : "$ebp";
-    dbg->command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)" + bp),
-                 [=](const MiRecord &rb) {
-        const quint64 bpValue = rb.results.get("value").toULongLong();
-        dbg->command(QString("-data-read-memory-bytes %1 %2").arg(sp).arg(width * count), [=](const MiRecord &r) {
-            if (r.cls != "done" || r.results["memory"].elements().isEmpty())
+    const QString sp = x64 ? "rsp" : "esp";
+    const QString bp = x64 ? "rbp" : "ebp";
+    dbg->readRegisters({ sp, bp }, [=](const QList<DebugBackend::Register> &regs) {
+        quint64 spValue = 0, bpValue = 0;
+        for (const DebugBackend::Register &r : regs)
+            (r.name == sp ? spValue : bpValue) = r.value;
+        dbg->readMemory(spValue, width * count, [=](bool ok, const QByteArray &data) {
+            if (!ok)
                 return;
-            const MiValue m = r.results["memory"].elements()[0];
-            const quint64 base = hexValue(m.get("begin"));
-            const QByteArray data = fromHex(m.get("contents"));
+            const quint64 base = spValue;
             stackTable->setRowCount(count);
             for (int i = 0; i < count; ++i) {
                 const quint64 a = base + quint64(i * width);
@@ -452,9 +378,9 @@ void DebugPanels::refreshStack()
                     std::memcpy(&v, data.constData() + i * width, size_t(width));
                 QString note;
                 if (i == 0)
-                    note = QString("← %1").arg(sp.mid(1));
+                    note = QString("← %1").arg(sp);
                 if (a == bpValue)
-                    note += (note.isEmpty() ? "" : "  ") + QString("← %1").arg(bp.mid(1));
+                    note += (note.isEmpty() ? "" : "  ") + QString("← %1").arg(bp);
                 const int line = dbg->lineForAddress(v);
                 if (line > 0)
                     note += (note.isEmpty() ? "" : "  ") + tr("→ code, line %1").arg(line);
@@ -508,27 +434,27 @@ void DebugPanels::refreshDisassembly()
         return;
     auto show = [this](quint64 start) {
         const quint64 pc = dbg->currentPc();
-        dbg->command(QString("-data-disassemble -s 0x%1 -e 0x%2 -- 0").arg(start, 0, 16).arg(start + 192, 0, 16),
-                     [this, pc](const MiRecord &r) {
+        dbg->disassemble(start, 192, [this, pc](const QList<DebugBackend::Instruction> &insns) {
             QStringList out;
             int currentRow = -1;
-            for (const MiValue &i : r.results["asm_insns"].elements()) {
-                const quint64 a = hexValue(i.get("address"));
-                const int line = dbg->lineForAddress(a);
-                QString where = i.get("func-name");
-                if (!where.isEmpty())
-                    where = QString("<%1+%2>").arg(where, i.get("offset"));
-                if (a == pc)
+            for (const DebugBackend::Instruction &i : insns) {
+                if (i.address == 0 && i.bytes.isEmpty()) {      // an error message
+                    out << i.text;
+                    continue;
+                }
+                const int line = dbg->lineForAddress(i.address);
+                if (i.address == pc)
                     currentRow = out.size();
-                out << QString("%1 %2  %3  %4%5")
-                           .arg(a == pc ? "=>" : "  ")
-                           .arg(i.get("address"))
-                           .arg(where, -18)
-                           .arg(i.get("inst"), -36)
+                const QString bytes = i.bytes.isEmpty() ? QString()
+                                                        : QString::fromLatin1(i.bytes.toHex(' ')) + "  ";
+                out << QString("%1 0x%2  %3  %4%5%6")
+                           .arg(i.address == pc ? "=>" : "  ")
+                           .arg(i.address, 0, 16)
+                           .arg(i.symbol, -18)
+                           .arg(bytes, -(i.bytes.isEmpty() ? 0 : 26))
+                           .arg(i.text, -36)
                            .arg(line > 0 ? QString(" ; line %1").arg(line) : QString());
             }
-            if (r.cls == "error")
-                out << r.results.get("msg");
             disasmView->setPlainText(out.join('\n'));
             if (currentRow >= 0) {
                 QTextCursor c(disasmView->document()->findBlockByNumber(currentRow));
@@ -579,10 +505,10 @@ void DebugPanels::refreshCalls()
 {
     if (!dbg)
         return;
-    dbg->callStack([this](const QList<MiDebugger::Frame> &frames) {
+    dbg->callStack([this](const QList<DebugBackend::Frame> &frames) {
         callsTable->setRowCount(frames.size());
         for (int i = 0; i < frames.size(); ++i) {
-            const MiDebugger::Frame &f = frames.at(i);
+            const DebugBackend::Frame &f = frames.at(i);
             const QString name = (f.line > 0 && labelForLine) ? labelForLine(f.line) : QString();
             callsTable->setItem(i, 0, readOnlyItem(QString::number(i)));
             callsTable->setItem(i, 1, readOnlyItem(name.isEmpty()
@@ -649,7 +575,7 @@ QWidget *DebugPanels::makeWatchTab()
             return;
         }
         const int size = watchSize->currentText().toInt();
-        dbg->watchMemory(addressExpression(e, dbg->is64Bit()), size, e, [this, e, size](bool ok, const QString &msg) {
+        dbg->watchMemory(e, size, e, [this, e, size](bool ok, const QString &msg) {
             emit message(ok ? tr("Will stop when %1 bytes at %2 are written.").arg(size).arg(e)
                             : tr("Could not watch %1: %2").arg(e, msg));
         });
@@ -714,15 +640,15 @@ void DebugPanels::refreshWatches()
                                               QRegularExpression::CaseInsensitiveOption);
         if (isReg.match(w.expr).hasMatch()) {
             //! a register: format its value
-            QString r = w.expr;
-            if (!r.startsWith('$'))
-                r.prepend('$');
-            dbg->command("-data-evaluate-expression " + GdbMi::quote("(unsigned long long)" + r),
-                         [this, row, w](const MiRecord &res) {
-                quint64 v = res.results.get("value").toULongLong();
+            QString r = w.expr.toLower();
+            if (r.startsWith('$'))
+                r.remove(0, 1);
+            dbg->readRegisters({ r }, [this, row, w](const QList<DebugBackend::Register> &regs) {
+                const quint64 v = regs.isEmpty() ? 0 : regs.first().value;
                 QByteArray b(reinterpret_cast<const char *>(&v), 8);
                 if (row < watchTable->rowCount())
-                    watchTable->setItem(row, 2, readOnlyItem(formatValue(b, w.size, w.type)));
+                    watchTable->setItem(row, 2, readOnlyItem(regs.isEmpty() ? tr("unknown")
+                                                                            : formatValue(b, w.size, w.type)));
             });
             continue;
         }
@@ -732,11 +658,9 @@ void DebugPanels::refreshWatches()
                     watchTable->setItem(row, 2, readOnlyItem(tr("unknown")));
                 return;
             }
-            dbg->command(QString("-data-read-memory-bytes 0x%1 %2").arg(a, 0, 16).arg(w.size * w.count),
-                         [this, row, w](const MiRecord &r) {
+            dbg->readMemory(a, w.size * w.count, [this, row, w](bool readOk, const QByteArray &data) {
                 QString text;
-                if (r.cls == "done" && !r.results["memory"].elements().isEmpty()) {
-                    const QByteArray data = fromHex(r.results["memory"].elements()[0].get("contents"));
+                if (readOk) {
                     if (w.type == Char) {
                         text = formatValue(data, 1, Char);
                     } else {
@@ -746,7 +670,7 @@ void DebugPanels::refreshWatches()
                         text = parts.join(", ");
                     }
                 } else {
-                    text = r.results.get("msg");
+                    text = tr("cannot read memory");
                 }
                 if (row < watchTable->rowCount())
                     watchTable->setItem(row, 2, readOnlyItem(text));
