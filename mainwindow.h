@@ -240,6 +240,8 @@ private:
     QPointer<QWidget> settingsWindow;
     QPointer<QWidget> settingsPage;
     QWidget *bottomCard = nullptr;
+    const struct NppTheme *pendingNpp = nullptr;
+    void applyNppTheme(int index);
     int settingsReturnIndex;
     void closeSettingsPage();
     void createEditCommands();

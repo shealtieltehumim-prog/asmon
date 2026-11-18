@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QVBoxLayout>
+#include "theme.h"
 
 /**
  * @file cardframe.h
@@ -36,7 +37,7 @@ protected:
         const QPalette pal = QApplication::palette();
         QPainterPath path;
         path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), kRadius, kRadius);
-        p.fillPath(path, pal.color(QPalette::Base));
+        p.fillPath(path, Theme::color("backgroundcolor")); // follows the selected colour theme
         p.setPen(QPen(pal.color(QPalette::Mid), 1));
         p.drawPath(path);
     }

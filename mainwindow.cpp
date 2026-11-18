@@ -46,6 +46,7 @@
 #include "framelesshelper.h"
 #include "updater.h"
 #include "cardframe.h"
+#include "nppthemes.h"
 #include <QProgressDialog>
 #include <QShortcut>
 #include <QFontDatabase>
@@ -2030,6 +2031,20 @@ void MainWindow::switchTheme(bool dark)
     for (const QString &k : logKeys)
         oldColors << Theme::color(k);
     Theme::setTheme(settings, dark);
+    if (pendingNpp) {
+        //! a Notepad++ colour theme: its colours replace the defaults just written
+        static const char *keys[9] = { "keywords", "registers", "numbers", "memory", "labels",
+                                       "comments", "system", "iomacro", "quotation" };
+        for (int k = 0; k < 9; k++) {
+            settings.setValue(QString(keys[k]) + "color", QString::fromLatin1(pendingNpp->syntax[k]));
+            settings.setValue(QString(keys[k]) + "colorbg", QString::fromLatin1(pendingNpp->bg));
+        }
+        settings.setValue("backgroundcolor", QString::fromLatin1(pendingNpp->bg));
+        settings.setValue("linenumberpanelcolor", QString::fromLatin1(pendingNpp->bg));
+        settings.setValue("fontcolor", QString::fromLatin1(pendingNpp->fg));
+        settings.setValue("currentlinecolor", QString::fromLatin1(pendingNpp->currentLine));
+        settings.setValue("linenumberfontcolor", QString::fromLatin1(pendingNpp->lineNumber));
+    }
     QHash<QRgb, QColor> recolor;
     for (int i = 0; i < logKeys.size(); ++i)
         if (oldColors[i] != Theme::color(logKeys[i]))
@@ -2059,6 +2074,17 @@ void MainWindow::switchTheme(bool dark)
             e->applyThemeColors();
         recreateHighlighter();
     });
+}
+
+void MainWindow::applyNppTheme(int index)
+{
+    if (index < 0 || index >= kNppThemeCount)
+        return;
+    pendingNpp = &kNppThemes[index];
+    switchTheme(pendingNpp->dark);
+    initColorButtons(pendingNpp->dark, false);
+    pendingNpp = nullptr;
+    mainWidget->update();
 }
 
 void MainWindow::refreshEditMenu()
@@ -3572,6 +3598,19 @@ void MainWindow::openSettings()
 
         connect(settingsUi.lightThemeButton, SIGNAL(clicked()), this, SLOT(changeColorButtonsLight()));
         connect(settingsUi.darkThemeButton, SIGNAL(clicked()), this, SLOT(changeColorButtonsDark()));
+        //! Colour themes imported from Notepad++ (GPL-3): pick one and the editor colours switch at once.
+        {
+            QComboBox *themeCombo = new QComboBox;
+            themeCombo->addItem(tr("Notepad++ themes..."));
+            for (int i = 0; i < kNppThemeCount; i++)
+                themeCombo->addItem(QString::fromUtf8(kNppThemes[i].name));
+            settingsUi.horizontalLayout_10->addWidget(themeCombo);
+            connect(themeCombo, QOverload<int>::of(&QComboBox::activated), this, [this](int idx) {
+                if (idx <= 0)
+                    return;
+                applyNppTheme(idx - 1);
+            });
+        }
 
         backupSettings();
         initAssemblerSettings(true);

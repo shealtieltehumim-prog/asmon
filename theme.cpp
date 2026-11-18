@@ -330,6 +330,10 @@ QTreeView::item { padding: 3px 2px; border-radius: 6px; }
 QTreeView::item:hover { background: %8; }
 QTreeView::item:selected { background: %9; color: %5; }
 QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
+QMessageBox { min-width: 480px; min-height: 170px; }
+QMessageBox QLabel { min-width: 340px; font-size: 11pt; padding: 6px 4px; }
+QMessageBox QPushButton, QDialogButtonBox QPushButton { min-width: 96px; min-height: 30px; font-size: 10pt; }
+QProgressDialog { min-width: 460px; min-height: 130px; }
 QToolTip { background: %3; color: %5; border: 1px solid %4; padding: 4px; }
 QCheckBox, QRadioButton, QLabel, QGroupBox { color: %5; }
 QGroupBox { border: 1px solid %4; border-radius: 12px; margin-top: 12px; padding-top: 8px; }
