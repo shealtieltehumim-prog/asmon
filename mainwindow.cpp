@@ -1830,6 +1830,10 @@ void MainWindow::buildProgram(bool debugMode)
 
     if (assemblerProcess.error() != QProcess::UnknownError) {
         printLogWithTime(tr("Unable to start assembler. Check your settings.") + '\n', Theme::color("errorcolor"));
+        #ifndef Q_OS_WIN32
+        printLog(tr("Is it installed? On Ubuntu/Debian: sudo apt install nasm gcc gdb "
+                    "(Fedora: sudo dnf install nasm gcc gdb)") + '\n', Theme::color("errorcolor"));
+        #endif
         return;
     }
 
@@ -1920,6 +1924,10 @@ void MainWindow::buildProgram(bool debugMode)
 
         if (linkerProcess.error() != QProcess::UnknownError) {
             printLogWithTime(tr("Unable to start linker. Check your settings.") + '\n', Theme::color("errorcolor"));
+            #ifndef Q_OS_WIN32
+            printLog(tr("Is it installed? On Ubuntu/Debian: sudo apt install nasm gcc gdb "
+                        "(Fedora: sudo dnf install nasm gcc gdb)") + '\n', Theme::color("errorcolor"));
+            #endif
             return;
         }
     }

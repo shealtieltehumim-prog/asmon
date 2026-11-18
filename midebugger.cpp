@@ -71,7 +71,12 @@ void MiDebugger::start(const QList<int> &breakpointLines)
     }
     gdb->start(cfg.gdb, QStringList(cfg.gdbPrefixArgs) << "--interpreter=mi3" << "-nx" << "-q" << cfg.executable);
     if (!gdb->waitForStarted(10000)) {
-        emit log(tr("Could not start gdb (%1).").arg(cfg.gdb), true);
+#ifdef Q_OS_WIN32
+        emit log(tr("Could not start gdb (%1).").arg(cfg.gdb) + '\n', true);
+#else
+        emit log(tr("Could not start gdb (%1). Is it installed? On Ubuntu/Debian: sudo apt install gdb")
+                     .arg(cfg.gdb) + '\n', true);
+#endif
         state = Ended;
         emit ended();
         return;

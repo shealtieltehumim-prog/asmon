@@ -44,6 +44,11 @@ bsd {
     docfiles.path = $$DATADIR/doc/asmon/
 }
 
+!bsd {
+    iconfile.files += Linux/share/asmon/asmon.png
+    iconfile.path = $$DATADIR/icons/hicolor/256x256/apps/
+    INSTALLS += iconfile
+}
 INSTALLS += binfile
 INSTALLS += data
 INSTALLS += shortcutfiles

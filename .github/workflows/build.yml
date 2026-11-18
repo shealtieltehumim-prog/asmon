@@ -28,6 +28,67 @@ jobs:
           name: asmon-linux-x64
           path: build/asmon
 
+  appimage:
+    # Linux AppImage (Qt bundled by linuxdeploy). NASM/GCC/GDB come from the system:
+    # sudo apt install nasm gcc gdb (Asmon says so in the build log when one is missing).
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 6 and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools qt6-tools-dev-tools qt6-svg-dev libgl1-mesa-dev \
+            qt6-qpa-plugins libxkbcommon-x11-0 libxcb-cursor0 xvfb imagemagick nasm gdb file
+      - name: Build and install into AppDir
+        run: |
+          mkdir build && cd build
+          qmake6 PREFIX=/usr ../asmon.pro
+          make -j"$(nproc)"
+          make install INSTALL_ROOT="$GITHUB_WORKSPACE/AppDir"
+          find "$GITHUB_WORKSPACE/AppDir" -maxdepth 4 | head -30
+      - name: linuxdeploy (official continuous builds)
+        run: |
+          gh release download continuous -R linuxdeploy/linuxdeploy -p 'linuxdeploy-x86_64.AppImage'
+          gh release download continuous -R linuxdeploy/linuxdeploy-plugin-qt -p 'linuxdeploy-plugin-qt-x86_64.AppImage'
+          chmod +x linuxdeploy*.AppImage
+          export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=qmake6 EXTRA_QT_MODULES="svg" EXTRA_PLATFORM_PLUGINS="libqoffscreen.so"
+          export LDAI_OUTPUT="Asmon-x86_64.AppImage"
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage \
+            -d AppDir/usr/share/applications/asmon.desktop \
+            -i AppDir/usr/share/icons/hicolor/256x256/apps/asmon.png
+          ls -la *.AppImage
+      - name: Test the AppImage (build a program from the GUI; normal and high-DPI screenshots)
+        run: |
+          set -x
+          mkdir -p shots
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          cp templates/hello_linux64.asm /tmp/hello.asm
+          Xvfb :99 -screen 0 1600x1000x24 & sleep 3
+          export DISPLAY=:99
+          ./Asmon-x86_64.AppImage /tmp/hello.asm & sleep 15
+          import -window root shots/appimage-1x.png
+          pgrep -f asmon >/dev/null || { echo "Asmon did not start"; exit 1; }
+          pkill -f Asmon-x86_64 || true; pkill asmon || true; sleep 2
+          QT_SCALE_FACTOR=2 ./Asmon-x86_64.AppImage /tmp/hello.asm & sleep 15
+          import -window root shots/appimage-2x.png
+          pkill -f Asmon-x86_64 || true; pkill asmon || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asmon-linux-appimage
+          path: Asmon-x86_64.AppImage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: appimage-screenshots
+          path: shots
+      - name: Attach to the GitHub release
+        if: github.event_name == 'release'
+        run: gh release upload "$GITHUB_REF_NAME" Asmon-x86_64.AppImage --clobber -R "$GITHUB_REPOSITORY"
+
   windows:
     runs-on: windows-latest
     defaults:
