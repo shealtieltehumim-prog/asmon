@@ -44,6 +44,10 @@
 #include <QInputDialog>
 #include "processpicker.h"
 #include "framelesshelper.h"
+#include <QShortcut>
+#include <QFontDatabase>
+#include <QStyledItemDelegate>
+#include <QFontComboBox>
 #include <QStatusBar>
 #include <QGuiApplication>
 
@@ -66,6 +70,8 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
     prevCodeEditor = 0;
     findDialog = 0;
     settingsWindow = 0;
+    settingsPage = nullptr;
+    settingsReturnIndex = 0;
     closeFromCloseAll = false;
     settingsStartTextEditor = 0;
     settingsHighlighter = 0;
@@ -2191,8 +2197,7 @@ void MainWindow::closeAllChildWindows()
         delete findDialog;
     }
     if (settingsWindow) {
-        settingsWindow->close();
-        delete settingsWindow;
+        delete settingsPage;
     }
     if (help) {
         help->close();
@@ -3350,9 +3355,42 @@ void MainWindow::openSettings()
 {
     //! Initialize
     if (!settingsWindow) {
-        settingsWindow = new QWidget(this, Qt::Window);
-        settingsWindow->setWindowModality(Qt::WindowModal);
+        //! Asmon: settings open as a full page in the editor area (like VS Code), not a small window.
+        settingsWindow = new QWidget;
         settingsUi.setupUi(settingsWindow);
+        settingsWindow->setMaximumWidth(1100);
+        {
+            //! Font list: monospaced families only, plain names in the interface font (no giant
+            //! per-font previews or icons); the preview box below shows the chosen font.
+            struct PlainDelegate : QStyledItemDelegate {
+                using QStyledItemDelegate::QStyledItemDelegate;
+                void initStyleOption(QStyleOptionViewItem *o, const QModelIndex &i) const override {
+                    QStyledItemDelegate::initStyleOption(o, i);
+                    o->icon = QIcon();
+                    o->features &= ~QStyleOptionViewItem::HasDecoration;
+                    o->font = QApplication::font();
+                    o->textElideMode = Qt::ElideRight;
+                }
+                QSize sizeHint(const QStyleOptionViewItem &o, const QModelIndex &i) const override {
+                    QSize s = QStyledItemDelegate::sizeHint(o, i);
+                    s.setHeight(26);
+                    return s;
+                }
+            };
+            settingsUi.fontComboBox->setItemDelegate(new PlainDelegate(settingsUi.fontComboBox));
+            settingsUi.fontComboBox->setMaxVisibleItems(12);
+            settingsUi.fontComboBox->setMinimumWidth(240);
+        }
+        settingsPage = new QWidget;
+        QHBoxLayout *pageLayout = new QHBoxLayout(settingsPage);
+        pageLayout->setContentsMargins(24, 16, 24, 16);
+        pageLayout->addStretch(1);
+        pageLayout->addWidget(settingsWindow, 100);
+        pageLayout->addStretch(1);
+        mainWidget->addWidget(settingsPage);
+        auto *escape = new QShortcut(QKeySequence(Qt::Key_Escape), settingsPage);
+        escape->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(escape, SIGNAL(activated()), this, SLOT(restoreSettingsAndExit()));
         settingsUi.tabWidget->setLayoutDirection(QApplication::layoutDirection());
         settingsUi.tabWidget->setCurrentIndex(0);
         //! the old CLI debugger's "show all registers" switch has no effect any more
@@ -3366,8 +3404,8 @@ void MainWindow::openSettings()
             openIni->setToolTip(QDir::toNativeSeparators(settings.fileName()));
             connect(openIni, &QPushButton::clicked, this, [this]() {
                 settings.sync();
+                closeSettingsPage();
                 openFile(settings.fileName());
-                settingsWindow->close();
             });
             settingsUi.buttonBox->addButton(openIni, QDialogButtonBox::ResetRole);
         }
@@ -3451,8 +3489,25 @@ void MainWindow::openSettings()
     //! Common
     settingsUi.startWindow->setCurrentIndex(settings.value("startwindow", 0).toInt());
     settingsUi.language->setCurrentIndex(settings.value("language", 0).toInt());
-    settingsUi.fontComboBox->setCurrentFont(QFont(settings.value("fontfamily",
-                                                                 Theme::defaultCodeFont()).value<QString>()));
+    {
+        //! monospaced families only, plus whatever is stored (never silently switch the user's font)
+        const QString stored = settings.value("fontfamily", Theme::defaultCodeFont()).toString();
+        QStringList list;
+        for (const QString &f : QFontDatabase::families())
+            if (QFontDatabase::isFixedPitch(f) && !f.startsWith('@'))
+                list << f;
+        for (const char *f : { "JetBrains Mono", "Cascadia Code", "Cascadia Mono", "Source Code Pro",
+                               "Hack", "Fira Code", "Consolas" })
+            if (QFontDatabase::families().contains(QString(f)) && !list.contains(QString(f)))
+                list << QString(f);
+        if (!list.contains(stored))
+            list << stored;
+        list.removeDuplicates();
+        list.sort(Qt::CaseInsensitive);
+        settingsUi.fontComboBox->clear();
+        settingsUi.fontComboBox->addItems(list);
+        settingsUi.fontComboBox->setCurrentIndex(qMax(0, list.indexOf(stored)));
+    }
     settingsUi.fontSizeSpinBox->setValue(settings.value("fontsize", 11).toInt());
     if (settings.value("allregisters", false).toBool())
         settingsUi.registersYesRadioButton->setChecked(true);
@@ -3469,7 +3524,19 @@ void MainWindow::openSettings()
 
     settingsUi.currentLineCheckBox->setChecked(settings.value("currentlinemode", true).toBool());
     fillShortcutsPage();
-    settingsWindow->show();
+    if (mainWidget->currentWidget() != settingsPage) {
+        settingsReturnIndex = mainWidget->currentIndex();
+        mainWidget->setCurrentWidget(settingsPage);
+    }
+}
+
+void MainWindow::closeSettingsPage()
+{
+    if (!settingsPage || mainWidget->currentWidget() != settingsPage)
+        return;
+    const int back = (settingsReturnIndex >= 0 && settingsReturnIndex < mainWidget->count()
+                      && mainWidget->widget(settingsReturnIndex) != settingsPage) ? settingsReturnIndex : 0;
+    mainWidget->setCurrentIndex(back);
 }
 
 void MainWindow::initColorButtons(bool dark, bool ignoreSettings) {
@@ -3793,7 +3860,7 @@ void MainWindow::restoreSettingsAndExit()
     settings.setValue("currentdir", backupCurrentDir);
     settings.setValue("starttext", backupStartText);
     settings.setValue("linkerpath", backupLinkerPath);
-    settingsWindow->close();
+    closeSettingsPage();
 }
 
 void MainWindow::recreateHighlighter()
@@ -3825,7 +3892,7 @@ void MainWindow::saveSettings()
     settings.setValue("insertdebugstring", settingsUi.insertDebugStringCheckBox->isChecked());
 
     //! Change fonts
-    settings.setValue("fontfamily", settingsUi.fontComboBox->currentFont().family());
+    settings.setValue("fontfamily", settingsUi.fontComboBox->currentText());
     settings.setValue("fontsize", settingsUi.fontSizeSpinBox->value());
     for (int i = 0; i < tabs->count(); i++) {
         Tab *tab = (Tab *) tabs->widget(i);
@@ -3905,7 +3972,7 @@ void MainWindow::changeHighlightingLineMode(int mode)
 void MainWindow::exitSettings()
 {
     saveSettings();
-    settingsWindow->close();
+    closeSettingsPage();
 }
 
 void MainWindow::resetAllSettings()
@@ -3938,6 +4005,8 @@ void MainWindow::resetAllSettings()
 
 void MainWindow::changeActionsState(int widgetIndex)
 {
+    if (settingsPage && mainWidget->widget(widgetIndex) == settingsPage)
+        return; // the settings page changes nothing in the file actions
     //! Get started window
     if (widgetIndex == 0) {
         closeAction->setEnabled(false);

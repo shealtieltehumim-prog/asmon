@@ -237,6 +237,9 @@ private:
 
     //! Settings and Help
     QPointer<QWidget> settingsWindow;
+    QPointer<QWidget> settingsPage;
+    int settingsReturnIndex;
+    void closeSettingsPage();
     Ui::SettingsWindow settingsUi;
     QString startText;
     CodeEditor *settingsStartTextEditor;

@@ -334,20 +334,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QFontComboBox" name="fontComboBox">
-              <property name="writingSystem">
-               <enum>QFontDatabase::Latin</enum>
-              </property>
-              <property name="fontFilters">
-               <set>QFontComboBox::AllFonts</set>
-              </property>
-              <property name="currentFont">
-               <font>
-                <family>Arial</family>
-                <pointsize>12</pointsize>
-               </font>
-              </property>
-             </widget>
+             <widget class="QComboBox" name="fontComboBox"/>
             </item>
             <item>
              <widget class="QLabel" name="fontSizeLabel">
