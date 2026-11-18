@@ -11,9 +11,11 @@
 
 #include "native/analysis.h"
 
+#include <QHash>
 #include <QWidget>
 #include <memory>
 
+class Decompiler;
 class HexView;
 class QLabel;
 class QLineEdit;
@@ -56,6 +58,8 @@ private:
     void showRegion(quint64 va);
     void showLines(const std::vector<ra::Line> &lines, const QString &title);
     void refreshDisassembly();
+    void decompileFunction(quint64 va);
+    void bytesOrNamesChanged();
     void selectRow(quint64 va);
     quint64 currentVa() const;
     void followBranch();
@@ -88,6 +92,12 @@ private:
     QTableWidget *disassembly_ = nullptr;
     HexView *hex_ = nullptr;
     QLineEdit *hexGoto_ = nullptr;
+    QPlainTextEdit *code_ = nullptr;
+    QLabel *codeStatus_ = nullptr;
+    Decompiler *decompiler_ = nullptr;
+    int revision_ = 0;
+    quint64 wantedCode_ = 0;
+    QHash<quint64, QString> codeCache_;
 
     std::vector<ra::Line> lines_;
     std::vector<quint64> targets_;          //!< direct branch target of each shown line (0: none)

@@ -2270,6 +2270,22 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
 <context>
     <name>ReversePage</name>
     <message>
+        <source>Decompiled by the Ghidra engine. An approximation: check it against the disassembly.</source>
+        <translation>פוענח אוטומטית. קירוב בלבד: בדוק מול הדיסאסמבלי.</translation>
+    </message>
+    <message>
+        <source>Could not decompile: %1</source>
+        <translation>לא ניתן לפענח: %1</translation>
+    </message>
+    <message>
+        <source>Decompiling...</source>
+        <translation>מפענח...</translation>
+    </message>
+    <message>
+        <source>The decompiler is not installed with this build (the decomp folder is missing).</source>
+        <translation>המפענח לא מותקן בגרסה הזו (תיקיית decomp חסרה).</translation>
+    </message>
+    <message>
         <source>Search functions</source>
         <translation>חיפוש פונקציות</translation>
     </message>
@@ -2508,6 +2524,29 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
     <message>
         <source>Saved %1 (%2 bytes changed). The original file was not touched.</source>
         <translation>נשמר %1 (%2 בתים שונו). הקובץ המקורי לא נגע.</translation>
+    </message>
+</context>
+<context>
+    <name>Decompiler</name>
+    <message>
+        <source>The decompiler program was not found (%1).</source>
+        <translation>תוכנת המפענח לא נמצאה (%1).</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary folder.</source>
+        <translation>לא ניתן ליצור תיקייה זמנית.</translation>
+    </message>
+    <message>
+        <source>Could not write the temporary image.</source>
+        <translation>לא ניתן לכתוב את התמונה הזמנית.</translation>
+    </message>
+    <message>
+        <source>The decompiler stopped unexpectedly.</source>
+        <translation>המפענח נעצר באופן בלתי צפוי.</translation>
+    </message>
+    <message>
+        <source>The decompiler returned nothing (exit code %1).</source>
+        <translation>המפענח לא החזיר דבר (קוד יציאה %1).</translation>
     </message>
 </context>
 </TS>

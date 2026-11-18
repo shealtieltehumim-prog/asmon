@@ -86,6 +86,26 @@ size_t Image::read(uint64_t va, uint8_t *buf, size_t size) const
     return readFile(uint64_t(off), buf, size_t(std::min<uint64_t>(size, avail)));
 }
 
+std::vector<uint8_t> Image::mapped() const
+{
+    std::vector<uint8_t> out(pe_.sizeOfImage, 0);
+    const size_t headers = std::min<size_t>(bytes_.size(), out.size());
+    // headers: up to the first section's raw data
+    uint32_t headerEnd = pe_.sizeOfImage;
+    for (const pe::Section &sec : pe_.sections)
+        if (sec.rawOffset)
+            headerEnd = std::min(headerEnd, sec.rawOffset);
+    readFile(0, out.data(), std::min<size_t>(headers, headerEnd));
+    for (const pe::Section &sec : pe_.sections) {
+        if (sec.rva >= out.size() || !sec.rawSize)
+            continue;
+        const uint64_t n = std::min<uint64_t>({ sec.rawSize, sec.virtualSize ? sec.virtualSize : sec.rawSize,
+                                                out.size() - sec.rva });
+        readFile(sec.rawOffset, out.data() + sec.rva, size_t(n));
+    }
+    return out;
+}
+
 bool Image::patch(uint64_t offset, const std::vector<uint8_t> &bytes)
 {
     if (offset + bytes.size() > bytes_.size())

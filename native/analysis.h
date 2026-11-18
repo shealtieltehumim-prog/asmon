@@ -43,6 +43,9 @@ public:
     //! Reads from the file by offset (patches included).
     size_t readFile(uint64_t offset, uint8_t *buf, size_t size) const;
 
+    //! The program as it is laid out in memory (headers and sections at their addresses), patches included.
+    std::vector<uint8_t> mapped() const;
+
     // patches: byte changes that are kept in memory and written to a new file
     bool patch(uint64_t offset, const std::vector<uint8_t> &bytes);
     bool patchVa(uint64_t va, const std::vector<uint8_t> &bytes);

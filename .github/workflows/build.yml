@@ -127,6 +127,37 @@ jobs:
           windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/asmon.exe
           ldd dist/asmon.exe | grep -i ucrt64 | awk '{print $3}' | xargs -r -I{} cp -n {} dist/
 
+      - name: Fetch the Ghidra decompiler sources (C++ part only, pinned commit)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = '0b91a7deef7a3c180141b4f806870e4672ef0b9f'
+          git clone --filter=blob:none --no-checkout --depth 1 https://github.com/NationalSecurityAgency/ghidra.git ghidra-src
+          git -C ghidra-src sparse-checkout set Ghidra/Features/Decompiler/src/decompile Ghidra/Processors/x86/data/languages
+          git -C ghidra-src fetch --depth 1 origin $sha
+          git -C ghidra-src checkout $sha
+          if ($LASTEXITCODE -ne 0) { throw "could not check out the Ghidra sources" }
+          git -C ghidra-src log -1 --format='Ghidra decompiler sources: %H %cd' | Out-File -Append -Encoding utf8 dl-decomp-version.txt
+      - name: Build the decompiler (asmon-decomp) and the x86 processor descriptions
+        env:
+          LDX: -static
+        run: |
+          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-zlib >/dev/null
+          sh native/decomp/build.sh "$PWD/ghidra-src" "$PWD/decomp-out" "$(nproc)"
+          mkdir -p dist/decomp/Ghidra/Processors/x86/data/languages dist/licenses
+          cp decomp-out/bin/asmon-decomp.exe dist/decomp/
+          cp decomp-out/Ghidra/Processors/x86/data/languages/* dist/decomp/Ghidra/Processors/x86/data/languages/
+          cp ghidra-src/LICENSE dist/licenses/Ghidra-LICENSE.txt
+          cp ghidra-src/NOTICE dist/licenses/Ghidra-NOTICE.txt
+          du -sh dist/decomp
+      - name: Decompiler smoke test (a function that returns 7)
+        run: |
+          mkdir -p dtest && cd dtest
+          printf '\xb8\x07\x00\x00\x00\xc3' > f.bin
+          printf 'load file x86:LE:64:default:windows f.bin\nadjust vma 0x401000\nmap function 0x401000 f\nload function f\ndecompile\nprint C\nquit\n' \
+            | ../dist/decomp/asmon-decomp.exe -s "$(cygpath -w "$PWD/../dist/decomp/Ghidra/Processors/x86/data/languages")" | tee out.txt
+          grep -q "return 7;" out.txt
+
       - name: Fetch toolchains (WinLibs MinGW-w64, llvm-mingw)
         shell: pwsh
         run: |

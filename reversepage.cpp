@@ -1,6 +1,7 @@
 #include "reversepage.h"
 
 #include "cardframe.h"
+#include "decompiler.h"
 #include "hexview.h"
 #include "theme.h"
 
@@ -181,11 +182,38 @@ ReversePage::ReversePage(QWidget *parent) : QWidget(parent)
     splitter->addWidget(makeCard(tr("Disassembly"), viewTabs_));
 
     // ---- third card: decompiled code (a later stage)
-    QLabel *hint = new QLabel(tr("The decompiled code of the selected function will appear here."));
-    hint->setWordWrap(true);
-    hint->setAlignment(Qt::AlignCenter);
-    hint->setObjectName("cardHint");
-    splitter->addWidget(makeCard(tr("Decompiled code"), hint));
+    QWidget *codePage = new QWidget;
+    {
+        QVBoxLayout *l = new QVBoxLayout(codePage);
+        l->setContentsMargins(0, 4, 0, 0);
+        codeStatus_ = new QLabel(tr("The decompiled code of the selected function will appear here."));
+        codeStatus_->setWordWrap(true);
+        codeStatus_->setObjectName("cardHint");
+        code_ = new QPlainTextEdit;
+        code_->setReadOnly(true);
+        code_->setLayoutDirection(Qt::LeftToRight);
+        code_->setFont(Theme::codeFont());
+        code_->setLineWrapMode(QPlainTextEdit::NoWrap);
+        l->addWidget(codeStatus_);
+        l->addWidget(code_, 1);
+    }
+    splitter->addWidget(makeCard(tr("Decompiled code"), codePage));
+    decompiler_ = new Decompiler(this);
+    connect(decompiler_, &Decompiler::finished, this, [this](quint64 va, int revision, bool ok, const QString &text) {
+        if (revision != revision_)
+            return;                                   // the bytes or names changed meanwhile
+        if (ok)
+            codeCache_.insert(va, text);
+        if (va != wantedCode_)
+            return;
+        if (ok) {
+            code_->setPlainText(text);
+            codeStatus_->setText(tr("Decompiled by the Ghidra engine. An approximation: check it against the disassembly."));
+        } else {
+            code_->clear();
+            codeStatus_->setText(tr("Could not decompile: %1").arg(text));
+        }
+    });
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 2);
     splitter->setStretchFactor(2, 1);
@@ -273,6 +301,7 @@ ReversePage::ReversePage(QWidget *parent) : QWidget(parent)
         }
     });
     connect(hex_, &HexView::patched, this, [this]() {
+        bytesOrNamesChanged();
         refreshDisassembly();
         saveProject();
         emit stateChanged();
@@ -538,6 +567,33 @@ void ReversePage::showFunction(const ra::Function &f)
     const size_t callers = result_->xrefsTo(f.va).size();
     showLines(lines, tr("%1   0x%2   %3 bytes   %4 references")
                          .arg(QString::fromStdString(result_->functionName(f)), hex(f.va)).arg(f.size).arg(callers));
+    decompileFunction(f.va);
+}
+
+void ReversePage::decompileFunction(quint64 va)
+{
+    wantedCode_ = va;
+    if (!Decompiler::available()) {
+        code_->clear();
+        codeStatus_->setText(tr("The decompiler is not installed with this build (the decomp folder is missing)."));
+        return;
+    }
+    const auto cached = codeCache_.constFind(va);
+    if (cached != codeCache_.constEnd()) {
+        code_->setPlainText(cached.value());
+        codeStatus_->setText(tr("Decompiled by the Ghidra engine. An approximation: check it against the disassembly."));
+        return;
+    }
+    code_->clear();
+    codeStatus_->setText(tr("Decompiling..."));
+    decompiler_->request(image_, result_, va, revision_);
+}
+
+//! A rename or a patch changes what the decompiler sees: forget the old answers.
+void ReversePage::bytesOrNamesChanged()
+{
+    ++revision_;
+    codeCache_.clear();      // the caller redraws the disassembly, which asks for the code again
 }
 
 void ReversePage::showRegion(quint64 va)
@@ -700,6 +756,7 @@ void ReversePage::renameAt(quint64 va)
     else
         result_->userNames[va] = name.toStdString();
     saveProject();
+    bytesOrNamesChanged();
     fillFunctions();
     refreshDisassembly();
 }
@@ -752,6 +809,7 @@ void ReversePage::patchAt(quint64 va)
         return;
     }
     hex_->refresh();
+    bytesOrNamesChanged();
     refreshDisassembly();
     saveProject();
     emit stateChanged();
@@ -767,6 +825,7 @@ void ReversePage::nopAt(quint64 va)
         return;
     }
     hex_->refresh();
+    bytesOrNamesChanged();
     refreshDisassembly();
     saveProject();
     emit stateChanged();
@@ -783,6 +842,7 @@ void ReversePage::revertAt(quint64 va)
     for (int i = 0; i < lines_[size_t(r)].length; ++i)
         image_->revertPatch(quint64(off) + quint64(i));
     hex_->refresh();
+    bytesOrNamesChanged();
     refreshDisassembly();
     saveProject();
     emit stateChanged();

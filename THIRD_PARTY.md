@@ -51,3 +51,13 @@ The disassembler of the native debugger and the reverse-engineering view is [Zyd
 v4.1.1 with its helper library Zycore v1.5.2 — MIT License (Copyright (c) 2014-2024 Florian Bernd, Joel Höner and
 contributors; `third_party/zydis/LICENSE`, `third_party/zydis/zycore/LICENSE`). Vendored in `third_party/zydis`
 without the instruction encoder (unused). MIT is compatible with Asmon's GPL-3.0.
+
+## Ghidra decompiler engine (the program `decomp\asmon-decomp.exe`, built in CI)
+
+The decompiled code in the reverse-engineering mode comes from the C++ decompiler engine and the SLEIGH processor
+descriptions of [Ghidra](https://github.com/NationalSecurityAgency/ghidra) (NSA) — Apache License 2.0
+(`licenses/Ghidra-LICENSE.txt`, `licenses/Ghidra-NOTICE.txt`). Only the C++ part (`Ghidra/Features/Decompiler/src/decompile`)
+and the x86 language files (`Ghidra/Processors/x86/data/languages`) are used: **no Java is needed**. CI builds them from a
+pinned commit with `native/decomp/build.sh` (the console program and the SLEIGH compiler, without libbfd), compiles the
+`.sla` files, and ships them next to `asmon.exe`. Asmon runs it as a separate process (aggregation, not linking).
+Apache-2.0 is compatible with Asmon's GPL-3.0.
