@@ -407,7 +407,7 @@
         <location filename="mainwindow.cpp" line="265"/>
         <location filename="mainwindow.cpp" line="518"/>
         <location filename="mainwindow.cpp" line="633"/>
-        <location filename="mainwindow.cpp" line="2300"/>
+        <location filename="mainwindow.cpp" line="2350"/>
         <source>Debug</source>
         <translation>דיבוג</translation>
     </message>
@@ -420,13 +420,13 @@
     <message>
         <location filename="mainwindow.cpp" line="278"/>
         <location filename="mainwindow.cpp" line="600"/>
-        <location filename="mainwindow.cpp" line="3256"/>
+        <location filename="mainwindow.cpp" line="3306"/>
         <source>Help</source>
         <translation>עזרה</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="287"/>
-        <location filename="mainwindow.cpp" line="1475"/>
+        <location filename="mainwindow.cpp" line="1489"/>
         <source>New</source>
         <translation>חדש</translation>
     </message>
@@ -632,211 +632,244 @@
 </translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1497"/>
+        <location filename="mainwindow.cpp" line="1511"/>
         <source>Open file</source>
         <translation>פתח קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1573"/>
+        <location filename="mainwindow.cpp" line="1587"/>
         <source>Assembler source files (*.asm);;All files (*)</source>
         <translation>קבצי אסמבלי (*.asm);;כל הקבצים (*.*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1572"/>
+        <location filename="mainwindow.cpp" line="1586"/>
         <source>Save file</source>
         <translation>שמור קובץ</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1596"/>
+        <location filename="mainwindow.cpp" line="1610"/>
         <source>Save .exe file</source>
         <translation>שמור קובץ .exe</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1597"/>
+        <location filename="mainwindow.cpp" line="1611"/>
         <source>Execution files (*.exe);;All files (*.*)</source>
         <translation>קבצים ברי הרצה (*.exe);;כל הקבצים (*.*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1685"/>
-        <location filename="mainwindow.cpp" line="3162"/>
+        <location filename="mainwindow.cpp" line="1699"/>
+        <location filename="mainwindow.cpp" line="3212"/>
         <source>Yes</source>
         <translation>כן</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1686"/>
+        <location filename="mainwindow.cpp" line="1700"/>
         <source>No</source>
         <translation>לא</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1687"/>
-        <location filename="mainwindow.cpp" line="3163"/>
+        <location filename="mainwindow.cpp" line="1701"/>
+        <location filename="mainwindow.cpp" line="3213"/>
         <source>Cancel</source>
         <translation>בטל</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1688"/>
-        <location filename="mainwindow.cpp" line="1689"/>
+        <location filename="mainwindow.cpp" line="1702"/>
+        <location filename="mainwindow.cpp" line="1703"/>
         <source>Save changes?</source>
         <translation>לשמור שינויים?</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1727"/>
+        <location filename="mainwindow.cpp" line="1741"/>
         <source>Build started...</source>
         <translation>הבנייה החלה...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1732"/>
+        <location filename="mainwindow.cpp" line="1746"/>
         <source>Error! Program directory does not exist. Please reinstall the program.</source>
         <translation>שגיאה! תיקיית תוכנה לא נמצאה. אנא התקן מחדש את התוכנה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1733"/>
+        <location filename="mainwindow.cpp" line="1747"/>
         <source>Error!</source>
         <translation>שגיאה!</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1733"/>
+        <location filename="mainwindow.cpp" line="1747"/>
         <source>Directory NASM does not exist. Please reinstall the program.</source>
         <translation>תיקיית NASM לא נמצאה. אנא התקן מחדש את התוכנה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1832"/>
+        <location filename="mainwindow.cpp" line="1846"/>
         <source>Unable to start assembler. Check your settings.</source>
         <translation>לא ניתן להפעיל את האסמבלר. בדוק את ההגדרות.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1922"/>
+        <location filename="mainwindow.cpp" line="1940"/>
         <source>Unable to start linker. Check your settings.</source>
         <translation>לא ניתן להפעיל את הלינקר. בדוק את ההגדרות.</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="1042"/>
-        <location filename="mainwindow.cpp" line="1950"/>
+        <location filename="mainwindow.cpp" line="1972"/>
         <source>Warning! Errors have occurred in the build:</source>
         <translation>אזהרה! נמצאו שגיאות בבנייה:</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1718"/>
+        <location filename="mainwindow.cpp" line="1732"/>
         <source>This file is a module of the project: building %1</source>
         <translation>הקובץ הזה הוא מודול בפרויקט: בונה את %1</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1772"/>
+        <location filename="mainwindow.cpp" line="1786"/>
         <source>Project: also building %1</source>
         <translation>פרויקט: בונה גם את %1</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1966"/>
+        <location filename="mainwindow.cpp" line="1848"/>
+        <location filename="mainwindow.cpp" line="1942"/>
+        <source>Is it installed? On Ubuntu/Debian: sudo apt install nasm gcc gdb (Fedora: sudo dnf install nasm gcc gdb)</source>
+        <translation>האם הוא מותקן? באובונטו/דביאן: sudo apt install nasm gcc gdb ‏(בפדורה: sudo dnf install nasm gcc gdb)</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="1988"/>
         <source>Built successfully.</source>
         <translation>נבנה בהצלחה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1985"/>
+        <location filename="mainwindow.cpp" line="2007"/>
         <source>The program is already running.</source>
         <translation>התוכנית כבר רצה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2002"/>
+        <location filename="mainwindow.cpp" line="2024"/>
         <source>The program is executing...</source>
         <translation>מריץ את התוכנית...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2067"/>
+        <location filename="mainwindow.cpp" line="2089"/>
         <source>The program finished normally. Execution time: %1 s</source>
         <translation>התוכנית הסתיימה בהצלחה. זמן ריצה: %1 שניות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2071"/>
+        <location filename="mainwindow.cpp" line="2093"/>
         <source>The program crashed! Execution time: %1 s</source>
         <translation>התוכנית קרסה! זמן ריצה: %1 שניות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2103"/>
+        <location filename="mainwindow.cpp" line="2125"/>
         <source>The program stopped.</source>
         <translation>התוכנית נעצרה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2105"/>
+        <location filename="mainwindow.cpp" line="2127"/>
         <source>The program is not running.</source>
         <translation>התוכנית לא רצה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2161"/>
+        <location filename="mainwindow.cpp" line="2172"/>
+        <source>Debugging a Linux program needs WSL: %1</source>
+        <translation>דיבוג של תוכנית לינוקס דורש WSL: %1</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2177"/>
+        <source>gdb is not installed in WSL.</source>
+        <translation>gdb לא מותקן ב-WSL.</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2178"/>
+        <source>Install gdb in WSL</source>
+        <translation>התקנת gdb ב-WSL</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2179"/>
+        <source>Debugging Linux programs uses gdb inside WSL, and it is not installed.
+Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal below.</source>
+        <translation>דיבוג תוכניות לינוקס משתמש ב-gdb שבתוך WSL, והוא לא מותקן.
+להתקין אותו עכשיו (אובונטו/דביאן: apt-get install gdb)? ההתקנה תרוץ בטרמינל למטה.</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2184"/>
+        <source>When the installation finishes, press Debug again.</source>
+        <translation>כשההתקנה תסתיים, לחץ שוב על דיבוג.</translation>
+    </message>
+    <message>
+        <location filename="mainwindow.cpp" line="2201"/>
         <source>Before debugging you need to build the program.</source>
         <translation>לפני דיבוג יש לבנות את התוכנית.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2167"/>
+        <location filename="mainwindow.cpp" line="2207"/>
         <source>Debugging started...</source>
         <translation>הדיבוג החל...</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2259"/>
+        <location filename="mainwindow.cpp" line="2309"/>
         <source>Pause</source>
         <translation>השהה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2269"/>
+        <location filename="mainwindow.cpp" line="2319"/>
         <source>Continue</source>
         <translation>המשך</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2406"/>
+        <location filename="mainwindow.cpp" line="2456"/>
         <source>Debugging finished.</source>
         <translation>הדיבוג הסתיים.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2547"/>
+        <location filename="mainwindow.cpp" line="2597"/>
         <source>In the previous session was not open any of the saved tabs!</source>
         <translation>בהפעלה הקודמת לא היו קבצים פתוחים.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2610"/>
+        <location filename="mainwindow.cpp" line="2660"/>
         <source>Open the settings file</source>
         <translation>פתח את קובץ ההגדרות</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2906"/>
+        <location filename="mainwindow.cpp" line="2956"/>
         <source>Please set path to MASM assembler (ml.exe) and linker (link.exe) on your computer </source>
         <translation>אנא הגדר את המיקום של MASM (ml.exe) ושל הלינקר (link.exe) במחשב </translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2907"/>
+        <location filename="mainwindow.cpp" line="2957"/>
         <source>in fields &quot;Assembler path&quot; and &quot;Linker path&quot; above.</source>
         <translation>בשדות &quot;מיקום אסמבלר&quot; ו&quot;מיקום לינקר&quot; שלמעלה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3164"/>
+        <location filename="mainwindow.cpp" line="3214"/>
         <source>Warning!</source>
         <translation>אזהרה!</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3165"/>
+        <location filename="mainwindow.cpp" line="3215"/>
         <source>All settings will be deleted and all unsaved data will be lost. Are you sure?</source>
         <translation>כל ההגדרות יימחקו וכל המידע שלא נשמר ייאבד. האם אתה בטוח?</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3259"/>
+        <location filename="mainwindow.cpp" line="3309"/>
         <source>Close help</source>
         <translation>סגור עזרה</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3272"/>
+        <location filename="mainwindow.cpp" line="3322"/>
         <source>Licensed under the GNU GPL v3.0</source>
         <translation>תחת רישיון GNU GPL v3.0</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3277"/>
+        <location filename="mainwindow.cpp" line="3327"/>
         <source>Based on the Qt.</source>
         <translation>מבוסס על Qt.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3275"/>
+        <location filename="mainwindow.cpp" line="3325"/>
         <source>Copyright (c) 2013 Dmitriy Manushin</source>
         <translation>Copyright (c) 2013 Dmitriy Manushin</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3276"/>
+        <location filename="mainwindow.cpp" line="3326"/>
         <source>Icon and advices - Alick Gaybullaev</source>
         <translation>אייקון וייעוץ - אליק גאיבולאייב</translation>
     </message>
@@ -878,27 +911,27 @@
         <translation>מצב ריכוז: Ctrl+K ואז Z ליציאה.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1498"/>
+        <location filename="mainwindow.cpp" line="1512"/>
         <source>Assembler source files (*.asm *.S *.s);;All files (*)</source>
         <translation>קבצי אסמבלי (*.asm *.S *.s);;כל הקבצים (*)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2810"/>
+        <location filename="mainwindow.cpp" line="2860"/>
         <source>Show other assemblers (advanced)</source>
         <translation>הצג אסמבלרים נוספים (מתקדם)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3269"/>
+        <location filename="mainwindow.cpp" line="3319"/>
         <source>About Asmon</source>
         <translation>אודות אסמון</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3271"/>
+        <location filename="mainwindow.cpp" line="3321"/>
         <source>Assembly IDE with a built-in debugger and reverse-engineering tools.</source>
         <translation>סביבת פיתוח לאסמבלי עם דיבאגר מובנה וכלי הנדסה לאחור.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="3274"/>
+        <location filename="mainwindow.cpp" line="3324"/>
         <source>Based on SASM %1 by Dmitriy Manushin (https://github.com/Dman95/SASM).</source>
         <translation>מבוסס על SASM %1 מאת דמיטרי מנושין (https://github.com/Dman95/SASM).</translation>
     </message>
@@ -983,19 +1016,14 @@
         <translation>נבנה בהצלחה (Linux ELF x64).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="1741"/>
+        <location filename="mainwindow.cpp" line="1755"/>
         <source>The 32-bit toolchain is not installed. Switch to x64 mode in Settings, or reinstall Asmon with the 32-bit component.</source>
         <translation>כלי 32 ביט לא מותקנים. עבור למצב x64 בהגדרות, או התקן מחדש את אסמון עם רכיב ה-32 ביט.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2016"/>
+        <location filename="mainwindow.cpp" line="2038"/>
         <source>Use Build &gt; Install WSL, then try again.</source>
         <translation>השתמש ב: בנייה ← התקן WSL, ונסה שוב.</translation>
-    </message>
-    <message>
-        <location filename="mainwindow.cpp" line="2146"/>
-        <source>Debugging Linux programs from Windows is not supported yet. You can build and run them (F9).</source>
-        <translation>דיבוג של תוכניות לינוקס מתוך Windows עדיין לא נתמך. אפשר לבנות ולהריץ אותן (F9).</translation>
     </message>
     <message>
         <location filename="mainwindow.cpp" line="708"/>
@@ -1013,22 +1041,22 @@
         <translation>הוראה אחת (stepi)</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2232"/>
+        <location filename="mainwindow.cpp" line="2282"/>
         <source>Stopped outside your code at 0x%1 (see Disassembly).</source>
         <translation>נעצר מחוץ לקוד שלך, בכתובת 0x%1 (ראה דיסאסמבלי).</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2244"/>
+        <location filename="mainwindow.cpp" line="2294"/>
         <source>line %1</source>
         <translation>שורה %1</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2245"/>
+        <location filename="mainwindow.cpp" line="2295"/>
         <source>The program crashed: %1 (%2) at %3. Registers and memory show the state at the crash; Stop ends the session.</source>
         <translation>התוכנית קרסה: %1 (%2) ב%3. האוגרים והזיכרון מראים את המצב ברגע הקריסה; עצור מסיים את הדיבוג.</translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="2253"/>
+        <location filename="mainwindow.cpp" line="2303"/>
         <source>The program finished with exit code %1.</source>
         <translation>התוכנית הסתיימה עם קוד יציאה %1.</translation>
     </message>
@@ -1081,32 +1109,37 @@
 <context>
     <name>MiDebugger</name>
     <message>
-        <location filename="midebugger.cpp" line="74"/>
+        <location filename="midebugger.cpp" line="75"/>
         <source>Could not start gdb (%1).</source>
         <translation>לא ניתן להפעיל את gdb ‏(%1).</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="96"/>
+        <location filename="midebugger.cpp" line="77"/>
+        <source>Could not start gdb (%1). Is it installed? On Ubuntu/Debian: sudo apt install gdb</source>
+        <translation>לא ניתן להפעיל את gdb ‏(%1). האם הוא מותקן? באובונטו/דביאן: sudo apt install gdb</translation>
+    </message>
+    <message>
+        <location filename="midebugger.cpp" line="101"/>
         <source>Entry point &quot;main&quot; was not found. Debugging needs a global label &quot;main&quot;.</source>
         <translation>נקודת הכניסה &quot;main&quot; לא נמצאה. דיבוג דורש תווית גלובלית בשם &quot;main&quot;.</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="102"/>
+        <location filename="midebugger.cpp" line="107"/>
         <source>gdb could not start the program: %1</source>
         <translation>gdb לא הצליח להפעיל את התוכנית: %1</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="327"/>
+        <location filename="midebugger.cpp" line="332"/>
         <source>Could not match the listing to the program: stepping by line is not available, single instructions still work.</source>
         <translation>לא ניתן להתאים את ה-listing לתוכנית: צעד לפי שורה לא זמין, הוראה בודדת עדיין עובדת.</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="414"/>
+        <location filename="midebugger.cpp" line="419"/>
         <source>Step out: %1</source>
         <translation>יציאה מפונקציה: %1</translation>
     </message>
     <message>
-        <location filename="midebugger.cpp" line="505"/>
+        <location filename="midebugger.cpp" line="510"/>
         <source>Step out: no caller in your code (this is main), so the program runs on until it ends or reaches a breakpoint.</source>
         <translation>יציאה מפונקציה: אין קורא בקוד שלך (זו main), אז התוכנית ממשיכה לרוץ עד הסוף או עד נקודת עצירה.</translation>
     </message>
