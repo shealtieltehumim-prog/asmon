@@ -186,7 +186,15 @@ void MainWindow::initUi()
     splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);
     workLayout = new QVBoxLayout;
-    workLayout->addWidget(splitter);
+    //! Asmon: the mode row (Write | Debug | Reverse engineering), then the page of the mode:
+    //! page 0 is the editor with its panels (Write and Debug), page 1 is the reverse-engineering page.
+    modeBar = new ModeBar;   // its buttons are added in createToolBars and createAsmonUi
+    modeStack = new QStackedWidget;
+    modeStack->addWidget(splitter);
+    modeStack->addWidget(new ReversePage);
+    workLayout->addWidget(modeBar);
+    workLayout->addWidget(modeStack, 1);
+    connect(modeBar, &ModeBar::modeChanged, this, &MainWindow::onModeChanged);
     workLayout->setContentsMargins(8, 2, 8, 8);   // space around the cards
     workLayout->setSpacing(0);
     splitter->setHandleWidth(8);                  // the gap between the editor card and the panel card
@@ -721,18 +729,18 @@ void MainWindow::createToolBars()
     fileToolBar->addAction(newAction);
     fileToolBar->addAction(openAction);
     fileToolBar->addAction(saveAction);
-    fileToolBar->addSeparator();
-    fileToolBar->addAction(runAction);
-    fileToolBar->addAction(buildAction);
-    fileToolBar->addAction(debugAction);
-    fileToolBar->addAction(stopAction);
-
-    //! Step buttons are always there (greyed out until debugging starts),
-    //! so the toolbar never changes size.
-    fileToolBar->addSeparator();
-    fileToolBar->addAction(debugNextNiAction);
-    fileToolBar->addAction(debugNextAction);
     debugToolBar = fileToolBar;
+
+    //! The buttons of the work itself live in the mode row under the menu, and change with the mode:
+    //! Write: build, run, stop. Debug: debug/continue, step over, step into (step out and stop are
+    //! added in createAsmonUi, where that action is created). They are always there, greyed out
+    //! when they do not apply, so the row never changes size inside a mode.
+    modeBar->addAction(ModeBar::Write, buildAction);
+    modeBar->addAction(ModeBar::Write, runAction);
+    modeBar->addAction(ModeBar::Write, stopAction);
+    modeBar->addAction(ModeBar::Debug, debugAction);
+    modeBar->addAction(ModeBar::Debug, debugNextNiAction);
+    modeBar->addAction(ModeBar::Debug, debugNextAction);
 
     editToolBar = 0;
     buildToolBar = 0;
@@ -754,6 +762,30 @@ void MainWindow::createToolBars()
     }
 
     restoreState(settings.value("windowstate").toByteArray());
+}
+
+void MainWindow::onModeChanged(int mode)
+{
+    //! Write and Debug use the editor page; Debug also shows the debugger panel (empty until a session starts).
+    modeStack->setCurrentIndex(mode == ModeBar::Reverse ? 1 : 0);
+    if (!debugDock)
+        return;
+    const bool show = mode == ModeBar::Debug;
+    if (show == debugDock->isVisible())
+        return;
+    //! Showing the panel can make the window wider (the editor and the bottom panel need their
+    //! minimum width): remember the width and give it back when the panel is hidden again.
+    if (show)
+        widthBeforeDebugDock = (isMaximized() || isFullScreen()) ? 0 : width();
+    debugDock->setVisible(show);
+    if (!show && widthBeforeDebugDock > 0) {
+        const int w = widthBeforeDebugDock;
+        widthBeforeDebugDock = 0;
+        QTimer::singleShot(0, this, [this, w]() {
+            if (!isMaximized() && !isFullScreen())
+                resize(w, height());
+        });
+    }
 }
 
 void MainWindow::checkForUpdates(bool manual)
@@ -964,12 +996,25 @@ void MainWindow::createAsmonUi()
         debugMenu->insertAction(idx + 1 < acts.size() ? acts.at(idx + 1) : nullptr, condAction);
     }
     debugMenu->insertAction(debugToggleBreakpointAction, debugStepInsnAction);
-    debugToolBar->addAction(debugStepOutAction);
+    modeBar->addAction(ModeBar::Debug, debugStepOutAction);
+    modeBar->addAction(ModeBar::Debug, stopAction);
 
     //! RE menu: open the program in external reverse-engineering tools
     {
         QMenu *reMenu = new QMenu(tr("RE"), this);
         menuBar()->insertMenu(settingsAction, reMenu);
+        //! the Reverse engineering mode offers the same tools from its "Open file" button
+        QToolButton *reOpenButton = new QToolButton;
+        reOpenButton->setObjectName("modeAction");
+        reOpenButton->setText(tr("Open file"));
+        reOpenButton->setIcon(Theme::icon("open"));
+        reOpenButton->setProperty("asmonIcon", "open");
+        reOpenButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        reOpenButton->setIconSize(QSize(16, 16));
+        reOpenButton->setPopupMode(QToolButton::InstantPopup);
+        reOpenButton->setFocusPolicy(Qt::NoFocus);
+        reOpenButton->setMenu(reMenu);
+        modeBar->addWidget(ModeBar::Reverse, reOpenButton);
         for (const ReTools::Tool &tool : ReTools::all()) {
             const QString id = tool.id;
             QAction *current = reMenu->addAction(tr("Open the program in %1").arg(tool.name));
@@ -3022,6 +3067,10 @@ void MainWindow::launchDebugger(const MiDebugger::Config &cfg, Tab *tab)
     debugConsole->clear();
     syncBottomPanelWithTab();
     showBottomPage(outputStack);
+    //! Starting a debug session switches to the Debug mode (which shows the debugger panel);
+    //! when the session ends the window goes back to where it was.
+    debugModeAuto = modeBar->mode() != ModeBar::Debug;
+    modeBar->setMode(ModeBar::Debug);
     debugDock->show();
     debugDock->raise();
     //! Asmon: on a small screen the debugger panel must not squeeze the code
@@ -3229,6 +3278,7 @@ void MainWindow::debugShowMemory()
 {
     if (!debugDock)
         return;
+    modeBar->setMode(ModeBar::Debug);
     debugDock->show();
     debugDock->raise();
     debugPanels->showTab(DebugPanels::MemoryTab);
@@ -3247,6 +3297,7 @@ void MainWindow::debugShowRegisters()
 {
     if (!debugDock)
         return;
+    modeBar->setMode(ModeBar::Debug);
     debugDock->show();
     debugDock->raise();
     debugPanels->showTab(DebugPanels::RegistersTab);
@@ -3279,7 +3330,9 @@ void MainWindow::debugExit()
     debugMainTab = nullptr;
     debugLineTab = nullptr;
     closeAnyCommandWidget();
-    debugDock->hide();
+    if (debugModeAuto)
+        modeBar->setMode(ModeBar::Write);   // hides the debugger panel through onModeChanged
+    debugModeAuto = false;
     printLogWithTime(tr("Debugging finished.") + '\n', Theme::color("successcolor"));
     disableDebugActions();
     //! attached to a program started with Run: it keeps running, so Stop stays usable

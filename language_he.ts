@@ -2236,4 +2236,38 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
         <translation>שחזור</translation>
     </message>
 </context>
+<context>
+    <name>ModeBar</name>
+    <message>
+        <source>Write</source>
+        <translation>כתיבה</translation>
+    </message>
+    <message>
+        <source>Debug</source>
+        <translation>דיבוג</translation>
+    </message>
+    <message>
+        <source>Reverse engineering</source>
+        <translation>הנדסה לאחור</translation>
+    </message>
+</context>
+<context>
+    <name>ReversePage</name>
+    <message>
+        <source>Functions</source>
+        <translation>פונקציות</translation>
+    </message>
+    <message>
+        <source>Disassembly</source>
+        <translation>דיסאסמבלי</translation>
+    </message>
+    <message>
+        <source>Decompiled code</source>
+        <translation>קוד מפוענח</translation>
+    </message>
+    <message>
+        <source>Analysis of executable files inside Asmon (functions, disassembly, strings, references) is not built yet. Meanwhile, the Open file button above opens a file in one of the external tools.</source>
+        <translation>ניתוח קבצי הרצה בתוך אסמון (פונקציות, דיסאסמבלי, מחרוזות, הפניות) עדיין לא נבנה. בינתיים כפתור "פתח קובץ" למעלה פותח קובץ באחד מהכלים החיצוניים.</translation>
+    </message>
+</context>
 </TS>

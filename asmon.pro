@@ -86,6 +86,7 @@ SOURCES += main.cpp\
     linuxtarget.cpp \
     buildoutputview.cpp \
     commandpalette.cpp \
+    modebar.cpp \
     theme.cpp \
         mainwindow.cpp \
     tab.cpp \
@@ -121,6 +122,7 @@ HEADERS  += mainwindow.h \
     linuxtarget.h \
     buildoutputview.h \
     commandpalette.h \
+    modebar.h \
     tab.h \
     highlighter.h \
     codeeditor.h \

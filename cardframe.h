@@ -17,7 +17,7 @@
 class CardFrame : public QFrame
 {
 public:
-    static constexpr int kRadius = 10;
+    static constexpr int kRadius = 12;
     static constexpr int kInset = 3; // keeps the child's square corners inside the rounded outline
 
     explicit CardFrame(QWidget *content, QWidget *parent = nullptr) : QFrame(parent)

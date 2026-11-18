@@ -288,6 +288,13 @@ QToolBar::separator { width: 1px; background: %4; margin: 6px 4px; }
 QToolButton { background: %13; border: 1px solid %4; border-radius: 8px; padding: 4px; margin: 2px 1px; }
 QToolButton:hover { background: %8; border: 1px solid %7; }
 QToolButton:pressed, QToolButton:checked { background: %4; }
+QToolButton#modeTab { color: %6; padding: 5px 16px; margin: 0px 2px; }
+QToolButton#modeTab:hover { color: %5; }
+QToolButton#modeTab:checked { background: %9; color: %5; border: 1px solid %7; }
+QToolButton#modeAction { padding: 4px 12px; margin: 0px 2px; }
+QToolButton#modeAction:disabled { color: %6; }
+QLabel#cardHeading { color: %6; font-size: 9pt; }
+QLabel#cardHint { color: %6; }
 QTabWidget::pane { border: none; border-top: 1px solid %4; background: transparent; }
 QTabBar { background: transparent; }
 QTabBar::tab { background: %13; color: %6; padding: 6px 14px; margin: 4px 2px; border: 1px solid %4;

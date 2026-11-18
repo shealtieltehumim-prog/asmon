@@ -80,6 +80,7 @@
 #include "midebugger.h"
 #include "debugpanels.h"
 #include "retools.h"
+#include "modebar.h"
 #include "terminalwidget.h"
 #include "searchpanel.h"
 #include "symbols.h"
@@ -240,6 +241,12 @@ private:
     QPointer<QWidget> settingsWindow;
     QPointer<QWidget> settingsPage;
     QWidget *bottomCard = nullptr;
+    //! The three modes: Write and Debug share the editor page, Reverse engineering has its own page.
+    ModeBar *modeBar = nullptr;
+    QStackedWidget *modeStack = nullptr;
+    bool debugModeAuto = false;   //!< Debug mode was entered by starting a debug session
+    int widthBeforeDebugDock = 0; //!< window width before the debugger panel was shown (0: maximized)
+    void onModeChanged(int mode);
     const struct NppTheme *pendingNpp = nullptr;
     void applyNppTheme(int index);
     int settingsReturnIndex;
