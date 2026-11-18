@@ -238,6 +238,22 @@ bool parse(const uint8_t *data, size_t size, Info &out, std::string &err)
             }
         }
     }
+
+    // exception table: function boundaries of 64-bit images
+    dir(3, rva, sz);
+    if (out.is64 && rva) {
+        const int64_t e = out.rvaToOffset(rva);
+        for (size_t k = 0; e >= 0 && k < sz / 12 && k < 4000000 && r.ok(size_t(e) + k * 12, 12); ++k) {
+            const size_t at = size_t(e) + k * 12;
+            RuntimeFunction f;
+            f.begin = r.u32(at);
+            f.end = r.u32(at + 4);
+            if (f.begin && f.end > f.begin && f.end <= out.sizeOfImage)
+                out.runtimeFunctions.push_back(f);
+        }
+        std::sort(out.runtimeFunctions.begin(), out.runtimeFunctions.end(),
+                  [](const RuntimeFunction &a, const RuntimeFunction &b) { return a.begin < b.begin; });
+    }
     return true;
 }
 

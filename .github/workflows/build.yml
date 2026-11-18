@@ -397,6 +397,24 @@ jobs:
           if ($p.HasExited) { throw "asmon.exe crashed during the project test" }
           Stop-Process -Id $p.Id -Force
           Get-ChildItem shots
+      - name: GUI test (reverse engineering mode: open a real Windows program)
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          # a small program without symbols, made by someone else: the analysis must cope with it
+          Copy-Item "$env:SystemRoot\System32\find.exe" "$env:RUNNER_TEMP\find-copy.exe"
+          $p = Start-Process -FilePath dist\asmon.exe -ArgumentList "--re", "$env:RUNNER_TEMP\find-copy.exe" -PassThru
+          Start-Sleep 25
+          if ($p.HasExited) { throw "asmon.exe exited in reverse engineering mode with code $($p.ExitCode)" }
+          Shot "11-reverse-engineering"
+          Stop-Process -Id $p.Id -Force
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -47,13 +47,4 @@ private:
     QList<QPair<Mode, QWidget *>> m_items;
 };
 
-//! The page of the Reverse engineering mode: functions | disassembly | decompiled code,
-//! three rounded cards in a row (right to left in the Hebrew interface).
-class ReversePage : public QWidget
-{
-    Q_OBJECT
-public:
-    explicit ReversePage(QWidget *parent = nullptr);
-};
-
 #endif // ASMON_MODEBAR_H

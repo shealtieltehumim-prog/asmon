@@ -95,6 +95,9 @@ SOURCES += main.cpp\
     buildoutputview.cpp \
     commandpalette.cpp \
     modebar.cpp \
+    reversepage.cpp \
+    hexview.cpp \
+    native/analysis.cpp \
     theme.cpp \
         mainwindow.cpp \
     tab.cpp \
@@ -134,6 +137,9 @@ HEADERS  += mainwindow.h \
     buildoutputview.h \
     commandpalette.h \
     modebar.h \
+    reversepage.h \
+    hexview.h \
+    native/analysis.h \
     tab.h \
     highlighter.h \
     codeeditor.h \

@@ -22,6 +22,13 @@ struct Insn {
     bool call = false, ret = false, jump = false, conditional = false, pushf = false, syscall = false;
     bool hasTarget = false;  //!< a direct branch: target is known
     uint64_t target = 0;
+    bool hasRip = false;     //!< a rip-relative memory operand: ripTarget is its address
+    uint64_t ripTarget = 0;
+    bool hasMemAbs = false;  //!< a memory operand with only a displacement ([0x404000]): memAbs
+    uint64_t memAbs = 0;
+    bool hasImm = false;     //!< an immediate operand that is not a branch offset: imm
+    uint64_t imm = 0;
+    bool indirect = false;   //!< call/jmp through a register or memory (no fixed target)
 };
 
 //! name for an address ("main+0x4"), or "" when unknown; used inside the text of branches

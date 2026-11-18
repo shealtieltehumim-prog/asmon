@@ -40,6 +40,7 @@
 
 #include "theme.h"
 #include "mainwindow.h"
+#include "reversepage.h"
 #include <QScreen>
 #include <QInputDialog>
 #include "processpicker.h"
@@ -137,6 +138,10 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
             restorePrevSession(true);
             continue;
         }
+        if (args[i] == "--re" && i + 1 < args.size()) {
+            openProgramInAsmon(args[++i]);
+            continue;
+        }
         openFile(args[i]);
     }
 }
@@ -191,7 +196,8 @@ void MainWindow::initUi()
     modeBar = new ModeBar;   // its buttons are added in createToolBars and createAsmonUi
     modeStack = new QStackedWidget;
     modeStack->addWidget(splitter);
-    modeStack->addWidget(new ReversePage);
+    reversePage = new ReversePage;
+    modeStack->addWidget(reversePage);
     workLayout->addWidget(modeBar);
     workLayout->addWidget(modeStack, 1);
     connect(modeBar, &ModeBar::modeChanged, this, &MainWindow::onModeChanged);
@@ -1015,6 +1021,27 @@ void MainWindow::createAsmonUi()
         reOpenButton->setFocusPolicy(Qt::NoFocus);
         reOpenButton->setMenu(reMenu);
         modeBar->addWidget(ModeBar::Reverse, reOpenButton);
+        QToolButton *saveCopyButton = new QToolButton;
+        saveCopyButton->setObjectName("modeAction");
+        saveCopyButton->setText(tr("Save a patched copy"));
+        saveCopyButton->setIcon(Theme::icon("save"));
+        saveCopyButton->setProperty("asmonIcon", "save");
+        saveCopyButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        saveCopyButton->setIconSize(QSize(16, 16));
+        saveCopyButton->setFocusPolicy(Qt::NoFocus);
+        saveCopyButton->setEnabled(false);
+        modeBar->addWidget(ModeBar::Reverse, saveCopyButton);
+        connect(saveCopyButton, &QToolButton::clicked, this, [this]() { reversePage->saveCopy(); });
+        connect(reversePage, &ReversePage::stateChanged, this, [this, saveCopyButton]() {
+            saveCopyButton->setEnabled(reversePage->hasPatches());
+        });
+        connect(reversePage, &ReversePage::message, this, [this](const QString &text) {
+            statusBar()->showMessage(text, 8000);
+        });
+        QAction *inAsmon = reMenu->addAction(tr("Open a program here..."));
+        inAsmon->setProperty("en", "RE open program in Asmon disassembly");
+        connect(inAsmon, &QAction::triggered, this, [this]() { chooseProgramForAsmon(); });
+        reMenu->addSeparator();
         for (const ReTools::Tool &tool : ReTools::all()) {
             const QString id = tool.id;
             QAction *current = reMenu->addAction(tr("Open the program in %1").arg(tool.name));
@@ -4320,8 +4347,31 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 
 void MainWindow::dropEvent(QDropEvent *event)
 {
-    foreach (const QUrl &url, event->mimeData()->urls())
-        openFile(url.toLocalFile());
+    foreach (const QUrl &url, event->mimeData()->urls()) {
+        const QString file = url.toLocalFile();
+        const QString suffix = QFileInfo(file).suffix().toLower();
+        if (modeBar->mode() == ModeBar::Reverse && (suffix == "exe" || suffix == "dll" || suffix == "sys"))
+            openProgramInAsmon(file);
+        else
+            openFile(file);
+    }
+}
+
+//! Reverse engineering mode: opens a program (exe, dll) in Asmon's own disassembler.
+void MainWindow::openProgramInAsmon(const QString &path)
+{
+    if (mainWidget->currentWidget() != workWidget)
+        mainWidget->setCurrentWidget(workWidget);
+    modeBar->setMode(ModeBar::Reverse);
+    reversePage->openProgram(path);
+}
+
+void MainWindow::chooseProgramForAsmon()
+{
+    const QString file = QFileDialog::getOpenFileName(this, tr("Open a program"), QString(),
+                                                      tr("Programs (*.exe *.dll *.sys);;All files (*)"));
+    if (!file.isEmpty())
+        openProgramInAsmon(file);
 }
 
 bool MainWindow::removeDirRecuresively(const QString &dirName){

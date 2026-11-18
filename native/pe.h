@@ -43,6 +43,11 @@ struct Export {
     uint16_t ordinal = 0;
 };
 
+//! x64 exception table (.pdata): the exact start and end of every function that has unwind data
+struct RuntimeFunction {
+    uint32_t begin = 0, end = 0;   //!< RVAs
+};
+
 struct Info {
     bool is64 = false;
     bool dll = false;
@@ -53,6 +58,7 @@ struct Info {
     std::vector<Symbol> symbols;    //!< COFF symbols that survive linking (labels, functions)
     std::vector<Import> imports;
     std::vector<Export> exports;
+    std::vector<RuntimeFunction> runtimeFunctions;   //!< 64-bit images only, sorted by begin
 
     //! symbol by exact name (nullptr if there is none)
     const Symbol *findSymbol(const std::string &name) const;

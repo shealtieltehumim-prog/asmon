@@ -1499,6 +1499,22 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
         <source>Right to left (Hebrew text files)</source>
         <translation>מימין לשמאל (קבצי טקסט בעברית)</translation>
     </message>
+    <message>
+        <source>Open a program here...</source>
+        <translation>פתח תוכנית כאן...</translation>
+    </message>
+    <message>
+        <source>Save a patched copy</source>
+        <translation>שמור עותק מתוקן</translation>
+    </message>
+    <message>
+        <source>Open a program</source>
+        <translation>פתיחת תוכנית</translation>
+    </message>
+    <message>
+        <source>Programs (*.exe *.dll *.sys);;All files (*)</source>
+        <translation>תוכניות (*.exe *.dll *.sys);;כל הקבצים (*)</translation>
+    </message>
 </context>
 <context>
     <name>MiDebugger</name>
@@ -2254,20 +2270,244 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
 <context>
     <name>ReversePage</name>
     <message>
+        <source>Search functions</source>
+        <translation>חיפוש פונקציות</translation>
+    </message>
+    <message>
         <source>Functions</source>
         <translation>פונקציות</translation>
+    </message>
+    <message>
+        <source>Search strings</source>
+        <translation>חיפוש מחרוזות</translation>
+    </message>
+    <message>
+        <source>Address</source>
+        <translation>כתובת</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>סוג</translation>
+    </message>
+    <message>
+        <source>String</source>
+        <translation>מחרוזת</translation>
+    </message>
+    <message>
+        <source>Strings</source>
+        <translation>מחרוזות</translation>
+    </message>
+    <message>
+        <source>Search imports and exports</source>
+        <translation>חיפוש ייבוא וייצוא</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>שם</translation>
+    </message>
+    <message>
+        <source>Imports</source>
+        <translation>ייבוא</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation>פרטים</translation>
+    </message>
+    <message>
+        <source>Program</source>
+        <translation>תוכנית</translation>
+    </message>
+    <message>
+        <source>Open a program with the Open file button.</source>
+        <translation>פתח תוכנית בעזרת הכפתור "פתח קובץ".</translation>
+    </message>
+    <message>
+        <source>Bytes</source>
+        <translation>בתים</translation>
+    </message>
+    <message>
+        <source>Instruction</source>
+        <translation>פקודה</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>הערה</translation>
     </message>
     <message>
         <source>Disassembly</source>
         <translation>דיסאסמבלי</translation>
     </message>
     <message>
+        <source>Go to an address (hex) or a file offset (prefix: @)</source>
+        <translation>מעבר לכתובת (הקס) או להיסט בקובץ (עם קידומת @)</translation>
+    </message>
+    <message>
+        <source>Hex</source>
+        <translation>הקס</translation>
+    </message>
+    <message>
+        <source>The decompiled code of the selected function will appear here.</source>
+        <translation>הקוד המפוענח של הפונקציה שנבחרה יופיע כאן.</translation>
+    </message>
+    <message>
         <source>Decompiled code</source>
         <translation>קוד מפוענח</translation>
     </message>
     <message>
-        <source>Analysis of executable files inside Asmon (functions, disassembly, strings, references) is not built yet. Meanwhile, the Open file button above opens a file in one of the external tools.</source>
-        <translation>ניתוח קבצי הרצה בתוך אסמון (פונקציות, דיסאסמבלי, מחרוזות, הפניות) עדיין לא נבנה. בינתיים כפתור "פתח קובץ" למעלה פותח קובץ באחד מהכלים החיצוניים.</translation>
+        <source>Rename...</source>
+        <translation>שינוי שם...</translation>
+    </message>
+    <message>
+        <source>Cross-references...</source>
+        <translation>הפניות...</translation>
+    </message>
+    <message>
+        <source>Copy address</source>
+        <translation>העתק כתובת</translation>
+    </message>
+    <message>
+        <source>Analyzing %1 ...</source>
+        <translation>מנתח את %1 ...</translation>
+    </message>
+    <message>
+        <source>Could not open the file: %1</source>
+        <translation>לא ניתן לפתוח את הקובץ: %1</translation>
+    </message>
+    <message>
+        <source>%1: %2 functions, %3 strings</source>
+        <translation>%1: %2 פונקציות, %3 מחרוזות</translation>
+    </message>
+    <message>
+        <source>Search among %1 functions</source>
+        <translation>חיפוש בין %1 פונקציות</translation>
+    </message>
+    <message>
+        <source>Search among %1 strings</source>
+        <translation>חיפוש בין %1 מחרוזות</translation>
+    </message>
+    <message>
+        <source>export: %1</source>
+        <translation>ייצוא: %1</translation>
+    </message>
+    <message>
+        <source>Search among %1 imports and exports</source>
+        <translation>חיפוש בין %1 ייבוא וייצוא</translation>
+    </message>
+    <message>
+        <source>0x%1 is data: shown in the hex view</source>
+        <translation>0x%1 הוא מידע ולא קוד: מוצג בתצוגת ההקס</translation>
+    </message>
+    <message>
+        <source>%1   0x%2   %3 bytes   %4 references</source>
+        <translation>%1   0x%2   %3 בתים   %4 הפניות</translation>
+    </message>
+    <message>
+        <source>(no function here)   0x%1</source>
+        <translation>(אין כאן פונקציה)   0x%1</translation>
+    </message>
+    <message>
+        <source>This instruction has no direct target. Press X for references.</source>
+        <translation>לפקודה הזו אין יעד ישיר. לחץ X להפניות.</translation>
+    </message>
+    <message>
+        <source>No references to 0x%1 were found.</source>
+        <translation>לא נמצאו הפניות אל 0x%1.</translation>
+    </message>
+    <message>
+        <source>References to %1</source>
+        <translation>הפניות אל %1</translation>
+    </message>
+    <message>
+        <source>Double-click goes to the place.</source>
+        <translation>לחיצה כפולה מעבירה למקום.</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>שינוי שם</translation>
+    </message>
+    <message>
+        <source>Name for 0x%1 (empty: the original name):</source>
+        <translation>שם עבור 0x%1 (ריק: השם המקורי):</translation>
+    </message>
+    <message>
+        <source>Comment for 0x%1 (empty: remove it):</source>
+        <translation>הערה עבור 0x%1 (ריק: מחיקת ההערה):</translation>
+    </message>
+    <message>
+        <source>Patch bytes</source>
+        <translation>שינוי בתים</translation>
+    </message>
+    <message>
+        <source>New bytes at 0x%1 (hex, for example 90 90). The program file itself is not changed: use Save a patched copy.</source>
+        <translation>בתים חדשים בכתובת 0x%1 (הקס, למשל 90 90). קובץ התוכנית עצמו לא משתנה: השתמש ב"שמור עותק מתוקן".</translation>
+    </message>
+    <message>
+        <source>The bytes must be hex digits, two for each byte.</source>
+        <translation>הבתים חייבים להיות ספרות הקס, שתיים לכל בית.</translation>
+    </message>
+    <message>
+        <source>These bytes are not in the file (code that exists only in memory cannot be patched).</source>
+        <translation>הבתים האלה אינם בקובץ (קוד שקיים רק בזיכרון לא ניתן לשינוי).</translation>
+    </message>
+    <message>
+        <source>These bytes are not in the file.</source>
+        <translation>הבתים האלה אינם בקובץ.</translation>
+    </message>
+    <message>
+        <source>Go to the target	Enter</source>
+        <translation>מעבר ליעד	Enter</translation>
+    </message>
+    <message>
+        <source>Rename...	N</source>
+        <translation>שינוי שם...	N</translation>
+    </message>
+    <message>
+        <source>Comment...	;</source>
+        <translation>הערה...	;</translation>
+    </message>
+    <message>
+        <source>Cross-references...	X</source>
+        <translation>הפניות...	X</translation>
+    </message>
+    <message>
+        <source>Patch bytes...</source>
+        <translation>שינוי בתים...</translation>
+    </message>
+    <message>
+        <source>Fill the instruction with NOP</source>
+        <translation>מלא את הפקודה ב-NOP</translation>
+    </message>
+    <message>
+        <source>Undo the patch of this instruction</source>
+        <translation>בטל את השינוי בפקודה הזו</translation>
+    </message>
+    <message>
+        <source>Show in the hex view</source>
+        <translation>הצג בתצוגת ההקס</translation>
+    </message>
+    <message>
+        <source>Copy the string</source>
+        <translation>העתק את המחרוזת</translation>
+    </message>
+    <message>
+        <source>Could not save the names and comments next to the program (%1).</source>
+        <translation>לא ניתן לשמור את השמות וההערות ליד התוכנית (%1).</translation>
+    </message>
+    <message>
+        <source>The saved names belong to a different version of the file and were not loaded.</source>
+        <translation>השמות השמורים שייכים לגרסה אחרת של הקובץ ולא נטענו.</translation>
+    </message>
+    <message>
+        <source>Save a patched copy</source>
+        <translation>שמור עותק מתוקן</translation>
+    </message>
+    <message>
+        <source>Programs (*.exe *.dll *.sys);;All files (*)</source>
+        <translation>תוכניות (*.exe *.dll *.sys);;כל הקבצים (*)</translation>
+    </message>
+    <message>
+        <source>Saved %1 (%2 bytes changed). The original file was not touched.</source>
+        <translation>נשמר %1 (%2 בתים שונו). הקובץ המקורי לא נגע.</translation>
     </message>
 </context>
 </TS>

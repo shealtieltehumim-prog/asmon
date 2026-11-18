@@ -98,6 +98,8 @@ bool decode(const uint8_t *code, size_t size, uint64_t address, bool is64, Insn 
     out.pushf = ins.mnemonic == ZYDIS_MNEMONIC_PUSHF || ins.mnemonic == ZYDIS_MNEMONIC_PUSHFD
                 || ins.mnemonic == ZYDIS_MNEMONIC_PUSHFQ;
     // direct branch target / rip-relative operand
+    out.indirect = (out.call || out.jump) && ins.operand_count_visible > 0
+                   && ops[0].type != ZYDIS_OPERAND_TYPE_IMMEDIATE;
     for (int i = 0; i < ins.operand_count_visible; ++i) {
         const ZydisDecodedOperand &op = ops[i];
         ZyanU64 a = 0;
@@ -106,9 +108,19 @@ bool decode(const uint8_t *code, size_t size, uint64_t address, bool is64, Insn 
                 out.hasTarget = true;
                 out.target = a;
             }
+        } else if (op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE && !op.imm.is_relative) {
+            out.hasImm = true;
+            out.imm = op.imm.value.u;
+        } else if (op.type == ZYDIS_OPERAND_TYPE_MEMORY && op.mem.base == ZYDIS_REGISTER_NONE
+                   && op.mem.index == ZYDIS_REGISTER_NONE && op.mem.disp.has_displacement
+                   && op.mem.segment != ZYDIS_REGISTER_FS && op.mem.segment != ZYDIS_REGISTER_GS) {
+            out.hasMemAbs = true;
+            out.memAbs = uint64_t(op.mem.disp.value);
         } else if (op.type == ZYDIS_OPERAND_TYPE_MEMORY && (op.mem.base == ZYDIS_REGISTER_RIP
                                                              || op.mem.base == ZYDIS_REGISTER_EIP)) {
             if (ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&ins, &op, address, &a))) {
+                out.hasRip = true;
+                out.ripTarget = a;
                 char c[32];
                 std::snprintf(c, sizeof c, "0x%llx", (unsigned long long)a);
                 out.comment = c;

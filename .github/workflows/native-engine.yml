@@ -45,6 +45,8 @@ jobs:
             out/z/*.o -o out/harness.exe
           g++ -std=c++17 -O1 $FLAGS -Inative native/tests/disasm_test.cpp native/disasm.cpp out/z/*.o -o out/disasm_test.exe
           g++ -std=c++17 -O1 native/tests/expr_test.cpp native/expr.cpp native/regs.cpp -o out/expr_test.exe
+          g++ -std=c++17 -O1 -Wall -Wextra $FLAGS -Inative native/tests/analysis_test.cpp native/analysis.cpp \
+            native/pe.cpp native/disasm.cpp out/z/*.o -o out/analysis_test.exe
           for n in engine_test crash_test loop_test; do
             nasm -f win64 -l out/$n.lst -o out/$n.o native/tests/programs/$n.asm
             gcc -o out/$n.exe out/$n.o
@@ -53,6 +55,10 @@ jobs:
         run: |
           ./out/disasm_test.exe
           ./out/expr_test.exe
+      - name: Reverse-engineering analysis (functions, cross-references, strings, patches)
+        run: |
+          mkdir -p out/scratch
+          ./out/analysis_test.exe out/engine_test.exe out/scratch
       - name: Debug engine on real programs
         run: |
           ./out/harness.exe "$(cygpath -w "$PWD/out")"
