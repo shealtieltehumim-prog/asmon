@@ -198,6 +198,9 @@ jobs:
           mkdir -p dist/NASM
           cp "$T/nasm.exe" dist/NASM/
           cp "$T/ndisasm.exe" dist/NASM/ 2>/dev/null || true
+          # nasm.exe imports zlib1.dll (found next to it in WinLibs' bin). Without this copy NASM only
+          # starts on machines that have another zlib1.dll on PATH (MinGW, MSYS2, Git...): found by the clean-PATH test.
+          cp "$T/zlib1.dll" dist/NASM/
           "$T/gcc.exe" -c -O2 -g Windows/NASM/macro_win.c -o dist/NASM/macro64.o
           dist/MinGW/bin/gcc.exe -c -O2 -g Windows/NASM/macro_win.c -o dist/NASM/macro.o
           cp -r Windows/include Windows/Projects Windows/FASM dist/
@@ -269,6 +272,41 @@ jobs:
           # 10) the 32-bit gdb runs
           ../dist/MinGW/bin/gdb.exe --batch -ex "info files" e.exe | head -5
           echo "SMOKE TEST PASSED"
+
+      - name: Clean-PATH check (every bundled tool starts with only the Windows folders on PATH)
+        shell: pwsh
+        run: |
+          # The MSYS2 shell and the runner both have MinGW/zlib on PATH and hide missing DLLs, so this
+          # step runs with a PATH of just System32 and checks each tool's exit code.
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $bad = @()
+          foreach ($t in @(
+              @('dist\NASM\nasm.exe','-v'), @('dist\NASM\ndisasm.exe','-v'),
+              @('dist\MinGW64\bin\gcc.exe','--version'), @('dist\MinGW64\bin\as.exe','--version'),
+              @('dist\MinGW64\bin\ld.exe','--version'), @('dist\MinGW64\bin\gdb.exe','--version'),
+              @('dist\MinGW64\bin\objdump.exe','--version'),
+              @('dist\MinGW\bin\gcc.exe','--version'), @('dist\MinGW\bin\gdb.exe','--version'),
+              @('dist\LLVM\bin\ld.lld.exe','--version'), @('dist\LLVM\bin\llvm-objdump.exe','--version'),
+              @('dist\FASM\fasm.exe','')
+            )) {
+            $exe = Join-Path $PWD $t[0]
+            if (-not (Test-Path $exe)) { $bad += "$($t[0]): missing"; continue }
+            try { $o = & $exe $t[1] 2>&1 | Select-Object -First 1; $code = $LASTEXITCODE } catch { $o = "$_"; $code = -1 }
+            # fasm without arguments prints its usage and exits with 1: that still proves it started
+            $ok = ($code -eq 0) -or ($t[0] -like '*fasm.exe' -and $o -match 'flat assembler')
+            Write-Host ("{0,-40} exit {1,-12} {2}" -f $t[0], $code, $o)
+            if (-not $ok) { $bad += "$($t[0]): exit $code $o" }
+          }
+          # a full build and run, outside the MSYS2 shell
+          $w = Join-Path $env:RUNNER_TEMP 'cleanbuild'; New-Item -ItemType Directory -Force $w | Out-Null
+          & "$PWD\dist\NASM\nasm.exe" -I "$PWD\dist\include\" -f win64 "$PWD\templates\hello_win64.asm" -o "$w\a.o"
+          if ($LASTEXITCODE -ne 0) { $bad += "nasm build exit $LASTEXITCODE" }
+          & "$PWD\dist\MinGW64\bin\gcc.exe" "$w\a.o" "$PWD\dist\NASM\macro64.o" -o "$w\a.exe" -m64
+          if ($LASTEXITCODE -ne 0) { $bad += "gcc link exit $LASTEXITCODE" }
+          $out = & "$w\a.exe" 2>&1 | Out-String
+          if ($out -notmatch 'Hello, world!') { $bad += "hello output: $out" }
+          if ($bad) { $bad | ForEach-Object { Write-Host "::error::$_" }; throw "tools that do not start on a clean PATH: $($bad -join ' | ')" }
+          Write-Host "clean-PATH check OK"
 
       - name: GUI test on the runner's desktop (screenshots)
         shell: pwsh
