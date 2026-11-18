@@ -48,6 +48,8 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 [CustomMessages]
 he.CompCore=אסמון + NASM + MinGW-w64 (GCC, ld, binutils, gdb)
 en.CompCore=Asmon + NASM + MinGW-w64 (GCC, ld, binutils, gdb)
+he.CompX86=כלי 32 ביט (MinGW-w64 i686: GCC, ld, gdb) לתוכניות x86
+en.CompX86=32-bit tools (MinGW-w64 i686: GCC, ld, gdb) for x86 programs
 he.CompLlvm=LLVM: lld, llvm-objdump, lldb (בניית תוכניות לינוקס בלי WSL)
 en.CompLlvm=LLVM: lld, llvm-objdump, lldb (build Linux programs without WSL)
 he.CompGhidra=Ghidra (כולל Java)
@@ -79,6 +81,7 @@ Name: "custom"; Description: "{cm:TypeCustom}"; Flags: iscustom
 [Components]
 Name: "core"; Description: "{cm:CompCore}"; Types: full core custom; Flags: fixed
 Name: "llvm"; Description: "{cm:CompLlvm}"; Types: full core
+Name: "x86"; Description: "{cm:CompX86}"; Types: full
 Name: "ghidra"; Description: "{cm:CompGhidra}"; Types: full
 Name: "cutter"; Description: "{cm:CompCutter}"; Types: full
 Name: "x64dbg"; Description: "{cm:CompX64dbg}"; Types: full
@@ -90,8 +93,9 @@ Name: "addpath"; Description: "{cm:TaskPath}"; GroupDescription: "{cm:GroupOther
 Name: "assoc"; Description: "{cm:TaskAssoc}"; GroupDescription: "{cm:GroupOther}"; Flags: unchecked
 
 [Files]
-Source: "{#Dist}\*"; DestDir: "{app}"; Excludes: "\LLVM\*,\portable"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: core
+Source: "{#Dist}\*"; DestDir: "{app}"; Excludes: "\LLVM\*,\MinGW\*,\portable"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: core
 Source: "{#Dist}\LLVM\*"; DestDir: "{app}\LLVM"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: llvm
+Source: "{#Dist}\MinGW\*"; DestDir: "{app}\MinGW"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: x86
 Source: "{#ReTools}\ghidra\*"; DestDir: "{app}\tools\ghidra"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: ghidra
 Source: "{#ReTools}\jdk\*"; DestDir: "{app}\tools\jdk"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: ghidra
 Source: "{#ReTools}\cutter\*"; DestDir: "{app}\tools\cutter"; Flags: recursesubdirs createallsubdirs ignoreversion; Components: cutter

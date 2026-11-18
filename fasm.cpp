@@ -150,11 +150,12 @@ void FASM::parseLstFile(QFile &lstOut, QVector<Assembler::LineNum> &lines, quint
 QString FASM::getStartText()
 {
     #ifdef Q_OS_WIN32
+        //! Asmon: COFF is the object format MinGW's linker handles on Windows.
         if (isx86()) {
-            return QString("format ELF\n\nsection '.text' executable\npublic _main\n") +
+            return QString("format MS COFF\n\nsection '.text' code readable executable\npublic _main\n") +
                    QString("_main:\n    ;write your code here\n    xor eax, eax\n    ret");
         } else {
-            return QString("format ELF64\n\nsection '.text' executable\npublic main\n") +
+            return QString("format MS64 COFF\n\nsection '.text' code readable executable\npublic main\n") +
                    QString("main:\n    ;write your code here\n    xor rax, rax\n    ret");
         }
     #else

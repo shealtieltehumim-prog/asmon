@@ -73,6 +73,15 @@ jobs:
           7z x "dl\$($wl.name)" -odl\winlibs -y | Out-Null
           Move-Item dl\winlibs\mingw64 dist\MinGW64
           "WinLibs: $($wl.name) (release $env:WINLIBS_TAG)" | Out-File -Encoding utf8 dl\versions.txt
+          # 32-bit toolchain (optional installer component): the i686 edition of the same release
+          $wl32 = $assets | Where-Object { $_.name -match '^winlibs-i686-posix-dwarf-gcc-[0-9.]+-mingw-w64ucrt-[0-9.]+-r[0-9]+\.zip$' } | Select-Object -First 1
+          if (-not $wl32) { $wl32 = $assets | Where-Object { $_.name -match '^winlibs-i686-.*-mingw-w64ucrt-[0-9.]+-r[0-9]+\.zip$' } | Select-Object -First 1 }
+          if (-not $wl32) { throw "WinLibs i686 zip not found in $env:WINLIBS_TAG" }
+          Write-Host "WinLibs 32-bit: $($wl32.name) ($([math]::Round($wl32.size/1MB)) MB)"
+          gh release download $env:WINLIBS_TAG -R brechtsanders/winlibs_mingw -p $wl32.name -D dl
+          7z x "dl\$($wl32.name)" -odl\winlibs32 -y | Out-Null
+          Move-Item dl\winlibs32\mingw32 dist\MinGW
+          "WinLibs 32-bit: $($wl32.name)" | Out-File -Append -Encoding utf8 dl\versions.txt
           # llvm-mingw: ld.lld (Linux ELF without WSL), llvm-objdump, lldb
           $lm = "llvm-mingw-$env:LLVM_MINGW_TAG-ucrt-x86_64.zip"
           gh release download $env:LLVM_MINGW_TAG -R mstorsjo/llvm-mingw -p $lm -D dl
@@ -98,6 +107,15 @@ jobs:
           rm -f $G/*/f951.exe $G/*/cc1obj.exe $G/*/cc1objplus.exe $G/*/lto1.exe   # Fortran, Obj-C, LTO (~150 MB)
           rm -f "$T/gfortran.exe" "$T/x86_64-w64-mingw32-gfortran.exe" "$T"/libgfortran*.dll dist/MinGW64/lib/libgfortran*
           rm -rf dist/MinGW64/share/man dist/MinGW64/share/info dist/MinGW64/share/locale
+          # the same trimming for the 32-bit toolchain
+          T32=dist/MinGW/bin
+          for x in cmake ctest cpack ccmake doxygen cppcheck cppcheck-htmlreport ninja premake5 ccache ctags readtags yasm vsyasm ytasm nasm ndisasm gfortran i686-w64-mingw32-gfortran; do
+            rm -f "$T32/$x.exe"
+          done
+          rm -f "$T32"/libgfortran*.dll dist/MinGW/lib/libgfortran*
+          rm -rf dist/MinGW/share/cmake-* dist/MinGW/share/doc dist/MinGW/share/cppcheck dist/MinGW/share/man dist/MinGW/share/info dist/MinGW/share/locale
+          G32=dist/MinGW/libexec/gcc/i686-w64-mingw32
+          rm -f $G32/*/f951.exe $G32/*/cc1obj.exe $G32/*/cc1objplus.exe $G32/*/lto1.exe
           # LLVM: keep only ld.lld, llvm-objdump and lldb (+ the DLLs they load); drop clang,
           # its headers and the ARM/i686 sysroots (~530 MB)
           L=dist/LLVM
@@ -113,6 +131,7 @@ jobs:
           cp "$T/nasm.exe" dist/NASM/
           cp "$T/ndisasm.exe" dist/NASM/ 2>/dev/null || true
           "$T/gcc.exe" -c -O2 -g Windows/NASM/macro_win.c -o dist/NASM/macro64.o
+          dist/MinGW/bin/gcc.exe -c -O2 -g Windows/NASM/macro_win.c -o dist/NASM/macro.o
           cp -r Windows/include Windows/Projects Windows/FASM dist/
           cp Windows/keys.ini dist/
           mkdir -p dist/licenses
@@ -125,6 +144,7 @@ jobs:
             dist/NASM/nasm.exe -v
             "$T/gcc.exe" --version | head -1
             "$T/gdb.exe" --version | head -1
+            dist/MinGW/bin/gcc.exe --version | head -1
             dist/LLVM/bin/ld.lld.exe --version
           } | tee dist/licenses/VERSIONS.txt
 
@@ -152,6 +172,34 @@ jobs:
           $N -I ../dist/include/ -f win64 d.asm -o d.o
           $G d.o ../dist/NASM/macro64.o -g -o d.exe -m64 $L
           echo 41 | ./d.exe | tee d.txt; grep -q "42" d.txt
+          # 5) x86 (32-bit toolchain): io.inc + macro.o, Asmon's x86 options
+          printf '%s\n' '%include "io.inc"' 'section .data' 'msg db "Hello, x86!", 0' 'section .text' 'global main' 'main:' '    mov ebp, esp' '    PRINT_STRING msg' '    NEWLINE' '    GET_DEC 4, eax' '    add eax, 1' '    PRINT_DEC 4, eax' '    NEWLINE' '    xor eax, eax' '    ret' > e.asm
+          ../dist/NASM/nasm.exe --gprefix _ -I ../dist/include/ -f win32 e.asm -l e.lst -o e.o
+          ../dist/MinGW/bin/gcc.exe e.o ../dist/NASM/macro.o -g -o e.exe -m32
+          file e.exe 2>/dev/null || true
+          echo 6 | ./e.exe | tee e.txt; grep -q "Hello, x86!" e.txt; grep -q "^7" e.txt
+          # 6) GAS (x64, Intel syntax), Asmon's GAS options
+          printf '%s\n' '.intel_syntax noprefix' '.data' 'msg: .asciz "Hello from GAS"' '.text' '.global main' 'main:' '    sub rsp, 40' '    lea rcx, [rip + msg]' '    call puts' '    add rsp, 40' '    xor eax, eax' '    ret' > g.s
+          ../dist/MinGW64/bin/as.exe g.s -o g.o --64 -a=g.lst
+          $G g.o ../dist/NASM/macro64.o -g -o g.exe -m64 $L
+          ./g.exe | tee g.txt; grep -q "Hello from GAS" g.txt
+          # 7) GAS x86 (AT&T syntax) with the 32-bit toolchain
+          printf '%s\n' '.data' 'msg: .asciz "Hello from GAS x86"' '.text' '.global _main' '_main:' '    pushl $msg' '    call _puts' '    addl $4, %esp' '    xorl %eax, %eax' '    ret' > h.s
+          ../dist/MinGW/bin/as.exe h.s -o h.o --32 -a=h.lst
+          ../dist/MinGW/bin/gcc.exe h.o ../dist/NASM/macro.o -g -o h.exe -m32
+          ./h.exe | tee h.txt; grep -q "Hello from GAS x86" h.txt
+          # 8) FASM (bundled fasm.exe), x64 COFF object linked by MinGW
+          printf '%s\r\n' 'format MS64 COFF' 'extrn puts' "section '.text' code readable executable" 'public main' 'main:' '    sub rsp, 40' '    lea rcx, [msg]' '    call puts' '    add rsp, 40' '    xor eax, eax' '    ret' "section '.data' data readable writeable" "msg db 'Hello from FASM', 0" > f.asm
+          ../dist/FASM/fasm.exe f.asm f.o
+          $G f.o ../dist/NASM/macro64.o -g -o f.exe -m64 $L
+          ./f.exe | tee f.txt; grep -q "Hello from FASM" f.txt
+          # 9) FASM x86 (MS COFF) with the 32-bit toolchain
+          printf '%s\r\n' 'format MS COFF' 'extrn _puts' "section '.text' code readable executable" 'public _main' '_main:' '    push msg' '    call _puts' '    add esp, 4' '    xor eax, eax' '    ret' "section '.data' data readable writeable" "msg db 'Hello from FASM x86', 0" > k.asm
+          ../dist/FASM/fasm.exe k.asm k.o
+          ../dist/MinGW/bin/gcc.exe k.o ../dist/NASM/macro.o -g -o k.exe -m32
+          ./k.exe | tee k.txt; grep -q "Hello from FASM x86" k.txt
+          # 10) the 32-bit gdb runs
+          ../dist/MinGW/bin/gdb.exe --batch -ex "info files" e.exe | head -5
           echo "SMOKE TEST PASSED"
 
       - name: GUI test on the runner's desktop (screenshots)
