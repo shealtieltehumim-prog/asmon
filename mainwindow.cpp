@@ -316,12 +316,24 @@ void MainWindow::initUi()
     splitter->addWidget(new CardFrame(tabs));
     bottomCard = new CardFrame(bottomPanel);
     splitter->addWidget(bottomCard);
+    // Small windows / large display scaling: some pages (build artifacts, search) ask for 130-150 px,
+    // which kept this panel at ~190 px and left the editor 4 lines. The panel may shrink to its tab bar
+    // and a few lines, and 240 px of width (build artifacts asked for 468: the debugger mode then
+    // widened the window past a small screen).
+    bottomCard->setMinimumSize(240, 110);
     splitter->setCollapsible(0, false);
     debugAnyCommandWidget->close();
     debugAnyCommandWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     splitter->setStretchFactor(0, 3);  // code gets ~3/4 of the height by default
     splitter->setStretchFactor(1, 1);
     splitter->setSizes(QList<int>() << 3000 << 1000);
+    // setSizes() before the window is shown is overridden by the size hints (the bottom panel won ~190 px
+    // of a small window). Apply the 3:1 split once the window has its real size, unless a saved one exists.
+    if (!settings.contains("panelsplitterstate"))
+        QTimer::singleShot(0, this, [this]() {
+            const int total = splitter->height();
+            splitter->setSizes(QList<int>() << total * 3 / 4 << total - total * 3 / 4);
+        });
     //! Restore previous session if it in settings
     if (settings.value("startwindow", 0).toInt() == 1)
         restorePrevSession(true);
@@ -3192,6 +3204,7 @@ void MainWindow::attachToProcess()
 
 void MainWindow::onDebugStopped(quint64 pc, int line)
 {
+    Common::testLog(QString("debug-stopped line=%1 pc=0x%2").arg(line).arg(pc, 0, 16));
     QTimer::singleShot(0, this, &MainWindow::updateStatusBar);
     if (!debugger)
         return;
@@ -3209,6 +3222,7 @@ void MainWindow::onDebugStopped(quint64 pc, int line)
 
 void MainWindow::onDebugCrashed(const QString &signal, const QString &meaning, quint64 pc, int line)
 {
+    Common::testLog(QString("debug-crashed line=%1 signal=%2").arg(line).arg(signal));
     changeDebugActionToStart();
     if (line > 0)
         showDebugLine(line);

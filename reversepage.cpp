@@ -1,4 +1,5 @@
 #include "reversepage.h"
+#include "common.h"
 
 #include "cardframe.h"
 #include "decompiler.h"
@@ -422,6 +423,9 @@ void ReversePage::analysisDone(bool ok, const QString &error, std::shared_ptr<ra
         start = result_->functions.front().va;
     if (start)
         goTo(start, false);
+    Common::testLog(QString("re-opened %1 functions=%2 start=%3")
+                        .arg(QFileInfo(path_).fileName()).arg(result_->functions.size())
+                        .arg(start ? QString::fromStdString(result_->nameAt(start)) : QString("none")));
     emit stateChanged();
 }
 

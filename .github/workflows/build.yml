@@ -733,6 +733,79 @@ jobs:
           Start-Sleep 5
           if (Test-Path C:\AsmonTest\asmon.exe) { throw "uninstall left asmon.exe behind" }
           Write-Host "install / run / uninstall OK"
+      - name: End-to-end test on the installed copy (write, build, run, debug with a breakpoint, open the exe in RE mode)
+        shell: pwsh
+        run: |
+          # The whole path a user takes, on the installed copy with a clean PATH. Asmon writes what it
+          # saw to ASMON_TEST_LOG (debug stops, the program opened in RE mode), so this checks what the
+          # program did, not only a picture.
+          $setup = Get-ChildItem installer\output\Asmon-*-Setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/DIR=C:\AsmonTest' -Wait
+          New-Item -ItemType Directory -Force shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("shots\$name.png")
+          }
+          $built = Join-Path $env:PROGRAMDATA 'Asmon\AsmonProg.exe'
+          Remove-Item $built -Force -ErrorAction SilentlyContinue
+          $log = Join-Path $env:RUNNER_TEMP 'e2e.log'
+          Remove-Item $log -Force -ErrorAction SilentlyContinue
+          Copy-Item tests\e2e\hello.asm "$env:RUNNER_TEMP\e2e_hello.asm"
+          $savedPath = $env:PATH
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $env:ASMON_TEST_LOG = $log
+          $p = Start-Process C:\AsmonTest\asmon.exe -ArgumentList "$env:RUNNER_TEMP\e2e_hello.asm" -PassThru
+          $env:PATH = $savedPath
+          Start-Sleep 15
+          if ($p.HasExited) { throw "asmon.exe exited at startup with code $($p.ExitCode)" }
+          $ws = New-Object -ComObject WScript.Shell
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          # 1) build and run
+          $ws.SendKeys("{F9}"); Start-Sleep 20
+          Shot "e2e-1-build-run"
+          Get-Process -Name AsmonProg -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not (Test-Path $built)) { throw "e2e: the build did not produce $built" }
+          $out = & $built 2>&1 | Out-String
+          if ($out -notmatch 'Hello, world!') { throw "e2e: the built program printed '$out'" }
+          Write-Host "e2e: build and run OK"
+          # 2) a breakpoint on line 13, debug: stops at the start of main, then continue to the breakpoint
+          $null = $ws.AppActivate($p.Id); Start-Sleep 2
+          $ws.SendKeys("^{HOME}"); Start-Sleep 1
+          $ws.SendKeys("{DOWN 12}"); Start-Sleep 1
+          $ws.SendKeys("{F8}"); Start-Sleep 2
+          Shot "e2e-2-breakpoint-set"
+          $ws.SendKeys("{F5}"); Start-Sleep 20
+          Shot "e2e-3-debug-start"
+          $ws.SendKeys("{F5}"); Start-Sleep 12
+          Shot "e2e-4-breakpoint-hit"
+          $lines = @(Get-Content $log -ErrorAction SilentlyContinue)
+          Write-Host ($lines -join "`n")
+          $stops = @($lines | Where-Object { $_ -match '^debug-stopped line=(\d+)' })
+          if ($stops.Count -lt 2) { throw "e2e: expected a stop at the start and a stop at the breakpoint, got: $($stops -join ' | ')" }
+          if ($stops[-1] -notmatch 'line=13 ') { throw "e2e: the last stop was not on the breakpoint line 13: $($stops[-1])" }
+          Write-Host "e2e: stopped on the breakpoint (line 13)"
+          if ($p.HasExited) { throw "e2e: asmon.exe crashed during debugging" }
+          $ws.SendKeys("+{F5}"); Start-Sleep 5
+          Stop-Process -Id $p.Id -Force
+          Get-Process -Name AsmonProg -ErrorAction SilentlyContinue | Stop-Process -Force
+          # 3) the produced exe in reverse engineering mode: it must open at main
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $r = Start-Process C:\AsmonTest\asmon.exe -ArgumentList '--re', $built -PassThru
+          $env:PATH = $savedPath
+          Start-Sleep 20
+          if ($r.HasExited) { throw "e2e: asmon.exe --re exited with code $($r.ExitCode)" }
+          Shot "e2e-5-reverse-engineering"
+          Stop-Process -Id $r.Id -Force
+          $re = @(Get-Content $log | Where-Object { $_ -match '^re-opened ' })
+          if ($re.Count -lt 1) { throw "e2e: the program was not opened in RE mode" }
+          Write-Host $re[-1]
+          if ($re[-1] -notmatch 'start=main') { throw "e2e: RE mode did not open at main: $($re[-1])" }
+          Write-Host "e2e: the built program opens at main in RE mode"
+          Remove-Item Env:ASMON_TEST_LOG
+          Start-Process C:\AsmonTest\unins000.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait
       - name: Self-update test (the update script replaces asmon.exe and restarts it)
         shell: pwsh
         run: |

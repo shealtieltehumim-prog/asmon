@@ -100,3 +100,13 @@ QString Common::pathInTemp(QString path)
     tempPath = QDir::toNativeSeparators(tempPath);
     return tempPath;
 }
+
+void Common::testLog(const QString &line)
+{
+    const QString path = qEnvironmentVariable("ASMON_TEST_LOG");
+    if (path.isEmpty())
+        return;
+    QFile f(path);
+    if (f.open(QIODevice::Append | QIODevice::Text))
+        f.write((line + '\n').toUtf8());
+}

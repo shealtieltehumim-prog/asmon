@@ -55,6 +55,8 @@
 namespace Common {
     QString applicationDataPath();
     QString pathInTemp(QString path);
+    /** Test hook: when ASMON_TEST_LOG names a file, the line is appended to it (CI end-to-end checks read it). */
+    void testLog(const QString &line);
 }
 
 #endif // COMMON_H
