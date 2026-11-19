@@ -38,8 +38,18 @@ public:
 signals:
     void modeChanged(int mode);
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+    bool event(QEvent *e) override;
+
 private:
     void showButtonsOf(Mode mode);
+    //! Narrow windows: when the tabs and the buttons of the mode do not fit with their labels, the
+    //! action buttons show only their icon (the label moves to the tooltip). Wide windows are unchanged.
+    void updateCompact();
+
+    bool m_compact = false;
+    bool m_updating = false;
 
     Mode m_mode = Write;
     QToolButton *m_tabs[3] = { nullptr, nullptr, nullptr };

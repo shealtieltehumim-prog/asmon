@@ -203,6 +203,9 @@ void MainWindow::initUi()
     modeStack->addWidget(splitter);
     reversePage = new ReversePage;
     modeStack->addWidget(reversePage);
+    // a hidden page must not dictate the window's minimum width (the RE page asks for ~670 px, which
+    // together with the debugger panel made the Debug mode wider than a small screen)
+    reversePage->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     workLayout->addWidget(modeBar);
     workLayout->addWidget(modeStack, 1);
     connect(modeBar, &ModeBar::modeChanged, this, &MainWindow::onModeChanged);
@@ -794,7 +797,12 @@ void MainWindow::createToolBars()
 void MainWindow::onModeChanged(int mode)
 {
     //! Write and Debug use the editor page; Debug also shows the debugger panel (empty until a session starts).
-    modeStack->setCurrentIndex(mode == ModeBar::Reverse ? 1 : 0);
+    const bool re = (mode == ModeBar::Reverse);
+    reversePage->setSizePolicy(re ? QSizePolicy::Preferred : QSizePolicy::Ignored,
+                               re ? QSizePolicy::Preferred : QSizePolicy::Ignored);
+    splitter->setSizePolicy(re ? QSizePolicy::Ignored : QSizePolicy::Preferred,
+                            re ? QSizePolicy::Ignored : QSizePolicy::Preferred);
+    modeStack->setCurrentIndex(re ? 1 : 0);
     if (!debugDock)
         return;
     const bool show = mode == ModeBar::Debug;
@@ -805,6 +813,14 @@ void MainWindow::onModeChanged(int mode)
     if (show)
         widthBeforeDebugDock = (isMaximized() || isFullScreen()) ? 0 : width();
     debugDock->setVisible(show);
+    //! Narrow windows: the panel must leave the editor at least ~half of the window (its own preferred
+    //! width is ~550 px, which left a 340 px editor in a 960 px window).
+    if (show)
+        QTimer::singleShot(0, this, [this]() {
+            const int want = qMax(debugDock->minimumSizeHint().width(), width() - 520);
+            if (debugDock->isVisible() && debugDock->width() > want && width() < 1300)
+                resizeDocks({ debugDock }, { want }, Qt::Horizontal);
+        });
     if (!show && widthBeforeDebugDock > 0) {
         const int w = widthBeforeDebugDock;
         widthBeforeDebugDock = 0;

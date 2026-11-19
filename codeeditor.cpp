@@ -161,6 +161,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     // !Paint on line number area
     QPainter painter(lineNumberArea);
     painter.setLayoutDirection(Qt::LeftToRight); // Asmon: same gutter in RTL UI
+    painter.setFont(font());                     // line numbers in the code font, like VS Code
     painter.fillRect(event->rect(), lineNumberPanelColor);
 
     QTextBlock block = firstVisibleBlock();

@@ -65,6 +65,9 @@ DebugPanels::DebugPanels(QWidget *parent) : QWidget(parent)
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     tabs = new QTabWidget;
+    // narrow windows: the six tabs may scroll instead of forcing the panel to ~440 px
+    tabs->setUsesScrollButtons(true);
+    tabs->setElideMode(Qt::ElideNone);
     tabs->addTab(makeRegistersTab(), tr("Registers"));
     tabs->addTab(makeMemoryTab(), tr("Memory"));
     tabs->addTab(makeStackTab(), tr("Stack"));
@@ -549,14 +552,20 @@ QWidget *DebugPanels::makeWatchTab()
     connect(watchExpr, &QLineEdit::returnPressed, this, &DebugPanels::addWatchFromBar);
     connect(add, &QPushButton::clicked, this, &DebugPanels::addWatchFromBar);
     connect(remove, &QPushButton::clicked, this, &DebugPanels::removeWatch);
+    //! two short rows instead of one long one: the panel fits next to the editor in a narrow window,
+    //! and the expression gets the whole width
     bar->addWidget(watchExpr, 1);
-    bar->addWidget(watchType);
-    bar->addWidget(new QLabel(tr("bytes:")));
-    bar->addWidget(watchSize);
-    bar->addWidget(watchCount);
     bar->addWidget(add);
     bar->addWidget(remove);
     l->addLayout(bar);
+    auto *barOpts = new QHBoxLayout;
+    barOpts->setContentsMargins(6, 0, 6, 4);
+    barOpts->addWidget(watchType);
+    barOpts->addWidget(new QLabel(tr("bytes:")));
+    barOpts->addWidget(watchSize);
+    barOpts->addWidget(watchCount);
+    barOpts->addStretch(1);
+    l->addLayout(barOpts);
     //! second row: stop when the program writes to the expression's memory
     auto *bar2 = new QHBoxLayout;
     bar2->setContentsMargins(6, 0, 6, 4);

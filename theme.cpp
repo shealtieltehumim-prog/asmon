@@ -212,6 +212,13 @@ void ensureInitialized(QSettings &settings)
             settings.setValue("fontfamily", "Consolas");
         settings.setValue("fontversion", 3);
     }
+    //! fonts v4: the owner asked that the code font be the VS Code one. One-time: everyone moves to
+    //! Consolas when it is installed (Windows); a font picked in Settings after this is kept.
+    if (settings.value("fontversion", 1).toInt() < 4) {
+        if (QFontDatabase::families().contains("Consolas"))
+            settings.setValue("fontfamily", "Consolas");
+        settings.setValue("fontversion", 4);
+    }
     //! colours v2: stronger syntax colours; only replaces colours that are still the old defaults
     if (settings.value("colorversion", 1).toInt() < 2) {
         static const char *oldDark[] = { "#569cd6", "#c586c0", "#b5cea8", "#4fc1ff", "#dcdcaa", "#6a9955", "#4ec9b0", "#9cdcfe", "#ce9178" };
@@ -292,6 +299,7 @@ QToolButton#modeTab { color: %6; padding: 5px 16px; margin: 0px 2px; }
 QToolButton#modeTab:hover { color: %5; }
 QToolButton#modeTab:checked { background: %9; color: %5; border: 1px solid %7; }
 QToolButton#modeAction { padding: 4px 12px; margin: 0px 2px; }
+QToolButton#modeAction[compact="true"] { padding: 4px 7px; margin: 0px 1px; }
 QToolButton#modeAction:disabled { color: %6; }
 QLabel#cardHeading { color: %6; font-size: 9pt; }
 QLabel#cardHint { color: %6; }
