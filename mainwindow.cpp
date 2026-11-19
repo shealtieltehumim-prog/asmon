@@ -2184,6 +2184,7 @@ void MainWindow::switchTheme(bool dark)
         settings.setValue("backgroundcolor", QString::fromLatin1(pendingNpp->bg));
         settings.setValue("linenumberpanelcolor", QString::fromLatin1(pendingNpp->bg));
         settings.setValue("fontcolor", QString::fromLatin1(pendingNpp->fg));
+        settings.setValue("codetextcolor", QString::fromLatin1(pendingNpp->fg));
         settings.setValue("currentlinecolor", QString::fromLatin1(pendingNpp->currentLine));
         settings.setValue("linenumberfontcolor", QString::fromLatin1(pendingNpp->lineNumber));
     }

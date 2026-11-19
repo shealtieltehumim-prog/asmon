@@ -469,7 +469,10 @@ jobs:
           }
           foreach ($c in $cases) {
             $f = $c[0]; $sz = $c[1]; $theme = $c[2]
-            Set-Content -Path $ini -Encoding UTF8 -Value @('[General]', 'fontfamily=Consolas', "fontsize=$sz", 'fontversion=3', "theme=$theme")
+            # dark: no theme key, so the first-run defaults (the neon dark theme) are applied as for a new user
+            $lines = @('[General]', 'fontfamily=Consolas', "fontsize=$sz", 'fontversion=4')
+            if ($theme -eq 'light') { $lines += 'theme=light' }
+            Set-Content -Path $ini -Encoding UTF8 -Value $lines
             $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $f.FullName -PassThru
             Start-Sleep 9
             if ($p.HasExited) { throw "asmon.exe exited for $($f.Name) ($sz, $theme)" }

@@ -81,7 +81,7 @@
              formats[i]->setFontWeight(QFont::Bold);
          formats[i]->setFontItalic(settings.value(names[i] + "italic", i == 5).toBool());
      }
-     labelWithDotFormat.setForeground(Theme::color("fontcolor"));
+     labelWithDotFormat.setForeground(Theme::color("codetextcolor"));
      formats << &labelWithDotFormat;
      assembler->fillHighligherRules(highlightingRules, formats, multiLineComments, commentStartExpression, commentEndExpression);
  }

@@ -60,9 +60,11 @@ QMap<QString, QColor> editorDefaults(bool dark)
     const QColor bg(c.editor);
     QList<QColor> fg;
     if (dark)
-        fg << QColor("#3794ff") << QColor("#ff79c6") << QColor("#ffb86c") << QColor("#35d4ff")
-           << QColor("#f1fa5c") << QColor("#6a9955") << QColor("#2de2b8") << QColor("#bd93f9")
-           << QColor("#ff6e6e");
+        // neon on black (the owner's Zed colours): instructions and directives magenta, registers cyan,
+        // numbers orange, label definitions yellow; strings, I/O macros and comments chosen to match
+        fg << QColor("#ff2bff") << QColor("#00f0ff") << QColor("#ff9100") << QColor("#00f0ff")
+           << QColor("#ffff00") << QColor("#6b7a80") << QColor("#ff2bff") << QColor("#bf5fff")
+           << QColor("#39ff14");
     else
         fg << QColor("#0050e6") << QColor("#c2189c") << QColor("#d45a00") << QColor("#0086b3")
            << QColor("#8a6d00") << QColor("#2e7d32") << QColor("#00897b") << QColor("#6f42c1")
@@ -73,9 +75,12 @@ QMap<QString, QColor> editorDefaults(bool dark)
     }
     m.insert("backgroundcolor", bg);
     m.insert("fontcolor", QColor(dark ? "#d4d4d4" : "#1f1f1f"));
+    //! plain text in the code editor only (names, punctuation); the log and the other panels keep fontcolor
+    m.insert("codetextcolor", QColor(dark ? "#00f0ff" : "#1f1f1f"));
     m.insert("linenumberpanelcolor", bg);
-    m.insert("linenumberfontcolor", QColor(dark ? "#858585" : "#6e7681"));
-    m.insert("currentlinecolor", QColor(dark ? "#121212" : "#f2f6ff"));
+    m.insert("linenumberfontcolor", QColor(dark ? "#4e5a5f" : "#6e7681"));
+    m.insert("linenumberactivecolor", QColor(dark ? "#d0d4da" : "#1f1f1f"));
+    m.insert("currentlinecolor", QColor(dark ? "#111111" : "#f2f6ff"));
     m.insert("debuglinecolor", QColor(dark ? "#4b4214" : "#ffe9a8"));
     m.insert("successcolor", QColor(dark ? "#4ec9a0" : "#107c10"));
     m.insert("errorcolor", QColor(dark ? "#f48771" : "#c72e2e"));
@@ -101,6 +106,10 @@ void setTheme(QSettings &settings, bool dark)
     for (auto it = d.constBegin(); it != d.constEnd(); ++it)
         settings.setValue(it.key(), it.value().name()); // "#rrggbb": readable INI
     settings.setValue("currentlinemode", true);
+    //! the neon dark theme uses no bold and no italic; the light theme keeps them
+    for (const char *k : { "keywords", "labels", "system" })
+        settings.setValue(QString(k) + "bold", !dark);
+    settings.setValue("commentsitalic", !dark);
 }
 
 //! QSS can only load images from files: the tinted close icon is written
@@ -255,6 +264,39 @@ void ensureInitialized(QSettings &settings)
                 settings.setValue("currentlinecolor", nd.value("currentlinecolor").name());
         }
         settings.setValue("colorversion", 3);
+    }
+    //! colours v4: the dark theme is neon on black. Only replaces values that are still the previous
+    //! dark defaults; an imported theme keeps its own text colour in the editor.
+    if (settings.value("colorversion", 1).toInt() < 4) {
+        if (settings.value("theme", "dark").toString() != "light" && settings.contains("theme")) {
+            static const char *prev[] = { "#3794ff", "#ff79c6", "#ffb86c", "#35d4ff", "#f1fa5c", "#6a9955", "#2de2b8", "#bd93f9", "#ff6e6e" };
+            const QMap<QString, QColor> nd = editorDefaults(true);
+            bool allDefault = true;
+            for (int i = 0; i < 9; ++i) {
+                const QString key = QString(kSyntaxKeys[i]) + "color";
+                if (settings.value(key).toString().toLower() == prev[i])
+                    settings.setValue(key, nd.value(key).name());
+                else
+                    allDefault = false;
+            }
+            auto move = [&](const char *key, std::initializer_list<const char *> olds) {
+                const QString cur = settings.value(key).toString().toLower();
+                for (const char *o : olds)
+                    if (cur == o)
+                        settings.setValue(key, nd.value(key).name());
+            };
+            move("linenumberfontcolor", { "#858585" });
+            move("currentlinecolor", { "#121212", "#262626" });
+            const QString fg = settings.value("fontcolor").toString().toLower();
+            if (!settings.contains("codetextcolor") && !fg.isEmpty() && fg != "#d4d4d4")
+                settings.setValue("codetextcolor", fg);       // an imported theme's own text colour
+            if (allDefault) {                                  // the stock theme: no bold, no italic
+                for (const char *k : { "keywords", "labels", "system" })
+                    settings.setValue(QString(k) + "bold", false);
+                settings.setValue("commentsitalic", false);
+            }
+        }
+        settings.setValue("colorversion", 4);
     }
     if (settings.contains("theme"))
         return;

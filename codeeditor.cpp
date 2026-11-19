@@ -110,6 +110,7 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(shiftBreakpoints(int)));
 
     updateLineNumberAreaWidth(0);
+    applyThemeColors();   // the base class constructor applied the generic colours
     highlightCurrentLine();
     currentDebugLine = -1;
 }
@@ -176,7 +177,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
             const int cy = top + lh / 2;
             const bool activeLine = (blockNumber == textCursor().blockNumber());
             QString number = QString::number(blockNumber + 1);
-            painter.setPen(activeLine ? Theme::color("fontcolor") : Theme::color("linenumberfontcolor"));
+            painter.setPen(activeLine ? Theme::color("linenumberactivecolor") : Theme::color("linenumberfontcolor"));
             painter.drawText(debugAreaWidth, top, lineNumberArea->width() - debugAreaWidth - 12, lh,
                              Qt::AlignRight | Qt::AlignAbsolute, number);
 
@@ -596,7 +597,9 @@ CodeEditor::~CodeEditor()
 
 void CodeEditor::applyThemeColors()
 {
-    RuQPlainTextEdit::applyThemeColors();
+    //! plain code text has its own colour (codetextcolor): the log and the other panels keep fontcolor
+    setStyleSheet(QString("QPlainTextEdit { background-color: %1; color: %2; border: none; }")
+                  .arg(Theme::color("backgroundcolor").name(), Theme::color("codetextcolor").name()));
     lineNumberPanelColor = Theme::color("linenumberpanelcolor");
     repaintLineNumberArea();
 }
