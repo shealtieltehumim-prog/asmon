@@ -449,6 +449,50 @@ jobs:
           if ($p.HasExited) { throw "asmon.exe exited in reverse engineering mode with code $($p.ExitCode)" }
           Shot "11-reverse-engineering"
           Stop-Process -Id $p.Id -Force
+      - name: Editor font shots (Consolas, several sizes, dark and light)
+        # only when asked for: put [fontshots] in the commit message
+        if: contains(github.event.head_commit.message, '[fontshots]')
+        shell: pwsh
+        run: |
+          # Pictures of the default editor font (Consolas, as in VS Code) on a real Windows: every sample
+          # at several sizes in the dark theme and at 11 in the light theme. Cropped to the editor and
+          # enlarged x2 so the glyphs are easy to judge.
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory -Force fontshots | Out-Null
+          $cfgDir = Join-Path $env:APPDATA 'Asmon'
+          New-Item -ItemType Directory -Force $cfgDir | Out-Null
+          $ini = Join-Path $cfgDir 'Asmon.ini'
+          $cases = @()
+          foreach ($f in Get-ChildItem tests\fontshots\*.asm) {
+            foreach ($sz in 10, 11, 12, 14) { $cases += ,@($f, $sz, 'dark') }
+            $cases += ,@($f, 11, 'light')
+          }
+          foreach ($c in $cases) {
+            $f = $c[0]; $sz = $c[1]; $theme = $c[2]
+            Set-Content -Path $ini -Encoding UTF8 -Value @('[General]', 'fontfamily=Consolas', "fontsize=$sz", 'fontversion=3', "theme=$theme")
+            $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $f.FullName -PassThru
+            Start-Sleep 9
+            if ($p.HasExited) { throw "asmon.exe exited for $($f.Name) ($sz, $theme)" }
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $crop = New-Object System.Drawing.Rectangle 90, 185, 840, 300
+            $out = New-Object System.Drawing.Bitmap ($crop.Width * 2), ($crop.Height * 2)
+            $g = [System.Drawing.Graphics]::FromImage($out)
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.DrawImage($bmp, (New-Object System.Drawing.Rectangle 0, 0, $out.Width, $out.Height), $crop, [System.Drawing.GraphicsUnit]::Pixel)
+            $name = "{0}_{1}pt_{2}" -f $f.BaseName, $sz, $theme
+            $out.Save("fontshots\$name.png")
+            Stop-Process -Id $p.Id -Force
+            Start-Sleep 1
+          }
+          Remove-Item $ini -Force
+          Get-ChildItem fontshots | Measure-Object | ForEach-Object { "$($_.Count) font shots" }
+      - uses: actions/upload-artifact@v4
+        if: always() && contains(github.event.head_commit.message, '[fontshots]')
+        with:
+          name: editor-font-shots
+          path: fontshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
