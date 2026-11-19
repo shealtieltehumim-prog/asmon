@@ -1519,6 +1519,10 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
         <source>Licenses and credits...</source>
         <translation>רישיונות וקרדיטים...</translation>
     </message>
+    <message>
+        <source>Focus mode  ·  Esc to exit</source>
+        <translation>מצב מיקוד  ·  Esc ליציאה</translation>
+    </message>
 </context>
 <context>
     <name>MiDebugger</name>

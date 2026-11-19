@@ -941,7 +941,7 @@ void MainWindow::createAsmonUi()
     focusModeAction = new QAction(tr("Focus mode"), this);
     focusModeAction->setProperty("en", "Focus mode");
     focusModeAction->setCheckable(true);
-    focusModeAction->setShortcut(QKeySequence("Ctrl+K, Z"));
+    focusModeAction->setShortcuts({ QKeySequence("Alt+Z"), QKeySequence("Ctrl+K, Z") });
     focusModeAction->setShortcutContext(Qt::ApplicationShortcut);
     connect(focusModeAction, SIGNAL(toggled(bool)), this, SLOT(toggleFocusMode(bool)));
     addAction(focusModeAction);
@@ -2080,10 +2080,27 @@ void MainWindow::showCommandPalette()
 
 void MainWindow::toggleFocusMode(bool on)
 {
+    //! Focus mode: only the code stays. Everything around it goes away (menu, mode bar, file tabs,
+    //! bottom panel, debugger panels, status bar) and comes back exactly as it was on exit.
+    static QShortcut *escape = nullptr;
+    if (!escape) {
+        escape = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+        escape->setContext(Qt::ApplicationShortcut);
+        escape->setEnabled(false);
+        connect(escape, &QShortcut::activated, this, [this]() {
+            if (QWidget *popup = QApplication::activePopupWidget())
+                popup->close();   // Esc first closes an open completion list or menu
+            else
+                focusModeAction->setChecked(false);
+        });
+    }
+    escape->setEnabled(on);   // Esc leaves focus mode; outside it Esc keeps its usual meaning
     if (on) {
+        if (modeBar->mode() != ModeBar::Write)
+            modeBar->setMode(ModeBar::Write);
         hiddenByFocusMode.clear();
         QList<QWidget *> candidates;
-        candidates << menuBar() << bottomPanel;
+        candidates << menuBar() << modeBar << bottomCard << statusBar() << tabs->tabBar();
         for (QDockWidget *d : findChildren<QDockWidget *>())
             candidates << d;
         for (QWidget *w : candidates) {
@@ -2092,12 +2109,28 @@ void MainWindow::toggleFocusMode(bool on)
                 w->hide();
             }
         }
-        printLogWithTime(tr("Focus mode: press Ctrl+K, Z to exit.") + '\n', Theme::color("fontcolor"));
+        //! a short hint over the code (the log panel is hidden, so a log line would not be seen)
+        QLabel *hint = new QLabel(tr("Focus mode  ·  Esc to exit"), tabs);
+        hint->setObjectName("focusHint");
+        hint->setAttribute(Qt::WA_TransparentForMouseEvents);
+        hint->setStyleSheet("QLabel#focusHint { background: rgba(40,40,40,230); color: #e6e6e6;"
+                            " border: 1px solid #3a3a3a; border-radius: 10px; padding: 7px 16px; }");
+        hint->adjustSize();
+        hint->move((tabs->width() - hint->width()) / 2, 14);
+        hint->show();
+        hint->raise();
+        QTimer::singleShot(3500, hint, &QObject::deleteLater);
+        if (Tab *t = qobject_cast<Tab *>(tabs->currentWidget()))
+            t->code->setFocus();   // typing continues right away
     } else {
         for (QWidget *w : hiddenByFocusMode)
             if (w)
                 w->show();
         hiddenByFocusMode.clear();
+        if (QLabel *hint = tabs->findChild<QLabel *>("focusHint"))
+            hint->deleteLater();
+        if (Tab *t = qobject_cast<Tab *>(tabs->currentWidget()))
+            t->code->setFocus();
     }
 }
 

@@ -29,8 +29,9 @@ struct Chrome {
 Chrome chrome(bool dark)
 {
     if (dark)
-        return { "#141414", "#1f1f1f", "#181818", "#2b2b2b", "#cccccc", "#8b8b8b",
-                 "#0078d4", "#2a2d2e", "#264f78", "#ffffff", "#313131" };
+        // true black: the editor is #000000 and the frame around it is almost black
+        return { "#080808", "#000000", "#050505", "#262626", "#cccccc", "#8b8b8b",
+                 "#0078d4", "#1c1c1c", "#264f78", "#ffffff", "#141414" };
     return { "#f8f8f8", "#ffffff", "#f8f8f8", "#e5e5e5", "#1f1f1f", "#6e6e6e",
              "#005fb8", "#e8e8e8", "#add6ff", "#000000", "#ffffff" };
 }
@@ -74,7 +75,7 @@ QMap<QString, QColor> editorDefaults(bool dark)
     m.insert("fontcolor", QColor(dark ? "#d4d4d4" : "#1f1f1f"));
     m.insert("linenumberpanelcolor", bg);
     m.insert("linenumberfontcolor", QColor(dark ? "#858585" : "#6e7681"));
-    m.insert("currentlinecolor", QColor(dark ? "#262626" : "#f2f6ff"));
+    m.insert("currentlinecolor", QColor(dark ? "#121212" : "#f2f6ff"));
     m.insert("debuglinecolor", QColor(dark ? "#4b4214" : "#ffe9a8"));
     m.insert("successcolor", QColor(dark ? "#4ec9a0" : "#107c10"));
     m.insert("errorcolor", QColor(dark ? "#f48771" : "#c72e2e"));
@@ -238,6 +239,22 @@ void ensureInitialized(QSettings &settings)
         if (!settings.contains("commentsitalic"))
             settings.setValue("commentsitalic", true);
         settings.setValue("colorversion", 2);
+    }
+    //! colours v3: the dark theme is true black. Only replaces values that are still the old dark
+    //! defaults (a background picked in Settings or an imported theme is kept).
+    if (settings.value("colorversion", 1).toInt() < 3) {
+        if (settings.value("theme", "dark").toString() != "light") {
+            const QMap<QString, QColor> nd = editorDefaults(true);
+            QStringList keys = { "backgroundcolor", "linenumberpanelcolor" };
+            for (const char *k : kSyntaxKeys)
+                keys << QString(k) + "colorbg";
+            for (const QString &key : keys)
+                if (settings.value(key).toString().toLower() == "#1f1f1f")
+                    settings.setValue(key, nd.value(key).name());
+            if (settings.value("currentlinecolor").toString().toLower() == "#262626")
+                settings.setValue("currentlinecolor", nd.value("currentlinecolor").name());
+        }
+        settings.setValue("colorversion", 3);
     }
     if (settings.contains("theme"))
         return;
