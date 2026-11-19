@@ -773,8 +773,24 @@ jobs:
           Write-Host "e2e: build and run OK"
           # 2) a breakpoint on line 13, debug: stops at the start of main, then continue to the breakpoint
           $null = $ws.AppActivate($p.Id); Start-Sleep 2
-          $ws.SendKeys("^{HOME}"); Start-Sleep 1
-          $ws.SendKeys("{DOWN 12}"); Start-Sleep 1
+          # keyboard focus is not in the editor after a build: click on line 13 (this also puts the cursor
+          # there). Offsets are measured from the window's top-left corner (shot e2e-2 shows the result).
+          $src = @(
+            'using System; using System.Runtime.InteropServices;',
+            'public static class WinClick {',
+            '  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }',
+            '  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);',
+            '  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);',
+            '  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, UIntPtr e);',
+            '  public static void Click(IntPtr h, int dx, int dy) {',
+            '    RECT r; GetWindowRect(h, out r); SetCursorPos(r.L + dx, r.T + dy);',
+            '    mouse_event(2, 0, 0, 0, UIntPtr.Zero); mouse_event(4, 0, 0, 0, UIntPtr.Zero);',
+            '  }',
+            '}'
+          ) -join "`n"
+          Add-Type -TypeDefinition $src
+          $p.Refresh()
+          [WinClick]::Click($p.MainWindowHandle, 300, 370); Start-Sleep 1
           $ws.SendKeys("{F8}"); Start-Sleep 2
           Shot "e2e-2-breakpoint-set"
           $ws.SendKeys("{F5}"); Start-Sleep 20
