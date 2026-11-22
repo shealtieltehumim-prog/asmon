@@ -2072,7 +2072,8 @@ void MainWindow::updateTitle()
         if (QWidget *corner = menuBar()->cornerWidget(Qt::TopRightCorner))
             if (corner->geometry().intersects(r.adjusted(-12, 0, 12, 0)))
                 clash = true;
-        titleLabel->setVisible(!clash);
+        //! only the frameless (Hebrew) window: elsewhere Windows already shows the title in its frame
+        titleLabel->setVisible(!clash && QApplication::layoutDirection() == Qt::RightToLeft);
         titleLabel->raise();
     }
 }
