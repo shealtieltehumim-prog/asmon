@@ -13,29 +13,42 @@
 #include <QVBoxLayout>
 
 #include "cardframe.h"
+#include "theme.h"
+#include <QFrame>
 
 ModeBar::ModeBar(QWidget *parent) : QWidget(parent)
 {
     setObjectName("modeBar");
     setAttribute(Qt::WA_StyledBackground, true);   // the style sheet draws its bottom separator
     QHBoxLayout *row = new QHBoxLayout(this);
-    row->setContentsMargins(6, 0, 8, 0);
-    row->setSpacing(2);
+    row->setContentsMargins(8, 5, 8, 5);
+    row->setSpacing(4);
 
     const QString names[3] = { tr("Write"), tr("Debug"), tr("Reverse engineering") };
+    const char *icons[3] = { "write", "debug", "inspect" };
+    //! a segmented switch (one rounded track, the current mode raised inside it)
+    QFrame *segment = new QFrame;
+    segment->setObjectName("modeSegment");
+    QHBoxLayout *seg = new QHBoxLayout(segment);
+    seg->setContentsMargins(3, 3, 3, 3);
+    seg->setSpacing(2);
     for (int i = 0; i < 3; ++i) {
         QToolButton *tab = new QToolButton;
         tab->setObjectName("modeTab");
         tab->setText(names[i]);
+        tab->setIcon(Theme::icon(icons[i]));
+        tab->setProperty("asmonIcon", icons[i]);
+        tab->setIconSize(QSize(15, 15));
         tab->setCheckable(true);
         tab->setAutoRaise(false);
-        tab->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        tab->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         tab->setFocusPolicy(Qt::NoFocus);
         const Mode mode = Mode(i);
         connect(tab, &QToolButton::clicked, this, [this, mode]() { setMode(mode); });
-        row->addWidget(tab);
+        seg->addWidget(tab);
         m_tabs[i] = tab;
     }
+    row->addWidget(segment);
     m_tabs[m_mode]->setChecked(true);
 
     row->addStretch(1);
@@ -130,6 +143,9 @@ void ModeBar::addAction(Mode mode, QAction *action)
     button->setIconSize(QSize(16, 16));
     button->setAutoRaise(false);
     button->setFocusPolicy(Qt::NoFocus);
+    //! the main action of a mode (Build and run, Debug) is a filled accent button
+    if (action->property("primary").toBool())
+        button->setProperty("primary", true);
     addWidget(mode, button);
 }
 
@@ -144,4 +160,9 @@ void ModeBar::showButtonsOf(Mode mode)
 {
     for (const auto &item : m_items)
         item.second->setVisible(item.first == mode);
+}
+
+QString ModeBar::modeName(int m) const
+{
+    return (m >= 0 && m < 3 && m_tabs[m]) ? m_tabs[m]->text() : QString();
 }

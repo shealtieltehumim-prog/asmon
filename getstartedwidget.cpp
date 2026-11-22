@@ -40,6 +40,7 @@
 
 #include "getstartedwidget.h"
 #include "theme.h"
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QVBoxLayout>
@@ -115,13 +116,16 @@ QPushButton *GetStartedWidget::makeLink(const QString &iconName, const QString &
     auto *b = new QPushButton(Theme::icon(iconName), hint.isEmpty() ? text : text + "      " + hint);
     b->setFlat(true);
     b->setCursor(Qt::PointingHandCursor);
-    b->setMinimumWidth(320);
+    b->setMinimumWidth(380);
     b->setIconSize(QSize(18, 18));
-    b->setStyleSheet("QPushButton { text-align: left; padding: 8px 12px; border: none; border-radius: 6px;"
-                     " background: transparent; }" +
-                     QString("QPushButton:hover { background: %1; }").arg(Theme::isDark() ? "#2a2d2e" : "#e8e8e8"));
-    if (layoutDirection() == Qt::RightToLeft)
-        b->setStyleSheet(b->styleSheet().replace("text-align: left", "text-align: right"));
+    //! a card per action: a soft panel with a thin border that lights up in the accent colour
+    const bool dark = Theme::isDark();
+    b->setStyleSheet(QString("QPushButton { text-align: left; padding: 11px 16px; border-radius: 10px; margin: 3px 0px;"
+                             " background: %1; border: 1px solid %2; }"
+                             "QPushButton:hover { background: %3; border: 1px solid %4; }")
+                     .arg(dark ? "#14161a" : "#ffffff", dark ? "#23262d" : "#e1e4e8",
+                          dark ? "#191c22" : "#f3f6fc", dark ? "#3b82f6" : "#2563eb"));
+    //! "text-align: left" is logical: Qt mirrors it in the Hebrew interface (text on the right)
     return b;
 }
 
@@ -134,7 +138,7 @@ void GetStartedWidget::setRecentFiles(const QStringList &paths)
         QPushButton *b = makeLink("open", fi.fileName(), QDir::toNativeSeparators(fi.absolutePath()));
         b->setIcon(QIcon());
         b->setToolTip(QDir::toNativeSeparators(p));
-        b->setStyleSheet(b->styleSheet() + "QPushButton { padding: 5px 12px; }");
+        b->setStyleSheet(b->styleSheet() + "QPushButton { padding: 7px 16px; background: transparent; border-color: transparent; }");
         connect(b, &QPushButton::clicked, this, [this, p]() { emit openRecent(p); });
         recentLayout->addWidget(b);
         recentButtons << b;

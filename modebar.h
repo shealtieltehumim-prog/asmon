@@ -26,6 +26,7 @@ public:
     explicit ModeBar(QWidget *parent = nullptr);
 
     Mode mode() const { return m_mode; }
+    QString modeName(int m) const;   //!< the (translated) text of a mode's tab
     //! Switches the active tab and shows only the buttons of that mode.
     void setMode(Mode mode);
 

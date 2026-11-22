@@ -259,6 +259,7 @@ void MainWindow::initUi()
     tabs = new QTabWidget;
     connect(tabs, SIGNAL(tabCloseRequested(int)), this, SLOT(deleteTab(int)));
     connect(tabs, SIGNAL(currentChanged(int)), this, SLOT(changeCurrentTab(int)));
+    connect(tabs, &QTabWidget::currentChanged, this, [this](int) { updateStatusBar(); });
     tabs->setTabsClosable(true);
     tabs->setMovable(true);
 
@@ -795,6 +796,8 @@ void MainWindow::createToolBars()
     //! Write: build, run, stop. Debug: debug/continue, step over, step into (step out and stop are
     //! added in createAsmonUi, where that action is created). They are always there, greyed out
     //! when they do not apply, so the row never changes size inside a mode.
+    runAction->setProperty("primary", true);     // the filled accent button of the Write mode
+    debugAction->setProperty("primary", true);   // and of the Debug mode
     modeBar->addAction(ModeBar::Write, buildAction);
     modeBar->addAction(ModeBar::Write, runAction);
     modeBar->addAction(ModeBar::Write, stopAction);
@@ -826,6 +829,7 @@ void MainWindow::createToolBars()
 
 void MainWindow::onModeChanged(int mode)
 {
+    QTimer::singleShot(0, this, &MainWindow::updateStatusBar);   // the mode badge
     //! Write and Debug use the editor page; Debug also shows the debugger panel (empty until a session starts).
     const bool re = (mode == ModeBar::Reverse);
     reversePage->setSizePolicy(re ? QSizePolicy::Preferred : QSizePolicy::Ignored,
@@ -1031,6 +1035,9 @@ void MainWindow::createAsmonUi()
         statusMode = new QLabel;
         statusState = new QLabel;
         statusCursor->setLayoutDirection(Qt::LeftToRight);
+        statusModePill = new QLabel;
+        statusModePill->setObjectName("statusModePill");
+        statusBar()->addWidget(statusModePill);
         statusBar()->addWidget(statusState, 1);
         statusDoc = new QLabel;
         statusDoc->setLayoutDirection(Qt::LeftToRight);
@@ -1338,6 +1345,8 @@ QString MainWindow::prettifyBuildLog(const QString &text)
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == menuBar() && event->type() == QEvent::Resize && titleLabel)
+        QTimer::singleShot(0, this, &MainWindow::updateTitle);
     //! Double click on "file.asm:15: error: ..." in the build log jumps to line 15.
     if (compilerOut && watched == compilerOut->viewport() && event->type() == QEvent::MouseButtonDblClick) {
         const QPoint pos = static_cast<QMouseEvent *>(event)->position().toPoint();
@@ -2030,6 +2039,44 @@ void MainWindow::refreshRecentFiles()
     getStartedWidget->setRecentFiles(existing);
 }
 
+void MainWindow::updateTitle()
+{
+    //! the file name, centred in the title row (the frameless Hebrew window has no system title)
+    QString name;
+    bool modified = false;
+    if (tabs && tabs->count() > 0 && mainWidget && mainWidget->currentIndex() == 1) {
+        Tab *t = (Tab *) tabs->currentWidget();
+        name = tabs->tabText(tabs->currentIndex());
+        name.remove('*');
+        modified = t->code->document()->isModified();
+    }
+    const QString title = name.isEmpty() ? QString("Asmon") : name.trimmed() + QString::fromUtf8("  \u2014  Asmon");
+    setWindowTitle(title);
+    if (!titleLabel && menuBar()) {
+        titleLabel = new QLabel(menuBar());
+        titleLabel->setObjectName("titleLabel");
+        titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+        titleLabel->setAlignment(Qt::AlignCenter);
+        menuBar()->installEventFilter(this);
+    }
+    if (titleLabel) {
+        titleLabel->setText((modified ? QString::fromUtf8("\u25CF  ") : QString()) + title);
+        titleLabel->adjustSize();
+        titleLabel->move((menuBar()->width() - titleLabel->width()) / 2, (menuBar()->height() - titleLabel->height()) / 2);
+        //! only where it does not cover the menus or the buttons
+        const QRect r = titleLabel->geometry();
+        bool clash = false;
+        for (QAction *a : menuBar()->actions())
+            if (menuBar()->actionGeometry(a).intersects(r.adjusted(-12, 0, 12, 0)))
+                clash = true;
+        if (QWidget *corner = menuBar()->cornerWidget(Qt::TopRightCorner))
+            if (corner->geometry().intersects(r.adjusted(-12, 0, 12, 0)))
+                clash = true;
+        titleLabel->setVisible(!clash);
+        titleLabel->raise();
+    }
+}
+
 void MainWindow::updateStatusBar()
 {
     if (!statusCursor)
@@ -2062,6 +2109,17 @@ void MainWindow::updateStatusBar()
     else if (!programStopped)
         state = tr("Running...");
     statusState->setText(state);
+    if (statusModePill && modeBar) {
+        const int m = modeBar->mode();
+        statusModePill->setText(modeBar->modeName(m));
+        const QString kind = debugger ? "debugging" : m == ModeBar::Debug ? "debug" : m == ModeBar::Reverse ? "re" : "write";
+        if (statusModePill->property("kind").toString() != kind) {
+            statusModePill->setProperty("kind", kind);
+            statusModePill->style()->unpolish(statusModePill);
+            statusModePill->style()->polish(statusModePill);
+        }
+    }
+    updateTitle();
     //! VS Code: the status bar is blue, orange while a program is being debugged
     const bool debugging = debugger != nullptr;
     if (statusBar()->property("debugging").toBool() != debugging) {

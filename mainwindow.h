@@ -205,6 +205,9 @@ private:
     QTabWidget *bottomPanel;
     QStackedWidget *outputStack;
     QLabel *statusCursor = nullptr;
+    QLabel *statusModePill = nullptr;   //!< the mode badge at the start of the status bar
+    QLabel *titleLabel = nullptr;       //!< the file name in the middle of the title row
+    void updateTitle();
     QLabel *statusDoc = nullptr;
     QAction *togglePanelAction = nullptr;
     QLabel *statusMode = nullptr;

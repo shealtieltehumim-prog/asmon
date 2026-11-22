@@ -7,6 +7,8 @@
         <file>icons/build.svg</file>
         <file>icons/continue.svg</file>
         <file>icons/debug.svg</file>
+        <file>icons/write.svg</file>
+        <file>icons/inspect.svg</file>
         <file>icons/explorer.svg</file>
         <file>icons/new.svg</file>
         <file>icons/open.svg</file>
