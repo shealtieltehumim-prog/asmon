@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QVBoxLayout>
+#include <QTabWidget>
+#include <QTabBar>
 #include "theme.h"
 
 /**
@@ -17,10 +19,11 @@
 class CardFrame : public QFrame
 {
 public:
-    static constexpr int kRadius = 12;
-    static constexpr int kInset = 3; // keeps the child's square corners inside the rounded outline
+    //! flat (VS Code): no rounded outline, the panels meet edge to edge with 1 px separators
+    static constexpr int kRadius = 0;
+    static constexpr int kInset = 0;
 
-    explicit CardFrame(QWidget *content, QWidget *parent = nullptr) : QFrame(parent)
+    explicit CardFrame(QWidget *content, QWidget *parent = nullptr) : QFrame(parent), m_content(content)
     {
         setAttribute(Qt::WA_StyledBackground, false);
         QVBoxLayout *l = new QVBoxLayout(this);
@@ -29,17 +32,23 @@ public:
         l->addWidget(content);
     }
 
+private:
+    QWidget *m_content = nullptr;
+
 protected:
     void paintEvent(QPaintEvent *) override
     {
         QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        const QPalette pal = QApplication::palette();
-        QPainterPath path;
-        path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), kRadius, kRadius);
-        p.fillPath(path, Theme::color("backgroundcolor")); // follows the selected colour theme
-        p.setPen(QPen(pal.color(QPalette::Mid), 1));
-        p.drawPath(path);
+        p.fillRect(rect(), Theme::color("backgroundcolor")); // follows the selected colour theme
+        //! the strip behind a tab bar is the window colour across the whole width (VS Code), not
+        //! the editor background beside the last tab
+        if (auto *tw = qobject_cast<QTabWidget *>(m_content)) {
+            const QRect bar = tw->tabBar()->geometry();
+            if (tw->count() > 0 && bar.height() > 0) {
+                const int bottom = tw->mapTo(this, QPoint(0, bar.bottom())).y();
+                p.fillRect(QRect(0, 0, width(), bottom + 1), QApplication::palette().color(QPalette::Window));
+            }
+        }
     }
 };
 

@@ -17,9 +17,10 @@
 ModeBar::ModeBar(QWidget *parent) : QWidget(parent)
 {
     setObjectName("modeBar");
+    setAttribute(Qt::WA_StyledBackground, true);   // the style sheet draws its bottom separator
     QHBoxLayout *row = new QHBoxLayout(this);
-    row->setContentsMargins(2, 0, 2, 4);
-    row->setSpacing(4);
+    row->setContentsMargins(6, 0, 8, 0);
+    row->setSpacing(2);
 
     const QString names[3] = { tr("Write"), tr("Debug"), tr("Reverse engineering") };
     for (int i = 0; i < 3; ++i) {

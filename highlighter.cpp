@@ -76,7 +76,13 @@
      QSettings settings;
      for (int i = 0; i < formats.size(); i++) {
          formats[i]->setForeground(Theme::color(names[i] + "color"));
-         formats[i]->setBackground(Theme::color(names[i] + "colorbg"));
+         //! a token "background" equal to the editor background means none: painting it would
+         //! cut a black box out of the current-line band and the indent guides
+         const QColor bg = Theme::color(names[i] + "colorbg");
+         if (bg.isValid() && bg != Theme::color("backgroundcolor"))
+             formats[i]->setBackground(bg);
+         else
+             formats[i]->clearBackground();
          if (settings.value(names[i] + "bold", (i == 0 || i == 4 || i == 6) ? true : false).toBool())
              formats[i]->setFontWeight(QFont::Bold);
          formats[i]->setFontItalic(settings.value(names[i] + "italic", i == 5).toBool());

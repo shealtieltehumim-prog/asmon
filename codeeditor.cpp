@@ -60,6 +60,8 @@ static bool isBidiMark(QChar c)
 #include <QHelpEvent>
 #include <QToolTip>
 #include <QMouseEvent>
+#include "spacedlayout.h"
+#include <QFontInfo>
 
 /**
  * @file codeeditor.cpp
@@ -91,8 +93,12 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
         document()->setDefaultCursorMoveStyle(
             settings.value("visualcursor", true).toBool() ? Qt::VisualMoveStyle : Qt::LogicalMoveStyle);
     }
+    //! Asmon: taller rows (VS Code: a 14 px font in a 19 px line), see spacedlayout.h
+    spacedLayout = new SpacedLayout(document());
+    document()->setDocumentLayout(spacedLayout);
     firstTopMargin = contentOffset().y();
     lineNumberArea = new LineNumberArea(this);
+    updateLineSpacing();
     lineNumberArea->setLayoutDirection(Qt::LeftToRight);
     lineNumberPanelColor = Theme::color("linenumberpanelcolor");
 
@@ -174,12 +180,15 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
         if (block.isVisible() && bottom >= event->rect().top()) {
             const int lh = fontMetrics().height();
             const int cx = debugAreaWidth / 2;       // glyph margin centre
-            const int cy = top + lh / 2;
+            //! the text of the row starts half a line gap below the row's top (spacedlayout.h)
+            const int textTop = top + (block.layout() && block.layout()->lineCount()
+                                       ? int(block.layout()->lineAt(0).position().y()) : 0);
+            const int cy = textTop + lh / 2;
             const bool activeLine = (blockNumber == textCursor().blockNumber());
             QString number = QString::number(blockNumber + 1);
             painter.setPen(activeLine ? Theme::color("linenumberactivecolor") : Theme::color("linenumberfontcolor"));
-            painter.drawText(debugAreaWidth, top, lineNumberArea->width() - debugAreaWidth - 12, lh,
-                             Qt::AlignRight | Qt::AlignAbsolute, number);
+            painter.drawText(debugAreaWidth, textTop, lineNumberArea->width() - debugAreaWidth - 14, lh,
+                             Qt::AlignRight | Qt::AlignVCenter | Qt::AlignAbsolute, number);
 
             painter.setRenderHint(QPainter::Antialiasing);
             if (diagnostics.contains(blockNumber + 1) && blockNumber + 1 != currentDebugLine
@@ -294,17 +303,9 @@ void CodeEditor::highlightCurrentLine()
         if (settings.value("currentlinemode", true).toBool()) {
             QList<QTextEdit::ExtraSelection> extraSelections;
 
-            if (!isReadOnly()) {
-                QTextEdit::ExtraSelection selection;
-
-                QColor lineColor = Theme::color("currentlinecolor");
-
-                selection.format.setBackground(lineColor);
-                selection.format.setProperty(QTextFormat::FullWidthSelection, true);
-                selection.cursor = textCursor();
-                selection.cursor.clearSelection();
-                extraSelections.append(selection);
-            }
+            //! the current line is a full-height band painted in paintEvent (the selection
+            //! would cover the text only, not the gap of the taller rows)
+            viewport()->update();
             appendDiagnosticSelections(extraSelections);
             setExtraSelections(extraSelections);
         } else {
@@ -323,10 +324,6 @@ void CodeEditor::highlightDebugLine(int lineNumber, bool moveCursor)
         if (!isReadOnly() && lineNumber > 0) {
             QTextEdit::ExtraSelection selection;
 
-            QColor lineColor = Theme::color("debuglinecolor");
-
-            selection.format.setBackground(lineColor);
-            selection.format.setProperty(QTextFormat::FullWidthSelection, true);
             selection.cursor = QTextCursor(document());
             selection.cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, lineNumber - 1);
             selection.cursor.clearSelection();
@@ -334,10 +331,11 @@ void CodeEditor::highlightDebugLine(int lineNumber, bool moveCursor)
                 setTextCursor(selection.cursor); //scroll to debugging line
                 centerCursor(); //ensure the debug line is visible and centered in viewport
             }
-            extraSelections.append(selection);
+            Q_UNUSED(selection);   // the band itself is painted in paintEvent
         }
 
         setExtraSelections(extraSelections);
+        viewport()->update();
     }
 }
 
@@ -673,6 +671,109 @@ void CodeEditor::appendDiagnosticSelections(QList<QTextEdit::ExtraSelection> &li
         sel.format.setUnderlineColor(it.value().error ? QColor("#f14c4c") : QColor("#cca700"));
         list.append(sel);
     }
+}
+
+void CodeEditor::updateLineSpacing()
+{
+    if (!spacedLayout)
+        return;
+    //! row height = font size x 1.35, exactly VS Code's rule on Windows/Linux (14 px font -> 19 px row);
+    //! "lineheight" in the settings changes the ratio, 1.0 = the old dense rows
+    const double ratio = qBound(1.0, settings.value("lineheight", 1.35).toDouble(), 2.5);
+    const qreal fontHeight = QFontMetricsF(font()).height();
+    const qreal row = qRound(QFontInfo(font()).pixelSize() * ratio);
+    spacedLayout->setSpacing(qMax<qreal>(0, row - fontHeight));
+    viewport()->update();
+    if (lineNumberArea)
+        lineNumberArea->update();
+}
+
+void CodeEditor::changeEvent(QEvent *e)
+{
+    RuQPlainTextEdit::changeEvent(e);
+    if (e->type() == QEvent::FontChange)
+        updateLineSpacing();
+}
+
+int CodeEditor::blockIndentColumns(const QTextBlock &block) const
+{
+    const QString t = block.text();
+    int col = 0;
+    const int tab = qMax(1, settings.value("tabwidth", 4).toInt());
+    for (const QChar ch : t) {
+        if (ch == ' ')
+            ++col;
+        else if (ch == '\t')
+            col += tab - col % tab;
+        else
+            return col;
+    }
+    return -1;   // an empty or blank line: takes its guides from the lines around it
+}
+
+void CodeEditor::paintEvent(QPaintEvent *e)
+{
+    {
+        QPainter p(viewport());
+        const QPointF offset = contentOffset();
+        const int w = viewport()->width();
+        auto band = [&](int lineNumber, const QColor &c) {
+            const QTextBlock b = document()->findBlockByNumber(lineNumber);
+            if (!b.isValid() || !b.isVisible())
+                return;
+            QRectF r = blockBoundingGeometry(b).translated(offset);
+            if (!b.next().isValid())
+                r.setHeight(r.height() - document()->documentMargin());
+            p.fillRect(QRectF(0, r.top(), w, r.height()), c);
+        };
+        //! current line / debug line: a band as tall as the whole row
+        if (debugMode) {
+            if (currentDebugLine > 0)
+                band(currentDebugLine - 1, Theme::color("debuglinecolor"));
+        } else if (settings.value("currentlinemode", true).toBool() && !isReadOnly()
+                   && !textCursor().hasSelection()) {
+            band(textCursor().blockNumber(), Theme::color("currentlinecolor"));
+        }
+
+        //! indent guides (VS Code): a thin line at every indent level of an indented line
+        if (settings.value("indentguides", true).toBool()) {
+            const int tab = qMax(1, settings.value("tabwidth", 4).toInt());
+            const qreal cw = QFontMetricsF(font()).horizontalAdvance(QLatin1Char(' '));
+            const qreal x0 = offset.x() + document()->documentMargin();
+            QColor guide = Theme::color("linenumberfontcolor");
+            guide.setAlpha(70);
+            QColor active = Theme::color("linenumberactivecolor");
+            active.setAlpha(110);
+            const int cursorBlock = textCursor().blockNumber();
+            QTextBlock b = firstVisibleBlock();
+            //! the indent of a blank line comes from the next non-blank line
+            auto indentOf = [&](QTextBlock x) {
+                for (int n = 0; x.isValid() && n < 200; x = x.next(), ++n) {
+                    const int c = blockIndentColumns(x);
+                    if (c >= 0)
+                        return c;
+                }
+                return 0;
+            };
+            int cursorIndent = indentOf(document()->findBlockByNumber(cursorBlock));
+            while (b.isValid()) {
+                const QRectF r = blockBoundingGeometry(b).translated(offset);
+                if (r.top() > e->rect().bottom())
+                    break;
+                if (b.isVisible() && r.bottom() >= e->rect().top()) {
+                    const int cols = indentOf(b);
+                    for (int c = tab; c <= cols && cols > 0; c += tab) {
+                        const qreal x = qRound(x0 + (c - tab) * cw) + 0.5;
+                        const bool hot = (b.blockNumber() == cursorBlock && c == cursorIndent);
+                        p.setPen(QPen(hot ? active : guide, 1));
+                        p.drawLine(QPointF(x, r.top()), QPointF(x, r.bottom()));
+                    }
+                }
+                b = b.next();
+            }
+        }
+    }
+    RuQPlainTextEdit::paintEvent(e);
 }
 
 bool CodeEditor::event(QEvent *e)

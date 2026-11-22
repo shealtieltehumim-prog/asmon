@@ -118,6 +118,8 @@ protected:
     void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent *e);
     bool event(QEvent *e) override;
+    void paintEvent(QPaintEvent *e) override;
+    void changeEvent(QEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     QMimeData *createMimeDataFromSelection() const override;
@@ -132,7 +134,7 @@ private slots:
     void shiftBreakpoints(int blockCount);
 
 private:
-    QWidget *lineNumberArea;
+    QWidget *lineNumberArea = nullptr;
     int debugAreaWidth;
     QPixmap debugImage;
     QPixmap breakpointImage;
@@ -146,6 +148,9 @@ private:
     QMap<int, Diagnostic> diagnostics;
     QMap<int, QString> conditions;
     bool applyingBidiMarks = false;
+    class SpacedLayout *spacedLayout = nullptr;
+    void updateLineSpacing();                  //!< row height = font height x the "lineheight" setting
+    int blockIndentColumns(const QTextBlock &block) const;
     class QCompleter *completer = nullptr;
     void updateCompletion(bool force);
     void insertCompletion(const QString &word);

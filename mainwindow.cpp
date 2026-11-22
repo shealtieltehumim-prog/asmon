@@ -42,6 +42,7 @@
 #include "mainwindow.h"
 #include "licensesdialog.h"
 #include "reversepage.h"
+#include <QStyle>
 #include <QScreen>
 #include <QInputDialog>
 #include "processpicker.h"
@@ -209,9 +210,9 @@ void MainWindow::initUi()
     workLayout->addWidget(modeBar);
     workLayout->addWidget(modeStack, 1);
     connect(modeBar, &ModeBar::modeChanged, this, &MainWindow::onModeChanged);
-    workLayout->setContentsMargins(8, 2, 8, 8);   // space around the cards
+    workLayout->setContentsMargins(0, 0, 0, 0);   // flat panels edge to edge, like VS Code
     workLayout->setSpacing(0);
-    splitter->setHandleWidth(8);                  // the gap between the editor card and the panel card
+    splitter->setHandleWidth(1);                  // a 1 px separator between the editor and the panel
     workWidget = new QWidget;
     workWidget->setLayout(workLayout);
 
@@ -2032,6 +2033,17 @@ void MainWindow::updateStatusBar()
     else if (!programStopped)
         state = tr("Running...");
     statusState->setText(state);
+    //! VS Code: the status bar is blue, orange while a program is being debugged
+    const bool debugging = debugger != nullptr;
+    if (statusBar()->property("debugging").toBool() != debugging) {
+        statusBar()->setProperty("debugging", debugging);
+        statusBar()->style()->unpolish(statusBar());
+        statusBar()->style()->polish(statusBar());
+        for (QWidget *w : statusBar()->findChildren<QWidget *>()) {
+            w->style()->unpolish(w);
+            w->style()->polish(w);
+        }
+    }
 }
 
 void MainWindow::showBottomPage(QWidget *page)

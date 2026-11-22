@@ -120,6 +120,7 @@ SOURCES += main.cpp\
     gccbasedassembler.cpp
 
 HEADERS  += mainwindow.h \
+    spacedlayout.h \
     regexp.h \
     theme.h \
     terminalwidget.h \
