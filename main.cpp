@@ -45,9 +45,11 @@
 #include <QPushButton>
 #include <QtSingleApplication>
 #include <QFile>
+#include <QDir>
 #include "theme.h"
 #include <QThread>
 #include "updater.h"
+#include "selftest.h"
 
 /**
  * @file main.cpp
@@ -60,7 +62,16 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName("Asmon");
     QCoreApplication::setApplicationName("Asmon");
     QSettings::setDefaultFormat(QSettings::IniFormat);
+    bool selfTest = false;
+    for (int i = 1; i < argc; ++i)
+        selfTest = selfTest || QByteArray(argv[i]) == "--selftest";
+    if (selfTest)
+        installSelfTestMessageHandler();
     QtSingleApplication a(argc, argv);
+    //! the self test uses its own empty settings: it never touches the user's
+    if (selfTest)
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                           QDir::tempPath() + "/asmon-selftest-" + QString::number(QCoreApplication::applicationPid()));
     //! Portable mode: a file named "portable" next to the executable keeps
     //! the settings in "<exe dir>/data/Asmon/Asmon.ini" instead of the user profile.
     if (QFile::exists(QCoreApplication::applicationDirPath() + "/portable"))
@@ -71,6 +82,8 @@ int main(int argc, char *argv[])
     Theme::ensureInitialized(settings);
     a.setFont(Theme::uiFont());
     Theme::apply(a);
+    if (selfTest)
+        return runSelfTest(argc, argv);   // before the single-instance check: runs beside an open Asmon
     //! Restart requested by the app itself (e.g. after a language switch):
     //! wait until the previous instance has exited before going on.
     if (a.arguments().contains("--asmon-restart")) {

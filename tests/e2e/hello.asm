@@ -1,5 +1,5 @@
 ; End-to-end test used by CI: Hello World, a breakpoint on line 13, then the built exe in RE mode.
-; Do not move lines: the test sets the breakpoint by going down 12 lines from the top.
+; Do not move lines: the test puts the breakpoint on line 13 (Go to line, Ctrl+G).
 %include "io64.inc"
 
 section .data

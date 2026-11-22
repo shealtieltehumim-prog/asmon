@@ -61,7 +61,14 @@ static bool isBidiMark(QChar c)
 #include <QToolTip>
 #include <QMouseEvent>
 #include "spacedlayout.h"
+#include "minimap.h"
+#include <QScrollBar>
 #include <QFontInfo>
+#include <QScopedValueRollback>
+#include <QRegularExpression>
+#include <algorithm>
+#include <QTimer>
+#include <QPainterPath>
 
 /**
  * @file codeeditor.cpp
@@ -99,6 +106,8 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     firstTopMargin = contentOffset().y();
     lineNumberArea = new LineNumberArea(this);
     updateLineSpacing();
+    minimapEnabled = settings.value("minimap", true).toBool() && withBeakpoints;   // the code editors only
+    minimap = new Minimap(this);
     lineNumberArea->setLayoutDirection(Qt::LeftToRight);
     lineNumberPanelColor = Theme::color("linenumberpanelcolor");
 
@@ -106,6 +115,10 @@ CodeEditor::CodeEditor(QWidget *parent, bool withBeakpoints) :
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
     connect(this, &QPlainTextEdit::cursorPositionChanged, this, [this]() { lineNumberArea->update(); });
+    //! folding: a cursor that lands on a folded line unfolds it (search, go to line, the debugger) or,
+    //! moved by the arrow keys, steps over the folded lines; edits re-apply the folds
+    connect(this, &QPlainTextEdit::cursorPositionChanged, this, &CodeEditor::keepCursorOutOfFolds);
+    connect(document(), &QTextDocument::contentsChange, this, [this](int, int, int) { queueApplyFolds(); });
     //! Asmon: Hebrew in strings and comments (see updateBidiHint)
     connect(document(), &QTextDocument::contentsChange, this, &CodeEditor::updateBidiHints);
     //! a removed breakpoint forgets its condition
@@ -132,14 +145,41 @@ int CodeEditor::lineNumberAreaWidth()
 
     //! room for at least 3 digits and a margin: the gutter does not jump
     //! between 9 and 10 lines, and numbers do not touch the window edge
-    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 18 + debugAreaWidth;
+    int space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 8 + debugAreaWidth + foldAreaWidth;
 
     return space;
 }
 
 void CodeEditor::updateLineNumberAreaWidth(int /* newBlockCount */)
 {
-    setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);
+    const int right = minimapShown() ? Minimap::kWidth : 0;
+    setViewportMargins(lineNumberAreaWidth(), 0, right, 0);
+    placeMinimap();
+}
+
+bool CodeEditor::minimapShown() const
+{
+    //! a narrow editor keeps its width for the code
+    return minimap && minimapEnabled && width() >= 560;
+}
+
+void CodeEditor::setMinimapEnabled(bool on)
+{
+    minimapEnabled = on;
+    updateLineNumberAreaWidth(0);
+}
+
+void CodeEditor::placeMinimap()
+{
+    if (!minimap)
+        return;
+    const bool shown = minimapShown();
+    minimap->setVisible(shown);
+    if (shown) {
+        const QRect vp = viewport()->geometry();
+        minimap->setGeometry(vp.right() + 1, vp.top(), Minimap::kWidth, vp.height());
+        minimap->scheduleRebuild();
+    }
 }
 
 void CodeEditor::updateLineNumberArea(const QRect &rect, int dy)
@@ -161,6 +201,12 @@ void CodeEditor::resizeEvent(QResizeEvent *e)
 
     QRect cr = contentsRect();
     lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height()));
+    //! the minimap needs the new width to decide whether it fits
+    const int right = minimapShown() ? Minimap::kWidth : 0;
+    if (viewportMargins().right() != right)
+        updateLineNumberAreaWidth(0);
+    else
+        placeMinimap();
 }
 
 void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
@@ -170,6 +216,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     painter.setLayoutDirection(Qt::LeftToRight); // Asmon: same gutter in RTL UI
     painter.setFont(font());                     // line numbers in the code font, like VS Code
     painter.fillRect(event->rect(), lineNumberPanelColor);
+    foldRanges();   // fills foldEndOf for the arrows
 
     QTextBlock block = firstVisibleBlock();
     int blockNumber = block.blockNumber();
@@ -187,8 +234,31 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
             const bool activeLine = (blockNumber == textCursor().blockNumber());
             QString number = QString::number(blockNumber + 1);
             painter.setPen(activeLine ? Theme::color("linenumberactivecolor") : Theme::color("linenumberfontcolor"));
-            painter.drawText(debugAreaWidth, textTop, lineNumberArea->width() - debugAreaWidth - 14, lh,
+            painter.drawText(debugAreaWidth, textTop, lineNumberArea->width() - debugAreaWidth - foldAreaWidth - 4, lh,
                              Qt::AlignRight | Qt::AlignVCenter | Qt::AlignAbsolute, number);
+            //! fold arrow (VS Code): shown while the mouse is over the gutter, always on a folded line
+            if (foldEndOf.contains(blockNumber)) {
+                const bool folded = isFoldedAt(blockNumber);
+                if (folded || gutterHover) {
+                    const qreal fx = lineNumberArea->width() - foldAreaWidth / 2.0 - 1;
+                    const qreal s = 3.5;
+                    QPainterPath arrow;
+                    if (folded) {          // >  (folded)
+                        arrow.moveTo(fx - s / 2, cy - s);
+                        arrow.lineTo(fx + s / 2, cy);
+                        arrow.lineTo(fx - s / 2, cy + s);
+                    } else {               // v  (open)
+                        arrow.moveTo(fx - s, cy - s / 2);
+                        arrow.lineTo(fx, cy + s / 2);
+                        arrow.lineTo(fx + s, cy - s / 2);
+                    }
+                    painter.setRenderHint(QPainter::Antialiasing);
+                    painter.setPen(QPen(folded ? Theme::color("linenumberactivecolor") : Theme::color("linenumberfontcolor"),
+                                        1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+                    painter.setBrush(Qt::NoBrush);
+                    painter.drawPath(arrow);
+                }
+            }
 
             painter.setRenderHint(QPainter::Antialiasing);
             if (diagnostics.contains(blockNumber + 1) && blockNumber + 1 != currentDebugLine
@@ -225,43 +295,254 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     }
 }
 
+int CodeEditor::blockAtGutterY(int y)
+{
+    //! the row under y (rows have different heights: folded lines are hidden, rows have spacing)
+    for (QTextBlock b = firstVisibleBlock(); b.isValid(); b = b.next()) {
+        if (!b.isVisible())
+            continue;
+        const QRectF r = blockBoundingGeometry(b).translated(contentOffset());
+        if (r.top() > y)
+            return -1;
+        if (y < r.bottom())
+            return b.blockNumber();
+    }
+    return -1;
+}
+
 void CodeEditor::lineNumberAreaMousePressEvent(QMouseEvent *event)
 {
-    if (hasBreakpoints) {
-        //! If mouse click has been made - add breakpoint
-        //! Counting line number
-        int lineNumber = 0;
-        int sumHeight = 0;
-        QTextBlock block = firstVisibleBlock();
-        while (block.isValid() && event->y() > sumHeight) {
-            sumHeight += blockBoundingGeometry(block).height();
-            block = block.next();
-            lineNumber++;
-        }
-        lineNumber += verticalScrollBar()->value(); //+ invisible lines
-
-        if (lineNumber <= document()->lineCount()) {
-            //blocks counting starts with 0
-            QTextBlock targetBlock = document()->findBlockByLineNumber(lineNumber - 1);
-            lineNumber = targetBlock.blockNumber() + 1; //line number to paint
-
-            //! Move text cursor to clicked line to prevent view from
-            //! scrolling back to old cursor position (e.g. top of file)
-            QTextCursor cursor(targetBlock);
-            setTextCursor(cursor);
-
-            //add or remove line number in list
-            if (breakpoints.contains(lineNumber)) {
-                breakpoints.removeOne(lineNumber);
-                emit breakpointsChanged(lineNumber, false);
-            } else {
-                breakpoints.append(lineNumber);
-                emit breakpointsChanged(lineNumber, true);
-            }
-
-            repaintLineNumberArea();
+    const int y = int(event->position().y());
+    const int x = int(event->position().x());
+    const int blockNumber = blockAtGutterY(y);
+    if (blockNumber < 0)
+        return;
+    //! the fold arrow column
+    if (x >= lineNumberArea->width() - foldAreaWidth - 2) {
+        foldRanges();
+        if (foldEndOf.contains(blockNumber)) {
+            setFolded(blockNumber, !isFoldedAt(blockNumber));
+            return;
         }
     }
+    if (hasBreakpoints) {
+        const int lineNumber = blockNumber + 1;
+        //! Move text cursor to clicked line to prevent view from
+        //! scrolling back to old cursor position (e.g. top of file)
+        QTextCursor cursor(document()->findBlockByNumber(blockNumber));
+        setTextCursor(cursor);
+        if (breakpoints.contains(lineNumber)) {
+            breakpoints.removeOne(lineNumber);
+            emit breakpointsChanged(lineNumber, false);
+        } else {
+            breakpoints.append(lineNumber);
+            emit breakpointsChanged(lineNumber, true);
+        }
+        repaintLineNumberArea();
+    }
+}
+
+// ---------------------------------------------------------------- code folding
+
+const QVector<Folding::Range> &CodeEditor::foldRanges() const
+{
+    if (foldCacheRevision != document()->revision()) {
+        QStringList lines;
+        lines.reserve(document()->blockCount());
+        for (QTextBlock b = document()->begin(); b.isValid(); b = b.next())
+            lines << stripBidiMarks(b.text());
+        foldCache = Folding::compute(lines);
+        foldEndOf.clear();
+        for (const Folding::Range &r : foldCache)
+            foldEndOf.insert(r.start, r.end);
+        foldCacheRevision = document()->revision();
+    }
+    return foldCache;
+}
+
+static Folding::Mark *foldMark(const QTextBlock &b, bool create)
+{
+    QTextBlock block(b);
+    auto *m = dynamic_cast<Folding::Mark *>(block.userData());
+    if (!m && create) {
+        m = new Folding::Mark;
+        block.setUserData(m);
+    }
+    return m;
+}
+
+bool CodeEditor::isFoldedAt(int blockNumber) const
+{
+    const Folding::Mark *m = foldMark(document()->findBlockByNumber(blockNumber), false);
+    return m && m->folded;
+}
+
+void CodeEditor::setFolded(int startBlock, bool folded)
+{
+    foldRanges();
+    if (!foldEndOf.contains(startBlock))
+        return;
+    if (folded) {
+        //! the cursor must not stay in the lines that disappear (it would unfold them again)
+        const int cur = textCursor().blockNumber();
+        if (cur > startBlock && cur <= foldEndOf.value(startBlock)) {
+            QTextCursor c(document()->findBlockByNumber(startBlock));
+            c.movePosition(QTextCursor::EndOfBlock);
+            setTextCursor(c);
+        }
+    }
+    foldMark(document()->findBlockByNumber(startBlock), true)->folded = folded;
+    applyFolds();
+}
+
+void CodeEditor::foldCurrent()
+{
+    const int line = textCursor().blockNumber();
+    const auto &ranges = foldRanges();
+    //! the region that starts on this line, otherwise the innermost one around it
+    int best = -1;
+    for (const Folding::Range &r : ranges)
+        if (r.start <= line && line <= r.end && !isFoldedAt(r.start))
+            if (best < 0 || r.start >= best)
+                best = r.start;
+    if (foldEndOf.contains(line) && !isFoldedAt(line))
+        best = line;
+    if (best >= 0)
+        setFolded(best, true);
+}
+
+void CodeEditor::unfoldCurrent()
+{
+    const int line = textCursor().blockNumber();
+    if (isFoldedAt(line)) {
+        setFolded(line, false);
+        return;
+    }
+    for (const Folding::Range &r : foldRanges())
+        if (r.start <= line && line <= r.end && isFoldedAt(r.start))
+            foldMark(document()->findBlockByNumber(r.start), true)->folded = false;
+    applyFolds();
+}
+
+void CodeEditor::foldAll()
+{
+    const auto &ranges = foldRanges();
+    //! the cursor goes to the start of the outermost region around it
+    const int cur = textCursor().blockNumber();
+    for (const Folding::Range &r : ranges)
+        if (r.start < cur && cur <= r.end) {
+            QTextCursor c(document()->findBlockByNumber(r.start));
+            c.movePosition(QTextCursor::EndOfBlock);
+            setTextCursor(c);
+            break;
+        }
+    for (const Folding::Range &r : ranges)
+        foldMark(document()->findBlockByNumber(r.start), true)->folded = true;
+    applyFolds();
+}
+
+void CodeEditor::unfoldAll()
+{
+    for (QTextBlock b = document()->begin(); b.isValid(); b = b.next())
+        if (Folding::Mark *m = foldMark(b, false))
+            m->folded = false;
+    applyFolds();
+}
+
+void CodeEditor::queueApplyFolds()
+{
+    if (applyFoldsQueued)
+        return;
+    applyFoldsQueued = true;
+    QTimer::singleShot(0, this, [this]() {
+        applyFoldsQueued = false;
+        applyFolds();
+    });
+}
+
+void CodeEditor::applyFolds()
+{
+    const auto &ranges = foldRanges();
+    const int count = document()->blockCount();
+    QVector<bool> hide(count, false);
+    bool any = false;
+    for (const Folding::Range &r : ranges) {
+        if (!isFoldedAt(r.start))
+            continue;
+        any = true;
+        for (int i = r.start + 1; i <= r.end && i < count; ++i)
+            hide[i] = true;
+    }
+    int first = -1, last = -1;
+    for (QTextBlock b = document()->begin(); b.isValid(); b = b.next()) {
+        const int n = b.blockNumber();
+        //! a line that no longer starts a region forgets that it was folded
+        if (Folding::Mark *m = foldMark(b, false))
+            if (m->folded && !foldEndOf.contains(n))
+                m->folded = false;
+        const bool visible = !hide[n];
+        if (b.isVisible() != visible) {
+            b.setVisible(visible);
+            if (first < 0)
+                first = n;
+            last = n;
+        }
+    }
+    Q_UNUSED(any);
+    if (first >= 0) {
+        const QTextBlock a = document()->findBlockByNumber(first);
+        const QTextBlock z = document()->findBlockByNumber(last);
+        document()->markContentsDirty(a.position(), z.position() + z.length() - a.position());
+        keepCursorOutOfFolds();
+        ensureCursorVisible();
+        if (minimap)
+            minimap->scheduleRebuild();
+    }
+    viewport()->update();
+    lineNumberArea->update();
+}
+
+void CodeEditor::keepCursorOutOfFolds()
+{
+    const QTextBlock b = textCursor().block();
+    if (b.isVisible()) {
+        lastCursorBlock = b.blockNumber();
+        return;
+    }
+    const int n = b.blockNumber();
+    if (keyNavigating) {
+        //! arrow keys: step over the folded lines in the direction of the move
+        const bool down = n > lastCursorBlock;
+        QTextBlock t = b;
+        while (t.isValid() && !t.isVisible())
+            t = down ? t.next() : t.previous();
+        if (!t.isValid()) {             // folded to the end of the file: stay on the fold line
+            t = b;
+            while (t.isValid() && !t.isVisible())
+                t = t.previous();
+        }
+        if (t.isValid()) {
+            QTextCursor c = textCursor();
+            const int col = qMin(c.positionInBlock(), t.length() - 1);
+            c.setPosition(t.position() + col, c.hasSelection() ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+            lastCursorBlock = t.blockNumber();
+            setTextCursor(c);
+        }
+        return;
+    }
+    //! the cursor was put on a hidden line (search, go to line, the debugger): open the folds around it
+    for (const Folding::Range &r : foldRanges())
+        if (r.start < n && n <= r.end && isFoldedAt(r.start))
+            foldMark(document()->findBlockByNumber(r.start), true)->folded = false;
+    applyFolds();
+}
+
+void CodeEditor::setGutterHover(bool on)
+{
+    if (gutterHover == on)
+        return;
+    gutterHover = on;
+    lineNumberArea->update();
 }
 
 void CodeEditor::setBreakpointOnCurrentLine()
@@ -306,10 +587,12 @@ void CodeEditor::highlightCurrentLine()
             //! the current line is a full-height band painted in paintEvent (the selection
             //! would cover the text only, not the gap of the taller rows)
             viewport()->update();
+            appendBracketMatch(extraSelections);
             appendDiagnosticSelections(extraSelections);
             setExtraSelections(extraSelections);
         } else {
             QList<QTextEdit::ExtraSelection> extraSelections; //empty
+            appendBracketMatch(extraSelections);
             appendDiagnosticSelections(extraSelections);
             setExtraSelections(extraSelections);
         }
@@ -422,6 +705,11 @@ void CodeEditor::deleteTab()
 
 void CodeEditor::keyPressEvent(QKeyEvent *e)
 {
+    //! arrow keys and page keys step over folded lines instead of unfolding them
+    const int k = e->key();
+    QScopedValueRollback<bool> navigating(keyNavigating,
+        k == Qt::Key_Up || k == Qt::Key_Down || k == Qt::Key_Left || k == Qt::Key_Right
+        || k == Qt::Key_PageUp || k == Qt::Key_PageDown);
     //! auto-completion: while the list is open it takes Enter/Tab/Esc
     if (completer && completer->popup()->isVisible()) {
         switch (e->key()) {
@@ -442,6 +730,11 @@ void CodeEditor::keyPressEvent(QKeyEvent *e)
     }
     if (e->key() == Qt::Key_Space && (e->modifiers() & Qt::ControlModifier)) {
         updateCompletion(true);
+        return;
+    }
+    if (handleAutoClose(e)) {
+        if (!e->text().isEmpty())
+            updateCompletion(false);
         return;
     }
     const bool typing = !e->text().isEmpty() && !(e->modifiers() & (Qt::ControlModifier | Qt::AltModifier));
@@ -487,12 +780,27 @@ void CodeEditor::keyPressEvent(QKeyEvent *e)
             putTab();
         break;
     case (Qt::Key_Enter) :
-    case (Qt::Key_Return) :
-        while (curString[++indentWidth] == ' ');
-        QPlainTextEdit::keyPressEvent(e);
-        for (int i = 0; i < indentWidth; i++)
-            insertPlainText(" ");
+    case (Qt::Key_Return) : {
+        //! keep the indentation of the line (spaces and tabs); the old loop read past the end of an
+        //! all-blank line. After a line that is only a label ("_start:") the next line is indented.
+        Q_UNUSED(indentWidth);
+        int lead = 0;
+        while (lead < curString.size() && (curString.at(lead) == ' ' || curString.at(lead) == '\t'))
+            ++lead;
+        QString indent = curString.left(lead);
+        const QString before = textCursor().block().text().left(textCursor().positionInBlock());
+        static const QRegularExpression labelOnly("^\\s*[A-Za-z_.?@$%][\\w.$?@%]*:\\s*(;.*)?$");
+        if (!textCursor().hasSelection() && textCursor().positionInBlock() == textCursor().block().length() - 1
+                && labelOnly.match(before).hasMatch() && settings.value("autoindentlabels", true).toBool())
+            indent += QString(qMax(1, settings.value("tabwidth", 4).toInt()), ' ');
+        QTextCursor c = textCursor();
+        c.beginEditBlock();
+        c.insertBlock();
+        c.insertText(indent);
+        c.endEditBlock();
+        setTextCursor(c);
         break;
+    }
     case (Qt::Key_Q) :
         if ((e->modifiers() & Qt::ShiftModifier) && (e->modifiers() & Qt::ControlModifier))
             commentSelectedCode();
@@ -711,6 +1019,190 @@ int CodeEditor::blockIndentColumns(const QTextBlock &block) const
     return -1;   // an empty or blank line: takes its guides from the lines around it
 }
 
+// ---------------------------------------------------------------- auto-closing and bracket match
+
+bool CodeEditor::autoCloseEnabled()
+{
+    return QSettings().value("autoclose", true).toBool();
+}
+
+//! where the comment of the line starts (';' outside quotes), or the length of the line
+static int commentStart(const QString &line)
+{
+    QChar quote;
+    for (int i = 0; i < line.size(); ++i) {
+        const QChar c = line.at(i);
+        if (!quote.isNull()) {
+            if (c == quote)
+                quote = QChar();
+            continue;
+        }
+        if (c == '"' || c == '\'' || c == '`')
+            quote = c;
+        else if (c == ';')
+            return i;
+    }
+    return line.size();
+}
+
+//! is position col of the line inside a string (an odd number of quotes before it)?
+static bool insideString(const QString &line, int col)
+{
+    QChar quote;
+    for (int i = 0; i < col && i < line.size(); ++i) {
+        const QChar c = line.at(i);
+        if (!quote.isNull()) {
+            if (c == quote)
+                quote = QChar();
+        } else if (c == '"' || c == '\'' || c == '`') {
+            quote = c;
+        } else if (c == ';') {
+            return false;
+        }
+    }
+    return !quote.isNull();
+}
+
+bool CodeEditor::handleAutoClose(QKeyEvent *e)
+{
+    if (!autoCloseEnabled() || isReadOnly() || (e->modifiers() & (Qt::ControlModifier | Qt::AltModifier)))
+        return false;
+    static const QString openers = "([{\"'`";
+    static const QString closers = ")]}\"'`";
+    QTextCursor c = textCursor();
+    const QString line = c.block().text();
+    const int col = c.positionInBlock();
+    const QChar next = col < line.size() ? line.at(col) : QChar();
+    const QChar prev = col > 0 ? line.at(col - 1) : QChar();
+
+    //! Backspace between an empty pair deletes both
+    if (e->key() == Qt::Key_Backspace && !c.hasSelection() && !prev.isNull() && !next.isNull()) {
+        const int i = openers.indexOf(prev);
+        if (i >= 0 && closers.at(i) == next) {
+            c.beginEditBlock();
+            c.deletePreviousChar();
+            c.deleteChar();
+            c.endEditBlock();
+            setTextCursor(c);
+            return true;
+        }
+        return false;
+    }
+    if (e->text().size() != 1)
+        return false;
+    const QChar ch = e->text().at(0);
+    const int open = openers.indexOf(ch);
+    const bool isQuote = (ch == '"' || ch == '\'' || ch == '`');
+    const bool inComment = col > commentStart(line);
+
+    //! a selection is wrapped: (selection), "selection"
+    if (open >= 0 && c.hasSelection() && !inComment) {
+        const QString sel = c.selectedText();
+        if (sel.contains(QChar::ParagraphSeparator))
+            return false;
+        const int start = c.selectionStart();
+        c.beginEditBlock();
+        c.insertText(QString(ch) + sel + closers.at(open));
+        c.endEditBlock();
+        c.setPosition(start + 1);
+        c.setPosition(start + 1 + sel.size(), QTextCursor::KeepAnchor);
+        setTextCursor(c);
+        return true;
+    }
+    if (c.hasSelection())
+        return false;
+
+    //! typing the closer that is already there steps over it
+    if (closers.contains(ch) && next == ch && (!isQuote || insideString(line, col))) {
+        c.movePosition(QTextCursor::NextCharacter);
+        setTextCursor(c);
+        return true;
+    }
+    if (open < 0 || inComment)
+        return false;
+    //! pair only before the end of the line, a space or a closer, like VS Code
+    const bool nextOk = next.isNull() || next.isSpace() || QString(")]},;").contains(next);
+    if (!nextOk)
+        return false;
+    if (isQuote && (prev.isLetterOrNumber() || prev == '_' || insideString(line, col)))
+        return false;
+    c.beginEditBlock();
+    c.insertText(QString(ch) + closers.at(open));
+    c.endEditBlock();
+    c.movePosition(QTextCursor::PreviousCharacter);
+    setTextCursor(c);
+    return true;
+}
+
+void CodeEditor::appendBracketMatch(QList<QTextEdit::ExtraSelection> &list)
+{
+    if (!settings.value("matchbrackets", true).toBool())
+        return;
+    static const QString opens = "([{", closes = ")]}";
+    const QTextCursor cur = textCursor();
+    if (cur.hasSelection())
+        return;
+    //! the bracket after the cursor, otherwise the one before it
+    QTextBlock block = cur.block();
+    const QString line = block.text();
+    int col = cur.positionInBlock();
+    int at = -1;
+    if (col < line.size() && (opens.contains(line.at(col)) || closes.contains(line.at(col))))
+        at = col;
+    else if (col > 0 && (opens.contains(line.at(col - 1)) || closes.contains(line.at(col - 1))))
+        at = col - 1;
+    if (at < 0 || at >= commentStart(line) || insideString(line, at))
+        return;
+    const QChar b = line.at(at);
+    const bool forward = opens.contains(b);
+    const QChar want = forward ? closes.at(opens.indexOf(b)) : opens.at(closes.indexOf(b));
+    //! scan the code (not strings, not comments) of up to 500 lines in that direction
+    int depth = 0;
+    int matchPos = -1;
+    QTextBlock bl = block;
+    for (int n = 0; bl.isValid() && n < 500 && matchPos < 0; ++n, bl = forward ? bl.next() : bl.previous()) {
+        const QString t = bl.text();
+        const int end = commentStart(t);
+        QVector<int> idx;
+        QChar quote;
+        for (int i = 0; i < end; ++i) {
+            const QChar c = t.at(i);
+            if (!quote.isNull()) { if (c == quote) quote = QChar(); continue; }
+            if (c == '"' || c == '\'' || c == '`') { quote = c; continue; }
+            if (c == b || c == want)
+                idx << i;
+        }
+        if (!forward)
+            std::reverse(idx.begin(), idx.end());
+        for (int i : idx) {
+            if (bl == block && (forward ? i < at : i > at))
+                continue;
+            if (t.at(i) == b)
+                ++depth;
+            else if (--depth == 0) {
+                matchPos = bl.position() + i;
+                break;
+            }
+        }
+    }
+    QTextCharFormat fmt;
+    const QColor bad("#f14c4c");
+    fmt.setBackground(Theme::isDark() ? QColor("#3a3d41") : QColor("#d6d6d6"));
+    auto add = [&](int pos, bool ok) {
+        QTextEdit::ExtraSelection sel;
+        sel.format = fmt;
+        if (!ok)
+            sel.format.setForeground(bad);
+        sel.cursor = QTextCursor(document());
+        sel.cursor.setPosition(pos);
+        sel.cursor.setPosition(pos + 1, QTextCursor::KeepAnchor);
+        list.append(sel);
+    };
+    add(block.position() + at, matchPos >= 0);   // an unmatched bracket is red
+    if (matchPos >= 0)
+        add(matchPos, true);
+}
+
 void CodeEditor::paintEvent(QPaintEvent *e)
 {
     {
@@ -774,6 +1266,33 @@ void CodeEditor::paintEvent(QPaintEvent *e)
         }
     }
     RuQPlainTextEdit::paintEvent(e);
+
+    //! a folded line ends with a small "..." box (VS Code); a click on it unfolds
+    foldedBoxes.clear();
+    if (!foldCache.isEmpty()) {
+        QPainter p(viewport());
+        p.setRenderHint(QPainter::Antialiasing);
+        const QPointF offset = contentOffset();
+        QColor box = Theme::color("linenumberfontcolor");
+        QColor fill = Theme::color("currentlinecolor");
+        for (QTextBlock b = firstVisibleBlock(); b.isValid(); b = b.next()) {
+            const QRectF r = blockBoundingGeometry(b).translated(offset);
+            if (r.top() > e->rect().bottom())
+                break;
+            if (!b.isVisible() || !isFoldedAt(b.blockNumber()) || !b.layout() || b.layout()->lineCount() == 0)
+                continue;
+            const QTextLine line = b.layout()->lineAt(b.layout()->lineCount() - 1);
+            const qreal h = qMax<qreal>(12, line.height() * 0.8);
+            const QRectF br(offset.x() + document()->documentMargin() + line.naturalTextWidth() + 10,
+                            r.top() + line.y() + (line.height() - h) / 2, 2.2 * h, h);
+            p.setPen(QPen(box, 1));
+            p.setBrush(fill);
+            p.drawRoundedRect(br, 3, 3);
+            p.setPen(box);
+            p.drawText(br, Qt::AlignCenter, QStringLiteral("\u22EF"));
+            foldedBoxes << qMakePair(br.toAlignedRect(), b.blockNumber());
+        }
+    }
 }
 
 bool CodeEditor::event(QEvent *e)
@@ -945,6 +1464,13 @@ QMimeData *CodeEditor::createMimeDataFromSelection() const
 
 void CodeEditor::mousePressEvent(QMouseEvent *e)
 {
+    if (e->button() == Qt::LeftButton)
+        for (const auto &fb : foldedBoxes)
+            if (fb.first.contains(e->position().toPoint())) {
+                setFolded(fb.second, false);
+                e->accept();
+                return;
+            }
     if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ControlModifier)) {
         setTextCursor(cursorForPosition(e->position().toPoint()));
         emit definitionRequested();

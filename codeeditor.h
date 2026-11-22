@@ -48,6 +48,8 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include "ruqplaintextedit.h"
+#include "folding.h"
+#include <QHash>
 #include <QUrl>
 
 /**
@@ -103,6 +105,22 @@ public:
     bool showWhitespace() const { return document()->defaultTextOption().flags() & QTextOption::ShowTabsAndSpaces; }
     void setWordWrap(bool on);
     bool wordWrap() const { return lineWrapMode() != QPlainTextEdit::NoWrap; }
+    //! code folding (folding.h): the regions of the text, folding of one region or of all of them
+    const QVector<Folding::Range> &foldRanges() const;
+    bool isFoldedAt(int blockNumber) const;
+    void setFolded(int startBlock, bool folded);
+    void foldCurrent();
+    void unfoldCurrent();
+    void foldAll();
+    void unfoldAll();
+    //! the gutter: the fold arrows show while the mouse is over it (VS Code)
+    void setGutterHover(bool on);
+    //! auto-closing of ( [ { " ' ` (setting "autoclose", on by default)
+    static bool autoCloseEnabled();
+    //! VS Code's minimap on the right (setting "minimap", on by default); hidden in narrow editors
+    void setMinimapEnabled(bool on);
+    bool minimapShown() const;
+    class Minimap *minimapWidget() const { return minimap; }
 
 public slots:
     void updateDebugLine(int number);
@@ -149,7 +167,26 @@ private:
     QMap<int, QString> conditions;
     bool applyingBidiMarks = false;
     class SpacedLayout *spacedLayout = nullptr;
+    class Minimap *minimap = nullptr;
+    bool minimapEnabled = true;
+    void placeMinimap();
+    friend class Minimap;
     void updateLineSpacing();                  //!< row height = font height x the "lineheight" setting
+    mutable QVector<Folding::Range> foldCache;
+    mutable QHash<int, int> foldEndOf;         //!< start line -> end line
+    mutable int foldCacheRevision = -1;
+    bool keyNavigating = false;                //!< the cursor moves by arrow keys: skip folded lines
+    int lastCursorBlock = 0;
+    bool gutterHover = false;
+    int foldAreaWidth = 16;
+    QVector<QPair<QRect, int>> foldedBoxes;    //!< the "..." boxes after folded lines (click: unfold)
+    bool applyFoldsQueued = false;
+    void applyFolds();
+    void queueApplyFolds();
+    void keepCursorOutOfFolds();
+    int blockAtGutterY(int y);
+    bool handleAutoClose(QKeyEvent *e);
+    void appendBracketMatch(QList<QTextEdit::ExtraSelection> &list);
     int blockIndentColumns(const QTextBlock &block) const;
     class QCompleter *completer = nullptr;
     void updateCompletion(bool force);
@@ -181,6 +218,8 @@ protected:
     void mousePressEvent(QMouseEvent *event) {
         codeEditor->lineNumberAreaMousePressEvent(event);
     }
+    void enterEvent(QEnterEvent *) override { codeEditor->setGutterHover(true); }
+    void leaveEvent(QEvent *) override { codeEditor->setGutterHover(false); }
 
 private:
     CodeEditor *codeEditor;

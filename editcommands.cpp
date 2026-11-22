@@ -71,6 +71,19 @@ void MainWindow::createEditCommands()
 
     // ---- Edit menu
     editMenu->addSeparator();
+    //! code folding (VS Code keys)
+    QMenu *foldMenu = editMenu->addMenu(tr("Folding"));
+    add(foldMenu, tr("Fold"), "Ctrl+Shift+[", [](CodeEditor *ed) { ed->foldCurrent(); });
+    add(foldMenu, tr("Unfold"), "Ctrl+Shift+]", [](CodeEditor *ed) { ed->unfoldCurrent(); });
+    foldMenu->addSeparator();
+    add(foldMenu, tr("Fold all"), "Ctrl+K, Ctrl+0", [](CodeEditor *ed) { ed->foldAll(); });
+    add(foldMenu, tr("Unfold all"), "Ctrl+K, Ctrl+J", [](CodeEditor *ed) { ed->unfoldAll(); });
+    {
+        QAction *autoClose = editMenu->addAction(tr("Auto-close brackets and quotes"));
+        autoClose->setCheckable(true);
+        autoClose->setChecked(CodeEditor::autoCloseEnabled());
+        connect(autoClose, &QAction::toggled, this, [this](bool on) { settings.setValue("autoclose", on); });
+    }
     QMenu *lineMenu = editMenu->addMenu(tr("Line operations"));
     add(lineMenu, tr("Duplicate line"), "Ctrl+D", [](CodeEditor *ed) {
         QTextCursor c = ed->textCursor();
@@ -250,6 +263,17 @@ void MainWindow::createEditCommands()
     });
     wsAction->setChecked(settings.value("showwhitespace", false).toBool());
     wrapAction->setChecked(settings.value("wordwrap", false).toBool());
+
+    {
+        QAction *mini = viewMenu->addAction(tr("Minimap"));
+        mini->setCheckable(true);
+        mini->setChecked(settings.value("minimap", true).toBool());
+        connect(mini, &QAction::toggled, this, [this](bool on) {
+            settings.setValue("minimap", on);
+            for (int i = 0; i < tabs->count(); ++i)
+                static_cast<Tab *>(tabs->widget(i))->code->setMinimapEnabled(on);
+        });
+    }
 
     QMenu *zoomMenu = viewMenu->addMenu(tr("Zoom"));
     add(zoomMenu, tr("Zoom in"), "Ctrl+=", [](CodeEditor *ed) { ed->zoomIn(1); });

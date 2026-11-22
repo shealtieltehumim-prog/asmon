@@ -30,6 +30,19 @@ public:
         l->setContentsMargins(kInset, kInset, kInset, kInset);
         l->setSpacing(0);
         l->addWidget(content);
+        //! the strip behind the tab bar follows the tab bar (tabs opened, closed, the mode changed)
+        if (auto *tw = qobject_cast<QTabWidget *>(content)) {
+            tw->tabBar()->installEventFilter(this);
+            connect(tw, &QTabWidget::currentChanged, this, [this](int) { update(); });
+        }
+    }
+
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (e->type() == QEvent::Resize || e->type() == QEvent::Move || e->type() == QEvent::Show
+                || e->type() == QEvent::Hide)
+            update();
+        return QFrame::eventFilter(o, e);
     }
 
 private:

@@ -148,6 +148,35 @@ MainWindow::MainWindow(const QStringList &args, QWidget *parent)
             openProgramInAsmon(args[++i]);
             continue;
         }
+        //! "--mode write|debug|re": the view to show (the screenshot tests use it)
+        if (args[i] == "--mode" && i + 1 < args.size()) {
+            const QString m = args[++i].toLower();
+            QTimer::singleShot(300, this, [this, m]() {
+                modeBar->setMode(m == "debug" ? ModeBar::Debug : m == "re" ? ModeBar::Reverse : ModeBar::Write);
+            });
+            continue;
+        }
+        //! "--window WIDTHxHEIGHT": a normal (not maximized) window of that size at the top left
+        if (args[i] == "--window" && i + 1 < args.size()) {
+            const QStringList wh = args[++i].toLower().split('x');
+            if (wh.size() == 2) {
+                const int w = wh[0].toInt(), h = wh[1].toInt();
+                QTimer::singleShot(200, this, [this, w, h]() {
+                    showNormal();
+                    resize(w, h);
+                    move(0, 0);
+                });
+            }
+            continue;
+        }
+        //! "--fold-all": fold every region of the opened file (screenshot tests)
+        if (args[i] == "--fold-all") {
+            QTimer::singleShot(600, this, [this]() {
+                if (tabs->count() > 0)
+                    ((Tab *) tabs->currentWidget())->code->foldAll();
+            });
+            continue;
+        }
         openFile(args[i]);
     }
 }

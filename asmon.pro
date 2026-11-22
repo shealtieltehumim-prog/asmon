@@ -72,6 +72,9 @@ INSTALLS += docfiles
 include(singleapplication/qtsingleapplication.pri)
 
 SOURCES += main.cpp\
+    folding.cpp \
+    minimap.cpp \
+    selftest.cpp \
     terminalwidget.cpp \
     symbols.cpp \
     searchpanel.cpp \
@@ -121,6 +124,9 @@ SOURCES += main.cpp\
 
 HEADERS  += mainwindow.h \
     spacedlayout.h \
+    folding.h \
+    minimap.h \
+    selftest.h \
     regexp.h \
     theme.h \
     terminalwidget.h \

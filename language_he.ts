@@ -1375,6 +1375,41 @@ Install it now (Ubuntu/Debian: apt-get install gdb)? It runs in the terminal bel
         <translation>פותח את %1 ב-%2...</translation>
     </message>
     <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Folding</source>
+        <translation>קיפול קוד</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Fold</source>
+        <translation>קפל</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Unfold</source>
+        <translation>פתח קיפול</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Fold all</source>
+        <translation>קפל הכול</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Unfold all</source>
+        <translation>פתח את כל הקיפולים</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Auto-close brackets and quotes</source>
+        <translation>סגירה אוטומטית של סוגריים ומרכאות</translation>
+    </message>
+    <message>
+        <location filename="editcommands.cpp" line="0"/>
+        <source>Minimap</source>
+        <translation>מפה מוקטנת</translation>
+    </message>
+    <message>
         <location filename="editcommands.cpp" line="74"/>
         <source>Line operations</source>
         <translation>פעולות על שורות</translation>

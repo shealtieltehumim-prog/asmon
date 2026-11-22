@@ -208,6 +208,12 @@ QFont codeFont(int pointSize)
 
 void ensureInitialized(QSettings &settings)
 {
+    //! a new installation starts on the current default font: the old one-time migrations below were
+    //! written for existing users and moved a fresh, empty profile to JetBrains Mono first
+    if (!settings.contains("fontversion") && !settings.contains("fontfamily")) {
+        settings.setValue("fontfamily", defaultCodeFont());
+        settings.setValue("fontversion", 5);
+    }
     //! fonts v2: JetBrains Mono is bundled; move users off the old automatic choice
     if (settings.value("fontversion", 1).toInt() < 2) {
         const QString f = settings.value("fontfamily").toString();

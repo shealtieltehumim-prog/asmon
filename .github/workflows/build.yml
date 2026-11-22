@@ -23,6 +23,14 @@ jobs:
           mkdir build && cd build
           qmake6 ../asmon.pro
           make -j"$(nproc)"
+      - name: Editor self test (folding, auto-close, row height, minimap; LTR and RTL; 100/150/200 %)
+        run: |
+          sudo apt-get install -y xvfb
+          for scale in 1 1.5 2; do
+            echo "---- scale $scale"
+            QT_SCALE_FACTOR=$scale xvfb-run -a -s "-screen 0 1366x768x24" build/asmon --selftest | grep -E "FAIL|done"
+            test "${PIPESTATUS[0]}" -eq 0
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: asmon-linux-x64
@@ -449,12 +457,85 @@ jobs:
           if ($p.HasExited) { throw "asmon.exe exited in reverse engineering mode with code $($p.ExitCode)" }
           Shot "11-reverse-engineering"
           Stop-Process -Id $p.Id -Force
-      - name: Editor font shots (Consolas, several sizes, dark and light)
+      - name: Editor self test on Windows (100/125/150/200 % display scale)
+        shell: pwsh
+        run: |
+          # "asmon --selftest" drives a real code editor through folding, auto-closing, bracket matching,
+          # the Enter indentation, the row height and hit testing, and the minimap, in a left-to-right
+          # and in the Hebrew right-to-left interface. Its exit code is the number of failed checks.
+          $fail = 0
+          foreach ($scale in '1', '1.25', '1.5', '2') {
+            $log = Join-Path $env:RUNNER_TEMP "selftest-$scale.log"
+            Remove-Item $log -ErrorAction SilentlyContinue
+            $env:ASMON_TEST_LOG = $log
+            $env:QT_SCALE_FACTOR = $scale
+            $p = Start-Process -FilePath dist\asmon.exe -ArgumentList '--selftest' -PassThru -Wait
+            Remove-Item Env:QT_SCALE_FACTOR, Env:ASMON_TEST_LOG
+            "---- scale $scale : exit code $($p.ExitCode)"
+            if (Test-Path $log) { Get-Content $log | Where-Object { $_ -match 'FAIL|done' } } else { 'no log written'; $fail++ }
+            if ($p.ExitCode -ne 0) { $fail++ }
+          }
+          if ($fail) { throw "editor self test failed at $fail scale(s)" }
+      - name: UI matrix screenshots (themes, languages, modes, display scales, window sizes, folds)
+        shell: pwsh
+        run: |
+          # One picture per case, from the built program on a real Windows desktop. A fresh profile each
+          # time (like a new user), so the default font (Cascadia Mono) and colours are what is checked.
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory -Force uishots | Out-Null
+          $cfgDir = Join-Path $env:APPDATA 'Asmon'
+          $demo = (Resolve-Path tests\ui\demo.asm).Path
+          # name, theme, language (7 Hebrew / 1 English), mode, scale, window, extra argument
+          $cases = @(
+            @('01_dark_he_write',    'dark',  7, 'write', '1',    '1024x740', ''),
+            @('02_dark_he_debug',    'dark',  7, 'debug', '1',    '1024x740', ''),
+            @('03_dark_he_re',       'dark',  7, 're',    '1',    '1024x740', ''),
+            @('04_light_he_write',   'light', 7, 'write', '1',    '1024x740', ''),
+            @('05_light_he_debug',   'light', 7, 'debug', '1',    '1024x740', ''),
+            @('06_dark_en_write',    'dark',  1, 'write', '1',    '1024x740', ''),
+            @('07_light_en_debug',   'light', 1, 'debug', '1',    '1024x740', ''),
+            @('08_dark_he_scale125', 'dark',  7, 'write', '1.25', '1024x740', ''),
+            @('09_dark_he_scale150', 'dark',  7, 'write', '1.5',  '1024x740', ''),
+            @('10_dark_he_scale200', 'dark',  7, 'write', '2',    '1024x740', ''),
+            @('11_dark_he_small',    'dark',  7, 'write', '1',    '800x600',  ''),
+            @('12_dark_he_small_dbg','dark',  7, 'debug', '1',    '800x600',  ''),
+            @('13_dark_he_folded',   'dark',  7, 'write', '1',    '1024x740', '--fold-all')
+          )
+          $crashed = @()
+          foreach ($c in $cases) {
+            Remove-Item $cfgDir -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Force $cfgDir | Out-Null
+            $lines = @('[General]', "language=$($c[2])")
+            if ($c[1] -eq 'light') { $lines += 'theme=light' }
+            Set-Content -Path (Join-Path $cfgDir 'Asmon.ini') -Encoding UTF8 -Value $lines
+            $env:QT_SCALE_FACTOR = $c[4]
+            $argList = @("`"$demo`"", '--mode', $c[3], '--window', $c[5])
+            if ($c[6]) { $argList += $c[6] }
+            $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $argList -PassThru
+            Remove-Item Env:QT_SCALE_FACTOR
+            Start-Sleep 9
+            if ($p.HasExited) { $crashed += $c[0]; continue }
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("uishots\$($c[0]).png")
+            Stop-Process -Id $p.Id -Force
+            Start-Sleep 1
+          }
+          Remove-Item $cfgDir -Recurse -Force -ErrorAction SilentlyContinue
+          "$((Get-ChildItem uishots).Count) screenshots"
+          if ($crashed.Count) { throw "asmon.exe exited early in: $($crashed -join ', ')" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-matrix-shots
+          path: uishots
+      - name: Editor font shots (Cascadia Mono, several sizes, dark and light)
         # only when asked for: put [fontshots] in the commit message
         if: contains(github.event.head_commit.message, '[fontshots]')
         shell: pwsh
         run: |
-          # Pictures of the default editor font (Consolas, as in VS Code) on a real Windows: every sample
+          # Pictures of the default editor font (Cascadia Mono, as in Visual Studio) on a real Windows: every sample
           # at several sizes in the dark theme and at 11 in the light theme. Cropped to the editor and
           # enlarged x2 so the glyphs are easy to judge.
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -470,7 +551,7 @@ jobs:
           foreach ($c in $cases) {
             $f = $c[0]; $sz = $c[1]; $theme = $c[2]
             # dark: no theme key, so the first-run defaults (the neon dark theme) are applied as for a new user
-            $lines = @('[General]', 'fontfamily=Consolas', "fontsize=$sz", 'fontversion=4')
+            $lines = @('[General]', 'fontfamily=Cascadia Mono', "fontsize=$sz", 'fontversion=5')
             if ($theme -eq 'light') { $lines += 'theme=light' }
             Set-Content -Path $ini -Encoding UTF8 -Value $lines
             $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $f.FullName -PassThru
@@ -820,8 +901,8 @@ jobs:
           Write-Host "e2e: build and run OK"
           # 2) a breakpoint on line 13, debug: stops at the start of main, then continue to the breakpoint
           $null = $ws.AppActivate($p.Id); Start-Sleep 2
-          # keyboard focus is not in the editor after a build: click on line 13 (this also puts the cursor
-          # there). Offsets are measured from the window's top-left corner (shot e2e-2 shows the result).
+          # keyboard focus is not in the editor after a build: click in the editor (offsets from the window's
+          # top-left corner; shot e2e-2 shows the result).
           $src = @(
             'using System; using System.Runtime.InteropServices;',
             'public static class WinClick {',
@@ -837,7 +918,12 @@ jobs:
           ) -join "`n"
           Add-Type -TypeDefinition $src
           $p.Refresh()
-          [WinClick]::Click($p.MainWindowHandle, 300, 370); Start-Sleep 1
+          # the click only gives the editor the keyboard focus; Go to line (Ctrl+G) then puts the cursor on
+          # line 13 whatever the row height and the bar heights are
+          [WinClick]::Click($p.MainWindowHandle, 300, 250); Start-Sleep 1
+          $ws.SendKeys("^g"); Start-Sleep 2
+          $ws.SendKeys("13"); Start-Sleep 1
+          $ws.SendKeys("{ENTER}"); Start-Sleep 2
           $ws.SendKeys("{F8}"); Start-Sleep 2
           Shot "e2e-2-breakpoint-set"
           $ws.SendKeys("{F5}"); Start-Sleep 20
