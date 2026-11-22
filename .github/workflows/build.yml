@@ -487,19 +487,19 @@ jobs:
           $demo = (Resolve-Path tests\ui\demo.asm).Path
           # name, theme, language (7 Hebrew / 1 English), mode, scale, window, extra argument
           $cases = @(
-            @('01_dark_he_write',    'dark',  7, 'write', '1',    '1024x740', ''),
-            @('02_dark_he_debug',    'dark',  7, 'debug', '1',    '1024x740', ''),
-            @('03_dark_he_re',       'dark',  7, 're',    '1',    '1024x740', ''),
-            @('04_light_he_write',   'light', 7, 'write', '1',    '1024x740', ''),
-            @('05_light_he_debug',   'light', 7, 'debug', '1',    '1024x740', ''),
-            @('06_dark_en_write',    'dark',  1, 'write', '1',    '1024x740', ''),
-            @('07_light_en_debug',   'light', 1, 'debug', '1',    '1024x740', ''),
-            @('08_dark_he_scale125', 'dark',  7, 'write', '1.25', '1024x740', ''),
-            @('09_dark_he_scale150', 'dark',  7, 'write', '1.5',  '1024x740', ''),
-            @('10_dark_he_scale200', 'dark',  7, 'write', '2',    '1024x740', ''),
+            @('01_dark_he_write',    'dark',  7, 'write', '1',    '1024x720', ''),
+            @('02_dark_he_debug',    'dark',  7, 'debug', '1',    '1024x720', ''),
+            @('03_dark_he_re',       'dark',  7, 're',    '1',    '1024x720', ''),
+            @('04_light_he_write',   'light', 7, 'write', '1',    '1024x720', ''),
+            @('05_light_he_debug',   'light', 7, 'debug', '1',    '1024x720', ''),
+            @('06_dark_en_write',    'dark',  1, 'write', '1',    '1024x720', ''),
+            @('07_light_en_debug',   'light', 1, 'debug', '1',    '1024x720', ''),
+            @('08_dark_he_scale125', 'dark',  7, 'write', '1.25', '1024x720', ''),
+            @('09_dark_he_scale150', 'dark',  7, 'write', '1.5',  '1024x720', ''),
+            @('10_dark_he_scale200', 'dark',  7, 'write', '2',    '1024x720', ''),
             @('11_dark_he_small',    'dark',  7, 'write', '1',    '800x600',  ''),
             @('12_dark_he_small_dbg','dark',  7, 'debug', '1',    '800x600',  ''),
-            @('13_dark_he_folded',   'dark',  7, 'write', '1',    '1024x740', '--fold-all')
+            @('13_dark_he_folded',   'dark',  7, 'write', '1',    '1024x720', '--fold-all')
           )
           $crashed = @()
           foreach ($c in $cases) {
@@ -509,7 +509,11 @@ jobs:
             if ($c[1] -eq 'light') { $lines += 'theme=light' }
             Set-Content -Path (Join-Path $cfgDir 'Asmon.ini') -Encoding UTF8 -Value $lines
             $env:QT_SCALE_FACTOR = $c[4]
-            $argList = @("`"$demo`"", '--mode', $c[3], '--window', $c[5])
+            # the window size is in the program's own (scaled) pixels: divide by the scale so the window
+            # covers the same part of the 1024x768 screen at every scale (and stays above the taskbar)
+            $wh = $c[5].Split('x'); $sc = [double]$c[4]
+            $win = '{0}x{1}' -f [int]([int]$wh[0] / $sc), [int]([int]$wh[1] / $sc)
+            $argList = @("`"$demo`"", '--mode', $c[3], '--window', $win)
             if ($c[6]) { $argList += $c[6] }
             $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $argList -PassThru
             Remove-Item Env:QT_SCALE_FACTOR
