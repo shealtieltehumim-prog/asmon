@@ -155,9 +155,9 @@ QIcon icon(const QString &name)
 QString defaultCodeFont()
 {
     const QStringList families = QFontDatabase::families();
-    //! Cascadia Mono: Visual Studio's editor font. Bundled (fonts/, OFL) with Hebrew letters, so every
-    //! machine gets the same font; Consolas (VS Code on Windows) only if the bundled one failed to load.
-    for (const char *f : { "Cascadia Mono", "Consolas", "JetBrains Mono", "DejaVu Sans Mono",
+    //! JetBrains Mono (on Google Fonts, rounded and easy on the eyes; the owner's choice 22.11), bundled so
+    //! every machine gets the same font. Its Hebrew comes from Cascadia Mono (see codeFont).
+    for (const char *f : { "JetBrains Mono", "Cascadia Mono", "Consolas", "DejaVu Sans Mono",
                            "Liberation Mono", "Courier New" }) {
         if (families.contains(QString(f)))
             return QString(f);
@@ -171,6 +171,7 @@ void loadBundledFonts()
 {
     for (const char *f : { ":/fonts/Rubik-Regular.ttf", ":/fonts/Rubik-Medium.ttf", ":/fonts/Rubik-Bold.ttf" })
         rubikLoaded = (QFontDatabase::addApplicationFont(f) >= 0) || rubikLoaded;
+    QFontDatabase::addApplicationFont(":/fonts/VarelaRound-Regular.ttf");   // Google, rounded, Hebrew
     for (const char *f : { ":/fonts/JetBrainsMono-Regular.ttf", ":/fonts/JetBrainsMono-Bold.ttf",
                            ":/fonts/JetBrainsMono-Italic.ttf" })
         QFontDatabase::addApplicationFont(f);
@@ -186,7 +187,13 @@ void loadBundledFonts()
 QFont uiFont()
 {
     QFont f = QApplication::font();
-    if (rubikLoaded) {
+    //! the interface font: Varela Round (Google, rounded, with Hebrew; the owner's choice 22.11), or the
+    //! "uifont" setting; Rubik if it is missing
+    const QString chosen = QSettings().value("uifont", "Varela Round").toString();
+    if (!chosen.isEmpty() && QFontDatabase::families().contains(chosen)) {
+        f.setFamilies(QStringList() << chosen << "Rubik" << f.family());
+        f.setPointSizeF(10);
+    } else if (rubikLoaded) {
         f.setFamilies(QStringList() << "Rubik" << f.family());
         f.setPointSizeF(10);
     }
@@ -198,8 +205,10 @@ QFont codeFont(int pointSize)
 {
     QSettings settings;
     QFont f;
+    //! Hebrew in comments and strings: Cascadia Mono has Hebrew letters of the same width (JetBrains
+    //! Mono has none); then Varela Round, the interface font
     f.setFamilies(QStringList() << settings.value("fontfamily", defaultCodeFont()).toString()
-                                << "JetBrains Mono" << "Rubik");
+                                << "Cascadia Mono" << "JetBrains Mono" << "Varela Round" << "Rubik");
     f.setStyleHint(QFont::Monospace);
     f.setPointSize(pointSize > 0 ? pointSize : settings.value("fontsize", 11).toInt());
     f.setHintingPreference(QFont::PreferVerticalHinting);
@@ -212,7 +221,7 @@ void ensureInitialized(QSettings &settings)
     //! written for existing users and moved a fresh, empty profile to JetBrains Mono first
     if (!settings.contains("fontversion") && !settings.contains("fontfamily")) {
         settings.setValue("fontfamily", defaultCodeFont());
-        settings.setValue("fontversion", 5);
+        settings.setValue("fontversion", 6);
     }
     //! fonts v2: JetBrains Mono is bundled; move users off the old automatic choice
     if (settings.value("fontversion", 1).toInt() < 2) {
@@ -243,6 +252,14 @@ void ensureInitialized(QSettings &settings)
         if ((f.isEmpty() || f == "Consolas") && QFontDatabase::families().contains("Cascadia Mono"))
             settings.setValue("fontfamily", "Cascadia Mono");
         settings.setValue("fontversion", 5);
+    }
+    //! fonts v6: JetBrains Mono (the owner chose it with the rounded interface font): users still on an
+    //! automatic default (Consolas, Cascadia Mono) move; a font picked in Settings is kept
+    if (settings.value("fontversion", 1).toInt() < 6) {
+        const QString f = settings.value("fontfamily").toString();
+        if (f.isEmpty() || f == "Consolas" || f == "Cascadia Mono")
+            settings.setValue("fontfamily", "JetBrains Mono");
+        settings.setValue("fontversion", 6);
     }
     //! colours v2: stronger syntax colours; only replaces colours that are still the old defaults
     if (settings.value("colorversion", 1).toInt() < 2) {

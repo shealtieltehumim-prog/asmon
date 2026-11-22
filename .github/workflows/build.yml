@@ -480,7 +480,7 @@ jobs:
         shell: pwsh
         run: |
           # One picture per case, from the built program on a real Windows desktop. A fresh profile each
-          # time (like a new user), so the default font (Cascadia Mono) and colours are what is checked.
+          # time (like a new user), so the default fonts (Varela Round, JetBrains Mono) and colours are what is checked.
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           New-Item -ItemType Directory -Force uishots | Out-Null
           $cfgDir = Join-Path $env:APPDATA 'Asmon'
@@ -530,12 +530,12 @@ jobs:
         with:
           name: ui-matrix-shots
           path: uishots
-      - name: Editor font shots (Cascadia Mono, several sizes, dark and light)
+      - name: Editor font shots (JetBrains Mono, several sizes, dark and light)
         # only when asked for: put [fontshots] in the commit message
         if: contains(github.event.head_commit.message, '[fontshots]')
         shell: pwsh
         run: |
-          # Pictures of the default editor font (Cascadia Mono, as in Visual Studio) on a real Windows: every sample
+          # Pictures of the default editor font (JetBrains Mono, with Cascadia Mono for Hebrew) on a real Windows: every sample
           # at several sizes in the dark theme and at 11 in the light theme. Cropped to the editor and
           # enlarged x2 so the glyphs are easy to judge.
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -551,7 +551,7 @@ jobs:
           foreach ($c in $cases) {
             $f = $c[0]; $sz = $c[1]; $theme = $c[2]
             # dark: no theme key, so the first-run defaults (the neon dark theme) are applied as for a new user
-            $lines = @('[General]', 'fontfamily=Cascadia Mono', "fontsize=$sz", 'fontversion=5')
+            $lines = @('[General]', 'fontfamily=JetBrains Mono', "fontsize=$sz", 'fontversion=6')
             if ($theme -eq 'light') { $lines += 'theme=light' }
             Set-Content -Path $ini -Encoding UTF8 -Value $lines
             $p = Start-Process -FilePath dist\asmon.exe -ArgumentList $f.FullName -PassThru

@@ -32,8 +32,11 @@ Source for GPL components: Asmon's own source is in this repository (a git tag p
 ## Fonts (bundled inside asmon.exe)
 | Font | Use | License | Source |
 |---|---|---|---|
-| Rubik 2 (Regular, Medium, Bold) | interface, Hebrew in code | SIL Open Font License 1.1 (`fonts/Rubik-OFL.txt`) | github.com/googlefonts/rubik (old/version-2) |
-| JetBrains Mono (Regular, Bold, Italic) | code | SIL Open Font License 1.1 (`fonts/JetBrainsMono-OFL.txt`) | github.com/JetBrains/JetBrainsMono |
+| Varela Round (Regular) | interface (default) | SIL Open Font License 1.1 (`fonts/VarelaRound-OFL.txt`) | github.com/google/fonts (ofl/varelaround) |
+| Rubik 2 (Regular, Medium, Bold) | interface fallback | SIL Open Font License 1.1 (`fonts/Rubik-OFL.txt`) | github.com/googlefonts/rubik (old/version-2) |
+| JetBrains Mono (Regular, Bold, Italic) | code (default) | SIL Open Font License 1.1 (`fonts/JetBrainsMono-OFL.txt`) | github.com/JetBrains/JetBrainsMono |
+| Cascadia Code / Cascadia Mono | code (choice), Hebrew in code | SIL Open Font License 1.1 (`fonts/Cascadia-OFL.txt`) | github.com/microsoft/cascadia-code |
+| Source Code Pro, Hack, Fira Code | code (choices in Settings) | `fonts/SourceCodePro-OFL.txt`, `fonts/Hack-LICENSE.txt`, `fonts/FiraCode-OFL.txt` | their upstream repositories |
 
 ## Notepad++ colour themes
 
