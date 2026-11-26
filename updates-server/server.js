@@ -2,12 +2,14 @@
 //   GET  /api/latest          -> manifest JSON of the newest build
 //   GET  /files/<name>        -> the published file
 //   POST /api/publish         -> upload a new build (Authorization: Bearer $PUBLISH_TOKEN)
+//   /apkstart/...             -> ApkStart (Hebrew) updates, see apps.js
 //        headers: X-Build (integer), X-Version, X-Notes (url-encoded), X-File-Name
 //        body: raw bytes of the file (asmon.exe)
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const apps = require('./apps'); // extra apps (ApkStart) under their own path prefix
 
 const PORT = process.env.PORT || 8080;
 const DATA = process.env.DATA_DIR || '/data';
@@ -27,6 +29,7 @@ function safeEqual(a, b) {
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
+  if (apps.handle(req, res, url)) return;
   if (req.method === 'GET' && url.pathname === '/api/latest') {
     if (!fs.existsSync(MANIFEST)) return send(res, 404, { error: 'no build published yet' });
     return send(res, 200, fs.readFileSync(MANIFEST));
